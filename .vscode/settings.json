@@ -1,0 +1,16 @@
+{
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnPaste": false,
+  "editor.formatOnSave": true,
+  "files.associations": {
+    "*.mdc": "markdown"
+  },
+  "files.autoSave": "onFocusChange",
+  "rest-client.environmentVariables": {
+    "$shared": {},
+    "local": {
+      "API_URL": "http://localhost:4000/api"
+    }
+  },
+  "files.trimTrailingWhitespace": true
+}

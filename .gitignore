@@ -1,0 +1,9 @@
+.local/
+dist/
+node_modules/
+
+www/js/main.js
+.DS_Store
+.env
+*.db*
+*.log
