@@ -1,0 +1,24 @@
+{
+  "name": "inference",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Drover inference — LLM deep eval via ollama",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "test": "vitest run",
+    "verify": "oxfmt check . && oxlint . && npm test"
+  },
+  "dependencies": {
+    "db": "*",
+    "dotenv": "^17.4.2",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "better-sqlite3": "^13.0.3",
+    "drizzle-orm": "^0.45.2",
+    "vitest": "^3.2.7"
+  }
+}
