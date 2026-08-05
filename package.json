@@ -12,11 +12,13 @@
   "scripts": {
     "crawl": "npm start -w apps/crawler --",
     "portal": "npm run dev -w apps/portal",
-    "verify": "npm run verify -w packages/db -w packages/provider-linkedin -w apps/portal -w apps/signal-engine",
-    "signal-engine": "npm start -w apps/signal-engine"
+    "verify": "npm run verify -w packages/db -w packages/provider-linkedin -w apps/portal -w apps/signal-engine -w apps/inference",
+    "signal-engine": "npm start -w apps/signal-engine",
+    "inference": "npm start -w apps/inference"
   },
   "devDependencies": {
     "oxfmt": "^0.62.0",
-    "oxlint": "^1.77.0"
+    "oxlint": "^1.77.0",
+    "pino-pretty": "^13.1.3"
   }
 }
