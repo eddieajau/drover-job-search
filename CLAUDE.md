@@ -9,7 +9,7 @@ Drover is a lightweight job search and tracking tool. It searches LinkedIn via a
 - No React, no Vue, no Svelte — Custom Elements only.
 - Serve locally.
 - LinkedIn provider uses regex parsing (no DOM dependencies), fetches with exponential backoff
-- Route files use named exports (`export default plugin`), not `@fastify/autoload` (manual registration in `server.ts`)
+- Routes use `@fastify/autoload` (filesystem routing from `apps/portal/src/api/routes/`); see `.claude/skills/fastify-autoload/SKILL.md`
 - ESM throughout (`"type": "module"` in package.json)
 
 ## Working style
@@ -38,7 +38,7 @@ into god-files needing a special clean-up pass.
 
 ## Conventions
 
-- Routes: `src/api/routes/<name>/index.ts`, each exports a `FastifyPluginAsync`
+- Routes: autoloaded from `apps/portal/src/api/routes/`, folder → URL prefix; each file exports a `FastifyPluginAsync` and registers handlers on `'/'`
 - Providers: `src/providers/<name>/`, each with `index.ts` as public API
 - Shared types go in `src/shared/types.ts`
 - Browser code bundled via esbuild to `www/js/main.js`

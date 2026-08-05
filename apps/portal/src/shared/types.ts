@@ -47,3 +47,36 @@ export interface SearchResult {
   description?: string
   salary?: string
 }
+
+export type RuleCategory = 'regex_title' | 'regex_company' | 'regex_description'
+
+export interface SignalRule {
+  id: number
+  ruleName: string
+  ruleCategory: RuleCategory
+  pattern: string
+  scoreModifier: number
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type SignalSource = 'regex_title' | 'regex_company' | 'regex_description' | 'manual_review' | 'llm_deep_eval'
+
+export interface JobSignal {
+  id: number
+  jobId: number
+  ruleId: number | null
+  source: SignalSource
+  signalType: string
+  score: number
+  metadata?: Record<string, unknown>
+  createdAt: string
+}
+
+export interface AnalysisQueueRow {
+  id: number
+  jobId: number
+  queuedAt: string
+  completedAt: string | null
+}
