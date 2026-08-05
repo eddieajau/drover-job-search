@@ -2,3 +2,7 @@ GET http://localhost:4000/api/signals?providerJobId=4445084022
 
 ###
 GET http://localhost:4000/api/analysis-queue?providerJobId=4445084022
+
+
+###
+GET https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/4448669665

@@ -10,7 +10,7 @@
   ],
   "type": "module",
   "scripts": {
-    "crawl": "npm start -w apps/crawler",
+    "crawl": "npm start -w apps/crawler --",
     "portal": "npm run dev -w apps/portal",
     "verify": "npm run verify -w packages/db -w packages/provider-linkedin -w apps/portal -w apps/signal-engine",
     "signal-engine": "npm start -w apps/signal-engine"

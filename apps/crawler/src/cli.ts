@@ -3,12 +3,15 @@
  * @license   MIT
  */
 
-import { desc, eq, max } from 'drizzle-orm'
-import { createDb, crawls, jobs, queries } from 'db'
 import { dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { createDb, crawls, jobs, queries } from 'db'
+import { desc, eq, max } from 'drizzle-orm'
 import { pino } from 'pino'
-import { search, selectJobage } from 'provider-linkedin'
+import { detail, search, selectJobage } from 'provider-linkedin'
+
+import { processDetailQueue } from './process-detail.js'
 
 // Resolves .env from the root directory relative to this file
 const __filename = fileURLToPath(import.meta.url)
@@ -20,12 +23,24 @@ process.loadEnvFile(join(rootDir, '.env'))
 const log = pino({ level: process.env.LOG_LEVEL ?? 'info' })
 
 async function main() {
+  const args = process.argv.slice(2)
+  const isDetail = args.includes('--detail')
+  const limitIdx = args.indexOf('--limit')
+  const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : 10
+
   const dbPath = process.env.DATABASE
 
   if (!dbPath) throw new Error('DATABASE path empty')
   log.info({ database: isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath) }, 'DATABASE')
 
   const db = createDb(isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath))
+
+  if (isDetail) {
+    const { processed, failed } = await processDetailQueue(db, detail, limit, log)
+    log.info({ processed, failed }, 'detail crawl complete')
+    db.$client.close()
+    return
+  }
 
   const qList = db.select().from(queries).where(eq(queries.enabled, true)).all()
 
