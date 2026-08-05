@@ -41,6 +41,24 @@ export interface SearchResult {
   results: JobCard[]
 }
 
+/** LinkedIn's discrete f_TPR buckets, in days. */
+export const LINKEDIN_WINDOWS = [1, 7, 30, 90, 182, 365] as const
+
+/**
+ * Pick the smallest LinkedIn search window (in days) that overlaps the given
+ * anchor timestamp (e.g. the newest job's `created_at`). Returns the 14-day
+ * default when there is no anchor, i.e. a first crawl.
+ */
+export function selectJobage(latestCreatedAt?: string | null): number {
+  if (!latestCreatedAt) return 14
+  const ageDays = (Date.now() - new Date(latestCreatedAt).getTime()) / 86_400_000
+  const age = Math.max(0, ageDays)
+  for (const window of LINKEDIN_WINDOWS) {
+    if (window >= age) return window
+  }
+  return LINKEDIN_WINDOWS[LINKEDIN_WINDOWS.length - 1]
+}
+
 export async function search(opts: SearchOpts): Promise<SearchResult> {
   const totalPages = Math.max(1, opts.pages ?? 1)
   const all: JobCard[] = []

@@ -5,9 +5,9 @@
 
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { jobs, queries, TABLE_DDL } from './schema.js'
+import { crawls, jobs, queries, TABLE_DDL } from './schema.js'
 
-const SCHEMA = { queries, jobs }
+const SCHEMA = { queries, jobs, crawls }
 
 export type DB = ReturnType<typeof drizzle<typeof SCHEMA>>
 

@@ -21,6 +21,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export { search, type SearchOpts, type SearchResult } from './search.js'
+export { search, selectJobage, LINKEDIN_WINDOWS, type SearchOpts, type SearchResult } from './search.js'
 export { detail, type DetailOpts } from './detail.js'
 export type { JobCard, JobDetail } from './helpers.js'

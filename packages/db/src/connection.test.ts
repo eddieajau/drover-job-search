@@ -22,6 +22,7 @@ describe('createDb', () => {
 
     expect(names).toContain('queries')
     expect(names).toContain('jobs')
+    expect(names).toContain('crawls')
 
     db.$client.close()
   })
@@ -67,6 +68,22 @@ describe('createDb', () => {
     const columns = db.$client.prepare('PRAGMA table_info(queries)').all() as { name: string }[]
 
     expect(columns.map(c => c.name)).toEqual(['id', 'provider', 'query_text', 'query_options', 'enabled', 'created_at'])
+
+    db.$client.close()
+  })
+
+  it('creates the crawls table with all columns', () => {
+    const db = createDb(':memory:')
+    const columns = db.$client.prepare('PRAGMA table_info(crawls)').all() as { name: string }[]
+
+    expect(columns.map(c => c.name)).toEqual([
+      'id',
+      'query_id',
+      'window_days',
+      'found_count',
+      'inserted_count',
+      'crawled_at',
+    ])
 
     db.$client.close()
   })

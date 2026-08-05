@@ -24,6 +24,23 @@ export const queries = sqliteTable(
   ]
 )
 
+export const crawls = sqliteTable(
+  'crawls',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    queryId: integer('query_id')
+      .notNull()
+      .references(() => queries.id, { onDelete: 'cascade' }),
+    windowDays: integer('window_days').notNull(),
+    foundCount: integer('found_count').notNull().default(0),
+    insertedCount: integer('inserted_count').notNull().default(0),
+    crawledAt: text('crawled_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  table => [index('idx_crawls_query_id').on(table.queryId)]
+)
+
 export const jobs = sqliteTable(
   'jobs',
   {
@@ -96,6 +113,7 @@ export const jobs = sqliteTable(
 
 export type Query = InferSelectModel<typeof queries>
 export type Job = InferSelectModel<typeof jobs>
+export type Crawl = InferSelectModel<typeof crawls>
 
 export const TABLE_DDL = `
 CREATE TABLE IF NOT EXISTS queries (
@@ -150,4 +168,15 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_jobs_provider_id ON jobs(provider, provider_job_id);
+
+CREATE TABLE IF NOT EXISTS crawls (
+    id INTEGER PRIMARY KEY,
+    query_id INTEGER NOT NULL REFERENCES queries(id) ON DELETE CASCADE,
+    window_days INTEGER NOT NULL,
+    found_count INTEGER NOT NULL DEFAULT 0,
+    inserted_count INTEGER NOT NULL DEFAULT 0,
+    crawled_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+);
+
+CREATE INDEX IF NOT EXISTS idx_crawls_query_id ON crawls(query_id);
 `

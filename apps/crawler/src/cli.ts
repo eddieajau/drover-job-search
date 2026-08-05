@@ -3,11 +3,11 @@
  * @license   MIT
  */
 
-import { eq } from 'drizzle-orm'
-import { createDb, queries } from 'db'
+import { desc, eq, max } from 'drizzle-orm'
+import { createDb, crawls, jobs, queries } from 'db'
 import { dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { search } from 'provider-linkedin'
+import { search, selectJobage } from 'provider-linkedin'
 
 // Resolves .env from the root directory relative to this file
 const __filename = fileURLToPath(import.meta.url)
@@ -30,21 +30,56 @@ async function main() {
     console.log('No enabled queries found')
   } else {
     for (const query of qList) {
-      console.log(`[${query.id}] ${query.queryText} (enabled: ${query.enabled})`)
+      console.log(`[${query.id}] ${query.queryText}`)
 
       // Parse JSON string safely
       const options = query.queryOptions ? JSON.parse(query.queryOptions) : {}
-      console.log(options)
+
+      const lastCrawl = db
+        .select()
+        .from(crawls)
+        .where(eq(crawls.queryId, query.id))
+        .orderBy(desc(crawls.id))
+        .limit(1)
+        .get()
+      const fallbackAnchor = db
+        .select({ latest: max(jobs.createdAt) })
+        .from(jobs)
+        .where(eq(jobs.provider, query.provider))
+        .get()
+      const anchor = lastCrawl?.crawledAt ?? fallbackAnchor?.latest
+      const jobage = selectJobage(anchor)
+      console.log(`  window: ${jobage}d (anchor: ${anchor ?? 'none'})`)
 
       const result = await search({
         query: query.queryText,
         location: options.location,
-        jobage: 14,
+        jobage,
         workType: options.workType,
         jobType: options.jobType,
         pages: 10,
       })
-      console.log('result', result)
+
+      const rows = result.results.map(card => ({
+        provider: query.provider,
+        providerJobId: card.id,
+        title: card.title,
+        companyName: card.company ?? '',
+        url: card.url,
+        location: card.location ?? '',
+        postedAt: card.date ?? null,
+      }))
+      const inserted = rows.length > 0 ? db.insert(jobs).values(rows).onConflictDoNothing().run().changes : 0
+      console.log(`  found ${rows.length}, inserted ${inserted}`)
+
+      db.insert(crawls)
+        .values({
+          queryId: query.id,
+          windowDays: jobage,
+          foundCount: rows.length,
+          insertedCount: inserted,
+        })
+        .run()
     }
   }
 
