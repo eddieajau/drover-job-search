@@ -13,6 +13,7 @@ import type { JobList } from './job-list.js'
 function job(overrides: Partial<Job> = {}): Job {
   return {
     id: 1,
+    providerJobId: '4445084022',
     title: 'Staff Engineer',
     companyName: 'Acme',
     url: 'https://li/job-1',
@@ -71,12 +72,15 @@ describe('job-list', () => {
 
   it('dispatches job-list:select on card click', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job())], selectedId: null })
-    const received = { jobId: 0 }
+    const received = { jobId: 0, providerJobId: '' }
     el.addEventListener('job-list:select', event => {
-      received.jobId = (event as CustomEvent<{ jobId: number }>).detail.jobId
+      const detail = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
+      received.jobId = detail.jobId
+      received.providerJobId = detail.providerJobId
     })
     el.querySelector<HTMLElement>('.card')?.click()
     expect(received.jobId).toBe(1)
+    expect(received.providerJobId).toBe('4445084022')
   })
 
   it('dispatches job-list:status from action buttons without selecting', () => {

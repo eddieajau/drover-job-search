@@ -5,6 +5,7 @@
 
 export interface Job {
   id: number
+  providerJobId: string
   title: string
   companyName: string
   url: string

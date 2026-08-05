@@ -84,12 +84,11 @@ async function syncRules(rules: RuleDraft[]): Promise<void> {
 }
 
 async function handleJobSelect(event: Event): Promise<void> {
-  const { jobId } = (event as CustomEvent<{ jobId: number }>).detail
+  const { providerJobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
   const page = document.querySelector('jobs-page')
-  if (!page || !jobId) {
+  if (!page || !providerJobId) {
     return
   }
-  const providerJobId = String(jobId)
 
   let signals: JobSignal[] = []
   let queued = false

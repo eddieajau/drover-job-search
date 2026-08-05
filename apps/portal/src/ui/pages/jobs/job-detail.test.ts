@@ -12,6 +12,7 @@ import type { JobDetail } from './job-detail.js'
 function job(overrides: Partial<Job> = {}): Job {
   return {
     id: 1,
+    providerJobId: '4445084022',
     title: 'Staff Engineer',
     companyName: 'Acme',
     url: 'https://li/job-1',

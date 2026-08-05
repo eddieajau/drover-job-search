@@ -7,7 +7,11 @@ import { analysisQueue, jobs, type DB } from 'db'
 import { and, eq } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
-const deleteAnalysisQueue: FastifyPluginAsync = async (app, { db }) => {
+interface DeleteAnalysisQueueRouteOptions {
+  db: DB
+}
+
+const deleteAnalysisQueue: FastifyPluginAsync<DeleteAnalysisQueueRouteOptions> = async (app, { db }) => {
   app.delete('/', async (req, reply) => {
     const { provider, providerJobId } = req.query as { provider?: string; providerJobId?: string }
 
