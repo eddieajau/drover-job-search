@@ -8,9 +8,9 @@ import { createDb, queries, type DB } from 'db'
 import fastify, { type FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import postQuery from './index.js'
+import postQuery from './postQuery.js'
 
-describe('POST /api/query', () => {
+describe('POST /api/queries', () => {
   let db: DB
   let app: FastifyInstance
 

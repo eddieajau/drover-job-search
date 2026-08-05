@@ -67,7 +67,7 @@ async function handleQueriesReady(): Promise<void> {
 async function handleToggle(event: Event): Promise<void> {
   const { query } = (event as CustomEvent<{ query: Query }>).detail
   try {
-    await fetch('/api/query', {
+    await fetch('/api/queries', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -107,7 +107,7 @@ async function handleEditReady(): Promise<void> {
 async function handleSave(event: Event): Promise<void> {
   const detail = (event as CustomEvent<SaveQueryDetail>).detail
   try {
-    await fetch('/api/query', {
+    await fetch('/api/queries', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(detail),
