@@ -88,4 +88,165 @@ describe('createDb', () => {
 
     db.$client.close()
   })
+
+  it('creates the signal_rules table with all columns', () => {
+    const db = createDb(':memory:')
+    const columns = db.$client.prepare('PRAGMA table_info(signal_rules)').all() as { name: string }[]
+
+    expect(columns.map(c => c.name)).toEqual([
+      'id',
+      'rule_name',
+      'rule_category',
+      'pattern',
+      'score_modifier',
+      'enabled',
+      'created_at',
+      'updated_at',
+    ])
+
+    db.$client.close()
+  })
+
+  it('creates the job_signals table with all columns', () => {
+    const db = createDb(':memory:')
+    const columns = db.$client.prepare('PRAGMA table_info(job_signals)').all() as { name: string }[]
+
+    expect(columns.map(c => c.name)).toEqual([
+      'id',
+      'job_id',
+      'rule_id',
+      'source',
+      'signal_type',
+      'score',
+      'metadata',
+      'created_at',
+    ])
+
+    db.$client.close()
+  })
+
+  it('creates the analysis_queue table with all columns', () => {
+    const db = createDb(':memory:')
+    const columns = db.$client.prepare('PRAGMA table_info(analysis_queue)').all() as { name: string }[]
+
+    expect(columns.map(c => c.name)).toEqual(['id', 'job_id', 'queued_at', 'completed_at'])
+
+    db.$client.close()
+  })
+
+  it('rejects a signal rule with an invalid rule_category', () => {
+    const db = createDb(':memory:')
+
+    expect(() =>
+      db.$client
+        .prepare(
+          "INSERT INTO signal_rules (rule_name, rule_category, pattern) VALUES ('bad-category', 'regex_link', 'foo')"
+        )
+        .run()
+    ).toThrow(/CHECK/)
+
+    db.$client.close()
+  })
+
+  it('rejects a job signal with an invalid source', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare(
+        "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location) VALUES ('linkedin', 'job-1', 'Title', 'Acme', 'https://example.com', 'Remote')"
+      )
+      .run()
+
+    expect(() =>
+      db.$client
+        .prepare(
+          "INSERT INTO job_signals (job_id, source, signal_type, score) VALUES (1, 'regex_link', 'skill_match', 5)"
+        )
+        .run()
+    ).toThrow(/CHECK/)
+
+    db.$client.close()
+  })
+
+  it('rejects duplicate (job_id, rule_id, source) rows in job_signals', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare(
+        "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location) VALUES ('linkedin', 'job-1', 'Title', 'Acme', 'https://example.com', 'Remote')"
+      )
+      .run()
+    db.$client
+      .prepare("INSERT INTO signal_rules (rule_name, rule_category, pattern) VALUES ('java', 'regex_title', 'java')")
+      .run()
+
+    const insert = db.$client.prepare(
+      "INSERT INTO job_signals (job_id, rule_id, source, signal_type, score) VALUES (1, 1, 'regex_title', 'skill_match', 5)"
+    )
+    insert.run()
+    expect(() => insert.run()).toThrow(/UNIQUE/)
+
+    db.$client.close()
+  })
+
+  it('rejects duplicate job_id rows in analysis_queue', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare(
+        "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location) VALUES ('linkedin', 'job-1', 'Title', 'Acme', 'https://example.com', 'Remote')"
+      )
+      .run()
+
+    const insert = db.$client.prepare('INSERT INTO analysis_queue (job_id) VALUES (1)')
+    insert.run()
+    expect(() => insert.run()).toThrow(/UNIQUE/)
+
+    db.$client.close()
+  })
+
+  it('cascades deletes from jobs to job_signals and analysis_queue', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare(
+        "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location) VALUES ('linkedin', 'job-1', 'Title', 'Acme', 'https://example.com', 'Remote')"
+      )
+      .run()
+    db.$client
+      .prepare("INSERT INTO signal_rules (rule_name, rule_category, pattern) VALUES ('java', 'regex_title', 'java')")
+      .run()
+    db.$client
+      .prepare(
+        "INSERT INTO job_signals (job_id, rule_id, source, signal_type, score) VALUES (1, 1, 'regex_title', 'skill_match', 5)"
+      )
+      .run()
+    db.$client.prepare('INSERT INTO analysis_queue (job_id) VALUES (1)').run()
+
+    db.$client.prepare('DELETE FROM jobs WHERE id = 1').run()
+
+    expect(db.$client.prepare('SELECT COUNT(*) AS n FROM job_signals').get()).toEqual({ n: 0 })
+    expect(db.$client.prepare('SELECT COUNT(*) AS n FROM analysis_queue').get()).toEqual({ n: 0 })
+
+    db.$client.close()
+  })
+
+  it('cascades deletes from signal_rules to job_signals', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare(
+        "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location) VALUES ('linkedin', 'job-1', 'Title', 'Acme', 'https://example.com', 'Remote')"
+      )
+      .run()
+    db.$client
+      .prepare("INSERT INTO signal_rules (rule_name, rule_category, pattern) VALUES ('java', 'regex_title', 'java')")
+      .run()
+    db.$client
+      .prepare(
+        "INSERT INTO job_signals (job_id, rule_id, source, signal_type, score) VALUES (1, 1, 'regex_title', 'skill_match', 5)"
+      )
+      .run()
+
+    db.$client.prepare('DELETE FROM signal_rules WHERE id = 1').run()
+
+    expect(db.$client.prepare('SELECT COUNT(*) AS n FROM job_signals').get()).toEqual({ n: 0 })
+
+    db.$client.close()
+  })
 })

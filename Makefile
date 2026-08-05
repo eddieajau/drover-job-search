@@ -1,10 +1,14 @@
 DB_PATH   ?= drover.db
 
-.PHONY: install clean
+.PHONY: install db clean
 
 install:
 	cp -n .env.example .env 2>/dev/null || true
 	npm install
+
+db:
+	npm run migrate -w packages/db
+	npm run verify -w packages/db
 
 clean:
 	rm -f "$(DB_PATH)" *.db

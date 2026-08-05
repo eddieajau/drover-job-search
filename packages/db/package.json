@@ -8,7 +8,8 @@
   "main": "./src/index.ts",
   "scripts": {
     "test": "vitest run",
-    "verify": "oxfmt check . && oxlint . && vitest run"
+    "verify": "oxfmt check . && oxlint . && vitest run",
+    "migrate": "tsx src/migrate.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.2",

@@ -111,9 +111,78 @@ export const jobs = sqliteTable(
   ]
 )
 
+export const signalRules = sqliteTable(
+  'signal_rules',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    ruleName: text('rule_name').notNull(),
+    ruleCategory: text('rule_category').notNull(),
+    pattern: text('pattern').notNull(),
+    scoreModifier: integer('score_modifier').notNull().default(0),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  table => [
+    uniqueIndex('uq_signal_rules_rule_name').on(table.ruleName),
+    check('check_rule_category', sql`${table.ruleCategory} IN ('regex_title', 'regex_company', 'regex_description')`),
+    check('check_rule_enabled', sql`${table.enabled} IN (0, 1)`),
+  ]
+)
+
+export const jobSignals = sqliteTable(
+  'job_signals',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    jobId: integer('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    ruleId: integer('rule_id').references(() => signalRules.id, { onDelete: 'cascade' }),
+    source: text('source').notNull(),
+    signalType: text('signal_type').notNull(),
+    score: integer('score').notNull(),
+    metadata: text('metadata'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  table => [
+    uniqueIndex('uq_job_signals_job_rule_source').on(table.jobId, table.ruleId, table.source),
+    index('idx_job_signals_job_id').on(table.jobId),
+    index('idx_job_signals_rule_id').on(table.ruleId),
+    check(
+      'check_signal_source',
+      sql`${table.source} IN ('regex_title', 'regex_company', 'regex_description', 'manual_review', 'llm_deep_eval')`
+    ),
+    check('check_signal_metadata', sql`${table.metadata} IS NULL OR json_valid(${table.metadata})`),
+  ]
+)
+
+export const analysisQueue = sqliteTable(
+  'analysis_queue',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    jobId: integer('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    queuedAt: text('queued_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    completedAt: text('completed_at'),
+  },
+  table => [uniqueIndex('uq_analysis_queue_job_id').on(table.jobId)]
+)
+
 export type Query = InferSelectModel<typeof queries>
 export type Job = InferSelectModel<typeof jobs>
 export type Crawl = InferSelectModel<typeof crawls>
+export type SignalRule = InferSelectModel<typeof signalRules>
+export type JobSignal = InferSelectModel<typeof jobSignals>
+export type AnalysisQueue = InferSelectModel<typeof analysisQueue>
 
 export const TABLE_DDL = `
 CREATE TABLE IF NOT EXISTS queries (
@@ -179,4 +248,43 @@ CREATE TABLE IF NOT EXISTS crawls (
 );
 
 CREATE INDEX IF NOT EXISTS idx_crawls_query_id ON crawls(query_id);
+
+CREATE TABLE IF NOT EXISTS signal_rules (
+    id INTEGER PRIMARY KEY,
+    rule_name TEXT NOT NULL,
+    rule_category TEXT NOT NULL CHECK (
+        rule_category IN ('regex_title', 'regex_company', 'regex_description')
+    ),
+    pattern TEXT NOT NULL,
+    score_modifier INTEGER NOT NULL DEFAULT 0,
+    enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    CONSTRAINT uq_signal_rules_rule_name UNIQUE (rule_name)
+);
+
+CREATE TABLE IF NOT EXISTS job_signals (
+    id INTEGER PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    rule_id INTEGER REFERENCES signal_rules(id) ON DELETE CASCADE,
+    source TEXT NOT NULL CHECK (
+        source IN ('regex_title', 'regex_company', 'regex_description', 'manual_review', 'llm_deep_eval')
+    ),
+    signal_type TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    metadata TEXT CHECK (metadata IS NULL OR json_valid(metadata)),
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    CONSTRAINT uq_job_signals_job_rule_source UNIQUE (job_id, rule_id, source)
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_signals_job_id ON job_signals(job_id);
+CREATE INDEX IF NOT EXISTS idx_job_signals_rule_id ON job_signals(rule_id);
+
+CREATE TABLE IF NOT EXISTS analysis_queue (
+    id INTEGER PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    queued_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    completed_at TEXT,
+    CONSTRAINT uq_analysis_queue_job_id UNIQUE (job_id)
+);
 `
