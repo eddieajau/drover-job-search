@@ -12,12 +12,12 @@ import type { JobList } from './job-list.js'
 
 function job(overrides: Partial<Job> = {}): Job {
   return {
-    id: 'job-1',
+    id: 1,
     title: 'Staff Engineer',
-    company: 'Acme',
+    companyName: 'Acme',
     url: 'https://li/job-1',
     location: 'Brisbane',
-    date: '2026-08-05',
+    postedAt: '2026-08-05',
     priority: 1,
     category: 'P1',
     ...overrides,
@@ -71,12 +71,12 @@ describe('job-list', () => {
 
   it('dispatches job-list:select on card click', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job())], selectedId: null })
-    const received = { jobId: '' }
+    const received = { jobId: 0 }
     el.addEventListener('job-list:select', event => {
-      received.jobId = (event as CustomEvent<{ jobId: string }>).detail.jobId
+      received.jobId = (event as CustomEvent<{ jobId: number }>).detail.jobId
     })
     el.querySelector<HTMLElement>('.card')?.click()
-    expect(received.jobId).toBe('job-1')
+    expect(received.jobId).toBe(1)
   })
 
   it('dispatches job-list:status from action buttons without selecting', () => {

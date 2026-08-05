@@ -19,5 +19,5 @@ export interface JobsViewState {
   all: JobWithStatus[]
   jobs: JobWithStatus[]
   filters: JobsFilters
-  selectedId: string | null
+  selectedId: number | null
 }

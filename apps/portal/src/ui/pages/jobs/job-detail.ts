@@ -8,7 +8,7 @@ import { escapeHtml as esc } from '../../escape.js'
 import type { JobWithStatus } from '../../jobs-view.js'
 
 export interface JobDetailEventMap {
-  'job-detail:status': CustomEvent<{ jobId: string; status: JobStatus['status'] }>
+  'job-detail:status': CustomEvent<{ jobId: number; status: JobStatus['status'] }>
 }
 
 export class JobDetail extends HTMLElement {
@@ -49,7 +49,7 @@ export class JobDetail extends HTMLElement {
       window.open(button.dataset.url ?? '', '_blank')
       return
     }
-    const jobId = button.dataset.jobId ?? ''
+    const jobId = Number(button.dataset.jobId)
     const status = button.dataset.status as JobStatus['status'] | undefined
     if (jobId && status) {
       this.dispatchEvent(
@@ -72,20 +72,20 @@ export class JobDetail extends HTMLElement {
     this.innerHTML = `
       <div class="detail-header">
         <h2>${esc(job.title)}</h2>
-        <div class="company">${esc(job.company)}</div>
+        <div class="company">${esc(job.companyName)}</div>
         <div class="meta">
           <span>${esc(job.location)}</span>
-          <span>Posted ${esc(job.date || 'unknown')}</span>
+          <span>Posted ${esc(job.postedAt || 'unknown')}</span>
           <span class="priority-badge p${job.priority}">P${job.priority}</span>
           <span>${esc(job.category)}</span>
           ${status !== 'new' ? `<span>${esc(status)}</span>` : ''}
         </div>
       </div>
       <div class="detail-actions">
-        <button type="button" class="btn applied" data-action="status" data-status="applied" data-job-id="${esc(job.id)}">Mark Applied</button>
-        <button type="button" class="btn skipped" data-action="status" data-status="skipped" data-job-id="${esc(job.id)}">Skip</button>
+        <button type="button" class="btn applied" data-action="status" data-status="applied" data-job-id="${esc(String(job.id))}">Mark Applied</button>
+        <button type="button" class="btn skipped" data-action="status" data-status="skipped" data-job-id="${esc(String(job.id))}">Skip</button>
         <button type="button" class="btn" data-action="open" data-url="${esc(job.url)}">Open LinkedIn</button>
-        ${status !== 'new' ? `<button type="button" class="btn" data-action="status" data-status="new" data-job-id="${esc(job.id)}">Mark New</button>` : ''}
+        ${status !== 'new' ? `<button type="button" class="btn" data-action="status" data-status="new" data-job-id="${esc(String(job.id))}">Mark New</button>` : ''}
       </div>
       <div class="detail-description">
         ${job.description ? esc(job.description) : '<em>No description in search results.</em>'}

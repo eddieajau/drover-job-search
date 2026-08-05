@@ -84,19 +84,20 @@ async function syncRules(rules: RuleDraft[]): Promise<void> {
 }
 
 async function handleJobSelect(event: Event): Promise<void> {
-  const { jobId } = (event as CustomEvent<{ jobId: string }>).detail
+  const { jobId } = (event as CustomEvent<{ jobId: number }>).detail
   const page = document.querySelector('jobs-page')
   if (!page || !jobId) {
     return
   }
+  const providerJobId = String(jobId)
 
   let signals: JobSignal[] = []
   let queued = false
 
   try {
     const [signalsRes, queueRes] = await Promise.all([
-      fetch(`/api/signals?providerJobId=${encodeURIComponent(jobId)}`),
-      fetch(`/api/analysis-queue?providerJobId=${encodeURIComponent(jobId)}`),
+      fetch(`/api/signals?providerJobId=${encodeURIComponent(providerJobId)}`),
+      fetch(`/api/analysis-queue?providerJobId=${encodeURIComponent(providerJobId)}`),
     ])
     if (signalsRes.ok) {
       signals = (await signalsRes.json()) as JobSignal[]
@@ -109,7 +110,7 @@ async function handleJobSelect(event: Event): Promise<void> {
     // Show empty state on failure
   }
 
-  page.setJobSignals(jobId, signals, queued)
+  page.setJobSignals(providerJobId, signals, queued)
 }
 
 async function handleFlag(event: Event): Promise<void> {

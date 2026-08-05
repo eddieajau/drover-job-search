@@ -3,19 +3,22 @@
  * @license   MIT
  */
 
-import type { Job, JobStatus, Query, SearchResult } from '../shared/types.js'
+import type { Job, JobStatus } from '../shared/types.js'
 import type { JobsFilters, JobsViewState, JobWithStatus } from './jobs-view.js'
 
 type ViewStatus = 'idle' | 'loading' | 'error' | 'done'
-type SeenMap = Record<string, Omit<JobStatus, 'id'>>
+type SeenMap = Record<number, Omit<JobStatus, 'id'>>
 
-const JOBAGE = 14
+interface JobsResponse {
+  count: number
+  results: Job[]
+}
 
 let registered = false
 
 let results: Job[] = []
 let seen: SeenMap = {}
-let selectedId: string | null = null
+let selectedId: number | null = null
 let filters: JobsFilters = { priority: '', status: '', search: '' }
 let viewStatus: ViewStatus = 'idle'
 let message = ''
@@ -31,6 +34,9 @@ export function initJobsMediator(): void {
   window.addEventListener('job-list:status', handleStatus)
   window.addEventListener('job-detail:status', handleStatus)
   window.addEventListener('filter-bar:change', handleFilterChange)
+  if (document.querySelector('jobs-page')) {
+    void handleSearch()
+  }
 }
 
 export function _resetJobsMediatorForTesting(): void {
@@ -52,7 +58,7 @@ export function _resetJobsMediatorForTesting(): void {
 }
 
 function handleReady(): void {
-  pushState()
+  void handleSearch()
 }
 
 async function handleSearch(): Promise<void> {
@@ -63,36 +69,12 @@ async function handleSearch(): Promise<void> {
   viewStatus = 'loading'
   page.setLoading()
   try {
-    const queries = await loadEnabledQueries()
-    const fresh: Job[] = []
-    for (const query of queries) {
-      try {
-        const params = new URLSearchParams({
-          q: query.queryText,
-          location: query.queryOptions?.location ?? '',
-          jobage: String(JOBAGE),
-          pages: '3',
-        })
-        if (query.queryOptions?.workType) {
-          params.set('workType', query.queryOptions.workType)
-        }
-        if (query.queryOptions?.jobType) {
-          params.set('jobType', query.queryOptions.jobType)
-        }
-        const response = await fetch(`/api/search?${params.toString()}`)
-        if (response.ok) {
-          const data = (await response.json()) as { results?: SearchResult[] }
-          for (const job of data.results ?? []) {
-            fresh.push({ ...job, priority: 0, category: 'General' })
-          }
-        }
-      } catch {
-        // Skip failed queries
-      }
+    const response = await fetch('/api/jobs')
+    if (!response.ok) {
+      throw new Error('Failed to load jobs')
     }
-
-    const deduped = Array.from(new Map(fresh.map(job => [job.id, job])).values())
-    results = mergeResults(results, deduped)
+    const data = (await response.json()) as JobsResponse
+    results = mergeResults(results, data.results)
     viewStatus = 'done'
     message = ''
     pushState()
@@ -103,17 +85,8 @@ async function handleSearch(): Promise<void> {
   }
 }
 
-async function loadEnabledQueries(): Promise<Query[]> {
-  const response = await fetch('/api/queries')
-  if (!response.ok) {
-    throw new Error('Failed to load queries')
-  }
-  const queries = (await response.json()) as Query[]
-  return queries.filter(query => query.enabled)
-}
-
 function mergeResults(existing: Job[], incoming: Job[]): Job[] {
-  const byId = new Map<string, Job>(existing.map(job => [job.id, job]))
+  const byId = new Map<number, Job>(existing.map(job => [job.id, job]))
   for (const job of incoming) {
     byId.set(job.id, job)
   }
@@ -121,13 +94,13 @@ function mergeResults(existing: Job[], incoming: Job[]): Job[] {
 }
 
 function handleSelect(event: Event): void {
-  const { jobId } = (event as CustomEvent<{ jobId: string }>).detail
+  const { jobId } = (event as CustomEvent<{ jobId: number }>).detail
   selectedId = jobId
   pushState()
 }
 
 function handleStatus(event: Event): void {
-  const detail = (event as CustomEvent<{ jobId: string; status: JobStatus['status'] }>).detail
+  const detail = (event as CustomEvent<{ jobId: number; status: JobStatus['status'] }>).detail
   track(detail.jobId, detail.status)
 }
 
@@ -136,7 +109,7 @@ function handleFilterChange(event: Event): void {
   pushState()
 }
 
-function track(id: string, status: JobStatus['status']): void {
+function track(id: number, status: JobStatus['status']): void {
   if (status === 'new') {
     delete seen[id]
   } else {
@@ -163,7 +136,7 @@ function pushState(): void {
   }
   if (filters.search) {
     const term = filters.search.toLowerCase()
-    jobs = jobs.filter(job => job.title.toLowerCase().includes(term) || job.company.toLowerCase().includes(term))
+    jobs = jobs.filter(job => job.title.toLowerCase().includes(term) || job.companyName.toLowerCase().includes(term))
   }
 
   const state: JobsViewState = {

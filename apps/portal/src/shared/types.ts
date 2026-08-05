@@ -4,20 +4,20 @@
  */
 
 export interface Job {
-  id: string
+  id: number
   title: string
-  company: string
+  companyName: string
   url: string
   location: string
-  date: string
-  description?: string
-  salary?: string
+  postedAt: string | null
+  description?: string | null
+  salaryRaw?: string | null
   priority: number
   category: string
 }
 
 export interface JobStatus {
-  id: string
+  id: number
   status: 'new' | 'applied' | 'skipped' | 'evaluated'
   date: string
 }

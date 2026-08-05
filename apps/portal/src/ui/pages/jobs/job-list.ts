@@ -8,15 +8,15 @@ import { escapeHtml as esc } from '../../escape.js'
 import type { JobWithStatus } from '../../jobs-view.js'
 
 export interface JobListEventMap {
-  'job-list:select': CustomEvent<{ jobId: string }>
-  'job-list:status': CustomEvent<{ jobId: string; status: JobStatus['status'] }>
+  'job-list:select': CustomEvent<{ jobId: number }>
+  'job-list:status': CustomEvent<{ jobId: number; status: JobStatus['status'] }>
 }
 
 export interface JobListState {
   status: 'idle' | 'loading' | 'error' | 'done'
   message: string
   jobs: JobWithStatus[]
-  selectedId: string | null
+  selectedId: number | null
 }
 
 export class JobList extends HTMLElement {
@@ -54,7 +54,7 @@ export class JobList extends HTMLElement {
     if (!card) {
       return
     }
-    const jobId = card.dataset.jobId ?? ''
+    const jobId = Number(card.dataset.jobId)
     const action = target.closest<HTMLButtonElement>('button[data-action]')
     if (action) {
       if (action.dataset.action === 'open') {
@@ -105,13 +105,13 @@ export class JobList extends HTMLElement {
     this.innerHTML = this.#state.jobs
       .map(
         job => `
-      <div class="card ${job.id === this.#state.selectedId ? 'active' : ''} ${job._status !== 'new' ? 'seen' : ''}" data-job-id="${esc(job.id)}">
+      <div class="card ${job.id === this.#state.selectedId ? 'active' : ''} ${job._status !== 'new' ? 'seen' : ''}" data-job-id="${esc(String(job.id))}">
         <div class="card-title">${esc(job.title)}</div>
-        <div class="card-company">${esc(job.company)}</div>
+        <div class="card-company">${esc(job.companyName)}</div>
         <div class="card-meta">
           <span class="priority-badge p${job.priority}">P${job.priority}</span>
           <span>${esc(job.location)}</span>
-          <span>${esc(job.date)}</span>
+          <span>${esc(job.postedAt ?? '')}</span>
           ${job._status !== 'new' ? `<span>${esc(job._status)}</span>` : ''}
         </div>
         <div class="card-actions">

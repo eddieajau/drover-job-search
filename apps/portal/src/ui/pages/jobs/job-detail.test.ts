@@ -11,12 +11,12 @@ import type { JobDetail } from './job-detail.js'
 
 function job(overrides: Partial<Job> = {}): Job {
   return {
-    id: 'job-1',
+    id: 1,
     title: 'Staff Engineer',
-    company: 'Acme',
+    companyName: 'Acme',
     url: 'https://li/job-1',
     location: 'Brisbane',
-    date: '2026-08-05',
+    postedAt: '2026-08-05',
     priority: 1,
     category: 'P1',
     description: 'Design and build.',
@@ -57,13 +57,13 @@ describe('job-detail', () => {
 
   it('dispatches job-detail:status from action buttons', () => {
     el.showJob({ ...job(), _status: 'new' })
-    const received = { jobId: '', status: '' }
+    const received = { jobId: 0, status: '' }
     el.addEventListener('job-detail:status', event => {
-      const detail = (event as CustomEvent<{ jobId: string; status: string }>).detail
+      const detail = (event as CustomEvent<{ jobId: number; status: string }>).detail
       received.jobId = detail.jobId
       received.status = detail.status
     })
     el.querySelector<HTMLButtonElement>('button[data-status="applied"]')?.click()
-    expect(received).toEqual({ jobId: 'job-1', status: 'applied' })
+    expect(received).toEqual({ jobId: 1, status: 'applied' })
   })
 })

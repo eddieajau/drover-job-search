@@ -12,12 +12,12 @@ import type { JobsPage } from './index.js'
 
 function job(overrides: Partial<Job> = {}): Job {
   return {
-    id: 'job-1',
+    id: 1,
     title: 'Staff Engineer',
-    company: 'Acme',
+    companyName: 'Acme',
     url: 'https://li/job-1',
     location: 'Brisbane',
-    date: '2026-08-05',
+    postedAt: '2026-08-05',
     priority: 1,
     category: 'P1',
     ...overrides,
@@ -65,7 +65,7 @@ describe('jobs-page', () => {
 
   it('forwards state to the list, stats and detail', () => {
     const j: JobWithStatus = { ...job(), _status: 'new' }
-    el.setState(state({ all: [j], jobs: [j], selectedId: 'job-1' }))
+    el.setState(state({ all: [j], jobs: [j], selectedId: 1 }))
     expect(el.querySelector('job-list')?.querySelector('.card-title')?.textContent).toBe('Staff Engineer')
     expect(el.querySelector('job-stats')?.textContent).toContain('1 total')
     expect(el.querySelector('job-stats')?.textContent).toContain('1 new')
