@@ -22,7 +22,7 @@ config({ path: join(rootDir, '.env') })
 const PORT = Number(process.env.PORT) || 4000
 const DEV = process.env.NODE_ENV !== 'production'
 
-const app = fastify({ logger: { level: 'info' } })
+const app = fastify({ logger: { base: undefined, level: 'info' } })
 
 await app.register(sensible)
 

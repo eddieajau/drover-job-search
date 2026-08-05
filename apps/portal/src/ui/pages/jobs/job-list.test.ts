@@ -25,8 +25,13 @@ function job(overrides: Partial<Job> = {}): Job {
   }
 }
 
-function withStatus(j: Job, status: JobWithStatus['_status'] = 'new'): JobWithStatus {
-  return { ...j, _status: status }
+function withStatus(
+  j: Job,
+  status: JobWithStatus['_status'] = 'new',
+  netScore?: number,
+  gated?: boolean
+): JobWithStatus {
+  return { ...j, _status: status, netScore, gated }
 }
 
 describe('job-list', () => {
@@ -95,5 +100,33 @@ describe('job-list', () => {
     el.querySelector<HTMLButtonElement>('button[data-status="applied"]')?.click()
     expect(received.status).toBe('applied')
     expect(received.selectFired).toBe(false)
+  })
+
+  it('renders a score badge for jobs with netScore', () => {
+    el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'new', 85)], selectedId: null })
+    const badge = el.querySelector('.score-badge')
+    expect(badge).not.toBeNull()
+    expect(badge?.textContent).toBe('+85')
+    expect(badge?.classList.contains('hot')).toBe(true)
+  })
+
+  it('renders neutral class for scores below threshold', () => {
+    el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'new', 20)], selectedId: null })
+    const badge = el.querySelector('.score-badge')
+    expect(badge?.classList.contains('neutral')).toBe(true)
+  })
+
+  it('renders negative scores with minus sign', () => {
+    el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'new', -15)], selectedId: null })
+    const badge = el.querySelector('.score-badge')
+    expect(badge?.textContent).toBe('-15')
+  })
+
+  it('renders auto-skip badge for gated jobs', () => {
+    el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'new', 50, true)], selectedId: null })
+    const badge = el.querySelector('.score-badge')
+    expect(badge?.textContent).toBe('auto-skip')
+    expect(badge?.classList.contains('auto-skip')).toBe(true)
+    expect(el.querySelector('.card')?.classList.contains('gated')).toBe(true)
   })
 })

@@ -49,8 +49,8 @@ describe('GET /api/signals/summary', () => {
     const res = await app.inject({ method: 'GET', url: '/?provider=linkedin&ids=a,b' })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({
-      a: { netScore: 2, signalCount: 2 },
-      b: { netScore: 2, signalCount: 1 },
+      a: { netScore: 2, signalCount: 2, gated: false },
+      b: { netScore: 2, signalCount: 1, gated: false },
     })
   })
 
@@ -61,11 +61,31 @@ describe('GET /api/signals/summary', () => {
 
     const res = await app.inject({ method: 'GET', url: '/?provider=linkedin&ids=a' })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ a: { netScore: 0, signalCount: 0 } })
+    expect(res.json()).toEqual({ a: { netScore: 0, signalCount: 0, gated: false } })
   })
 
   it('returns an empty object for an empty id list', async () => {
     const res = await app.inject({ method: 'GET', url: '/?provider=linkedin&ids=' })
     expect(res.statusCode).toBe(400)
+  })
+
+  it('sets gated=true when any signal has signal_type=dealbreaker', async () => {
+    const jobA = db
+      .insert(jobs)
+      .values({ providerJobId: 'a', title: 'A', companyName: 'Co', url: 'https://a', location: 'Brisbane' })
+      .returning()
+      .get()
+    db.insert(jobSignals)
+      .values([
+        { jobId: jobA.id, source: 'regex_title', signalType: 'skill_match', score: 10 },
+        { jobId: jobA.id, source: 'llm_deep_eval', signalType: 'dealbreaker', score: -50 },
+      ])
+      .run()
+
+    const res = await app.inject({ method: 'GET', url: '/?provider=linkedin&ids=a' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.a.gated).toBe(true)
+    expect(body.a.netScore).toBe(10)
   })
 })

@@ -104,13 +104,19 @@ export class JobList extends HTMLElement {
     }
 
     this.innerHTML = this.#state.jobs
-      .map(
-        job => `
-      <div class="card ${job.id === this.#state.selectedId ? 'active' : ''} ${job._status !== 'new' ? 'seen' : ''}" data-job-id="${esc(String(job.id))}" data-provider-job-id="${esc(job.providerJobId)}">
+      .map(job => {
+        const scoreBadge = job.gated
+          ? '<span class="score-badge auto-skip">auto-skip</span>'
+          : job.netScore !== undefined
+            ? `<span class="score-badge ${job.netScore >= 50 ? 'hot' : 'neutral'}">${job.netScore >= 0 ? '+' : ''}${job.netScore}</span>`
+            : ''
+        return `
+      <div class="card ${job.id === this.#state.selectedId ? 'active' : ''} ${job._status !== 'new' ? 'seen' : ''} ${job.gated ? 'gated' : ''}" data-job-id="${esc(String(job.id))}" data-provider-job-id="${esc(job.providerJobId)}">
         <div class="card-title">${esc(job.title)}</div>
         <div class="card-company">${esc(job.companyName)}</div>
         <div class="card-meta">
           <span class="priority-badge p${job.priority}">P${job.priority}</span>
+          ${scoreBadge}
           <span>${esc(job.location)}</span>
           <span>${esc(job.postedAt ?? '')}</span>
           ${job._status !== 'new' ? `<span>${esc(job._status)}</span>` : ''}
@@ -121,7 +127,7 @@ export class JobList extends HTMLElement {
           <button type="button" class="btn" data-action="open" data-url="${esc(job.url)}">LinkedIn</button>
         </div>
       </div>`
-      )
+      })
       .join('')
   }
 }

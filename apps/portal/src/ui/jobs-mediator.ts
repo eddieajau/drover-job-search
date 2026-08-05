@@ -14,14 +14,23 @@ interface JobsResponse {
   results: Job[]
 }
 
+interface SignalSummary {
+  netScore: number
+  signalCount: number
+  gated: boolean
+}
+
+const HOT_THRESHOLD = 50
+
 let registered = false
 
 let results: Job[] = []
 let seen: SeenMap = {}
 let selectedId: number | null = null
-let filters: JobsFilters = { priority: '', status: '', search: '' }
+let filters: JobsFilters = { priority: '', status: '', search: '', score: '' }
 let viewStatus: ViewStatus = 'idle'
 let message = ''
+let signalSummaries: Record<string, SignalSummary> = {}
 
 export function initJobsMediator(): void {
   if (registered) {
@@ -52,9 +61,10 @@ export function _resetJobsMediatorForTesting(): void {
   results = []
   seen = {}
   selectedId = null
-  filters = { priority: '', status: '', search: '' }
+  filters = { priority: '', status: '', search: '', score: '' }
   viewStatus = 'idle'
   message = ''
+  signalSummaries = {}
 }
 
 function handleReady(): void {
@@ -75,6 +85,7 @@ async function handleSearch(): Promise<void> {
     }
     const data = (await response.json()) as JobsResponse
     results = mergeResults(results, data.results)
+    await fetchSignalSummaries()
     viewStatus = 'done'
     message = ''
     pushState()
@@ -82,6 +93,21 @@ async function handleSearch(): Promise<void> {
     viewStatus = 'error'
     message = 'Failed to load. Is the server running?'
     pushState()
+  }
+}
+
+async function fetchSignalSummaries(): Promise<void> {
+  if (results.length === 0) {
+    return
+  }
+  const ids = results.map(j => j.providerJobId).join(',')
+  try {
+    const response = await fetch(`/api/signals/summary?provider=linkedin&ids=${encodeURIComponent(ids)}`)
+    if (response.ok) {
+      signalSummaries = (await response.json()) as Record<string, SignalSummary>
+    }
+  } catch {
+    // silently fail — signals are optional enrichment
   }
 }
 
@@ -123,7 +149,15 @@ function pushState(): void {
   if (!page) {
     return
   }
-  const all: JobWithStatus[] = results.map(job => ({ ...job, _status: seen[job.id]?.status ?? 'new' }))
+  const all: JobWithStatus[] = results.map(job => {
+    const summary = signalSummaries[job.providerJobId]
+    return {
+      ...job,
+      _status: seen[job.id]?.status ?? 'new',
+      netScore: summary?.netScore,
+      gated: summary?.gated,
+    }
+  })
 
   let jobs = all
   if (filters.priority) {
@@ -138,6 +172,17 @@ function pushState(): void {
     const term = filters.search.toLowerCase()
     jobs = jobs.filter(job => job.title.toLowerCase().includes(term) || job.companyName.toLowerCase().includes(term))
   }
+  if (filters.score === 'hot') {
+    jobs = jobs.filter(job => !job.gated && (job.netScore ?? 0) >= HOT_THRESHOLD)
+  } else if (filters.score === 'neutral') {
+    jobs = jobs.filter(job => !job.gated && (job.netScore ?? 0) < HOT_THRESHOLD)
+  } else if (filters.score === 'auto-skip') {
+    jobs = jobs.filter(job => job.gated)
+  } else {
+    jobs = jobs.filter(job => !job.gated)
+  }
+
+  jobs.sort((a, b) => (b.netScore ?? 0) - (a.netScore ?? 0))
 
   const state: JobsViewState = {
     status: viewStatus,

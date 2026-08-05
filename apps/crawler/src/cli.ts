@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { dirname, isAbsolute, join } from 'node:path'
+import { basename, dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createDb, crawls, jobs, queries } from 'db'
@@ -20,7 +20,7 @@ const rootDir = join(__dirname, '..', '..', '..')
 
 process.loadEnvFile(join(rootDir, '.env'))
 
-const log = pino({ level: process.env.LOG_LEVEL ?? 'info' })
+const log = pino({ base: undefined, level: process.env.LOG_LEVEL ?? 'info' })
 
 async function main() {
   const args = process.argv.slice(2)
@@ -31,7 +31,7 @@ async function main() {
   const dbPath = process.env.DATABASE
 
   if (!dbPath) throw new Error('DATABASE path empty')
-  log.info({ database: isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath) }, 'DATABASE')
+  log.info({ database: basename(dbPath) }, 'DATABASE')
 
   const db = createDb(isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath))
 

@@ -25,6 +25,7 @@ export class FilterBar extends HTMLElement {
     const priority = this.querySelector<HTMLSelectElement>('#filter-priority')
     const status = this.querySelector<HTMLSelectElement>('#filter-status')
     const search = this.querySelector<HTMLInputElement>('#filter-search')
+    const score = this.querySelector<HTMLSelectElement>('#filter-score')
     if (priority) {
       priority.value = filters.priority
     }
@@ -33,6 +34,9 @@ export class FilterBar extends HTMLElement {
     }
     if (search) {
       search.value = filters.search
+    }
+    if (score) {
+      score.value = filters.score
     }
   }
 
@@ -61,6 +65,7 @@ export class FilterBar extends HTMLElement {
     const priority = this.querySelector<HTMLSelectElement>('#filter-priority')
     const status = this.querySelector<HTMLSelectElement>('#filter-status')
     const search = this.querySelector<HTMLInputElement>('#filter-search')
+    const score = this.querySelector<HTMLSelectElement>('#filter-score')
     this.dispatchEvent(
       new CustomEvent('filter-bar:change', {
         bubbles: true,
@@ -69,6 +74,7 @@ export class FilterBar extends HTMLElement {
           priority: priority?.value ?? '',
           status: status?.value ?? '',
           search: search?.value ?? '',
+          score: score?.value ?? '',
         },
       })
     )
@@ -89,6 +95,12 @@ export class FilterBar extends HTMLElement {
         <option value="new">New</option>
         <option value="applied">Applied</option>
         <option value="skipped">Skipped</option>
+      </select>
+      <select id="filter-score" aria-label="Filter by score bucket">
+        <option value="" selected>All</option>
+        <option value="hot">Hot</option>
+        <option value="neutral">Neutral</option>
+        <option value="auto-skip">Auto-skip</option>
       </select>
       <input type="text" id="filter-search" placeholder="Search titles..." />
     `

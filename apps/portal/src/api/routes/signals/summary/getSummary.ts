@@ -36,17 +36,22 @@ const getSummary: FastifyPluginAsync<SummaryRouteOptions> = async (app, { db }) 
     const jobIds = rows.map(job => job.id)
     const signalRows = db.select().from(jobSignals).where(inArray(jobSignals.jobId, jobIds)).all()
 
-    const totals = new Map<number, { netScore: number; signalCount: number }>()
+    const totals = new Map<number, { netScore: number; signalCount: number; gated: boolean }>()
     for (const signal of signalRows) {
-      const current = totals.get(signal.jobId) ?? { netScore: 0, signalCount: 0 }
-      current.netScore += signal.score
+      const current = totals.get(signal.jobId) ?? { netScore: 0, signalCount: 0, gated: false }
+      if (signal.signalType !== 'dealbreaker') {
+        current.netScore += signal.score
+      }
+      if (signal.signalType === 'dealbreaker') {
+        current.gated = true
+      }
       current.signalCount += 1
       totals.set(signal.jobId, current)
     }
 
-    const summary: Record<string, { netScore: number; signalCount: number }> = {}
+    const summary: Record<string, { netScore: number; signalCount: number; gated: boolean }> = {}
     for (const job of rows) {
-      summary[job.providerJobId] = totals.get(job.id) ?? { netScore: 0, signalCount: 0 }
+      summary[job.providerJobId] = totals.get(job.id) ?? { netScore: 0, signalCount: 0, gated: false }
     }
     return summary
   })
