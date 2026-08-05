@@ -11,6 +11,8 @@ import type { JobDetail } from './job-detail.js'
 import './job-detail.js'
 import type { JobList } from './job-list.js'
 import './job-stats.js'
+import type { JobSignalsPanel } from './job-signals-panel.js'
+import './job-signals-panel.js'
 import type { JobStats } from './job-stats.js'
 
 export interface JobsPageEventMap {
@@ -49,6 +51,13 @@ export class JobsPage extends HTMLElement {
     this.#stats()?.setStats(state.all.length, state.all.filter(job => job._status === 'new').length)
     this.#detail()?.showJob(state.selectedId ? (state.all.find(job => job.id === state.selectedId) ?? null) : null)
     this.#filter()?.setFilters(state.filters)
+    if (!state.selectedId) {
+      this.#signalsPanel()?.showSignals(null, [], false)
+    }
+  }
+
+  setJobSignals(providerJobId: string, signals: import('../../../shared/types.js').JobSignal[], queued: boolean): void {
+    this.#signalsPanel()?.showSignals(providerJobId, signals, queued)
   }
 
   #list(): JobList | null {
@@ -67,6 +76,10 @@ export class JobsPage extends HTMLElement {
     return this.querySelector('filter-bar')
   }
 
+  #signalsPanel(): JobSignalsPanel | null {
+    return this.querySelector('job-signals-panel')
+  }
+
   render(): void {
     this.innerHTML = `
       <div class="jobs-page">
@@ -77,7 +90,10 @@ export class JobsPage extends HTMLElement {
         </div>
         <div class="layout">
           <div class="list-panel"><job-list></job-list></div>
-          <div class="detail-panel"><job-detail></job-detail></div>
+          <div class="detail-panel">
+            <job-detail></job-detail>
+            <job-signals-panel></job-signals-panel>
+          </div>
         </div>
       </div>
     `

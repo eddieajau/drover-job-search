@@ -3,12 +3,19 @@
  * @license   MIT
  */
 
-export type NavigationState = { view: 'jobs' } | { view: 'queries' } | { view: 'query-edit'; id?: number }
+export type NavigationState =
+  | { view: 'jobs' }
+  | { view: 'queries' }
+  | { view: 'query-edit'; id?: number }
+  | { view: 'signals' }
 
 export function parseHash(hash: string): NavigationState | null {
   const h = hash.startsWith('#') ? hash.slice(1) : hash
   if (h === 'queries') {
     return { view: 'queries' }
+  }
+  if (h === 'signals') {
+    return { view: 'signals' }
   }
   if (h === 'jobs' || h === '') {
     return { view: 'jobs' }
@@ -34,6 +41,8 @@ export function toHash(state: NavigationState): string {
       return '#jobs'
     case 'queries':
       return '#queries'
+    case 'signals':
+      return '#signals'
     case 'query-edit': {
       if (state.id == null) {
         return '#queries/edit'

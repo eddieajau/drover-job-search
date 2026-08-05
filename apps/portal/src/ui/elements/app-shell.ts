@@ -8,8 +8,9 @@ import { parseHash } from '../navigation-state.js'
 import '../pages/jobs/index.js'
 import '../pages/queries/index.js'
 import '../pages/queries/query-edit-page.js'
+import '../pages/signals/index.js'
 
-type PageTag = 'jobs-page' | 'queries-page' | 'query-edit-page'
+type PageTag = 'jobs-page' | 'queries-page' | 'query-edit-page' | 'signals-page'
 
 function pageFor(state: NavigationState | null): PageTag {
   if (state?.view === 'queries') {
@@ -18,12 +19,18 @@ function pageFor(state: NavigationState | null): PageTag {
   if (state?.view === 'query-edit') {
     return 'query-edit-page'
   }
+  if (state?.view === 'signals') {
+    return 'signals-page'
+  }
   return 'jobs-page'
 }
 
-function navViewFor(state: NavigationState | null): 'jobs' | 'queries' {
+function navViewFor(state: NavigationState | null): 'jobs' | 'queries' | 'signals' {
   if (state?.view === 'queries' || state?.view === 'query-edit') {
     return 'queries'
+  }
+  if (state?.view === 'signals') {
+    return 'signals'
   }
   return 'jobs'
 }
@@ -74,7 +81,7 @@ export class AppShell extends HTMLElement {
     mount.appendChild(document.createElement(tag))
   }
 
-  syncNav(current: 'jobs' | 'queries'): void {
+  syncNav(current: 'jobs' | 'queries' | 'signals'): void {
     for (const link of this.querySelectorAll<HTMLAnchorElement>('.site-nav-link')) {
       if (link.dataset.view === current) {
         link.setAttribute('aria-current', 'page')
@@ -91,6 +98,7 @@ export class AppShell extends HTMLElement {
         <nav class="site-nav" aria-label="Site">
           <a class="site-nav-link" href="#jobs" data-view="jobs">Jobs</a>
           <a class="site-nav-link" href="#queries" data-view="queries">Queries</a>
+          <a class="site-nav-link" href="#signals" data-view="signals">Signals</a>
         </nav>
       </header>
       <main class="portal-main">

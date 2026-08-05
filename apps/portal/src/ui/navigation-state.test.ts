@@ -20,6 +20,10 @@ describe('parseHash', () => {
     expect(parseHash('#queries')).toEqual({ view: 'queries' })
   })
 
+  it('returns signals for the signals hash', () => {
+    expect(parseHash('#signals')).toEqual({ view: 'signals' })
+  })
+
   it('returns query-edit without params for the new query hash', () => {
     expect(parseHash('#queries/edit')).toEqual({ view: 'query-edit' })
     expect(parseHash('#queries/edit?')).toEqual({ view: 'query-edit' })
@@ -45,6 +49,7 @@ describe('toHash', () => {
   it('round-trips the view states', () => {
     expect(toHash({ view: 'jobs' })).toBe('#jobs')
     expect(toHash({ view: 'queries' })).toBe('#queries')
+    expect(toHash({ view: 'signals' })).toBe('#signals')
     expect(toHash({ view: 'query-edit' })).toBe('#queries/edit')
     expect(toHash({ view: 'query-edit', id: 3 })).toBe('#queries/edit?id=3')
   })

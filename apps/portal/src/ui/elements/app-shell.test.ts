@@ -25,13 +25,14 @@ describe('app-shell', () => {
     window.location.hash = ''
   })
 
-  it('renders the site header with Jobs and Queries nav links', () => {
+  it('renders the site header with Jobs, Queries, and Signals nav links', () => {
     const el = createShell()
     expect(el.querySelector('.site-title')?.textContent).toBe('Drover')
     const links = el.querySelectorAll<HTMLAnchorElement>('.site-nav-link')
-    expect(links.length).toBe(2)
+    expect(links.length).toBe(3)
     expect(links[0]?.getAttribute('href')).toBe('#jobs')
     expect(links[1]?.getAttribute('href')).toBe('#queries')
+    expect(links[2]?.getAttribute('href')).toBe('#signals')
   })
 
   it('mounts jobs-page by default and marks Jobs active', () => {
@@ -48,6 +49,15 @@ describe('app-shell', () => {
     expect(el.querySelector('queries-page')).not.toBeNull()
     expect(el.querySelector('jobs-page')).toBeNull()
     expect(el.querySelector('[data-view="queries"]')?.getAttribute('aria-current')).toBe('page')
+    expect(el.querySelector('[data-view="jobs"]')?.getAttribute('aria-current')).toBeNull()
+  })
+
+  it('mounts signals-page for the signals hash and marks Signals active', () => {
+    window.location.hash = '#signals'
+    const el = createShell()
+    expect(el.querySelector('signals-page')).not.toBeNull()
+    expect(el.querySelector('jobs-page')).toBeNull()
+    expect(el.querySelector('[data-view="signals"]')?.getAttribute('aria-current')).toBe('page')
     expect(el.querySelector('[data-view="jobs"]')?.getAttribute('aria-current')).toBeNull()
   })
 
