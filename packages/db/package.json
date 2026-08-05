@@ -1,0 +1,22 @@
+{
+  "name": "db",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Drover database schema and connection management",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "verify": "oxfmt check . && oxlint . && vitest run"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.2",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "drizzle-kit": "^0.31.10",
+    "vitest": "^3.2.7"
+  }
+}

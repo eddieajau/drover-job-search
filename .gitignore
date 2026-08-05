@@ -1,9 +1,10 @@
 .local/
+apps/portal/www/js/
 dist/
 node_modules/
 
-www/js/main.js
 .DS_Store
 .env
+local.mk
 *.db*
 *.log

@@ -3,14 +3,12 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "sourceMap": true
   },
   "include": ["src/server.ts", "src/api/**/*.ts", "src/shared/**/*.ts"]
 }

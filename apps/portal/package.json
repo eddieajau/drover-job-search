@@ -1,0 +1,39 @@
+{
+  "name": "portal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Drover job tracking portal",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "npm run build:server && npm run build:browser",
+    "build:server": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
+    "build:browser": "esbuild src/main.ts --bundle --format=esm --outfile=www/js/main.js --tsconfig=tsconfig.browser.json",
+    "dev": "concurrently -n server,browser -c cyan,magenta \"npm:dev:server\" \"npm:dev:browser\"",
+    "dev:server": "tsx watch src/server.ts",
+    "dev:browser": "esbuild src/main.ts --bundle --format=esm --outfile=www/js/main.js --tsconfig=tsconfig.browser.json --watch",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.browser.json --noEmit",
+    "verify": "oxfmt check . && oxlint . && npm run typecheck"
+  },
+  "dependencies": {
+    "@fastify/autoload": "^6.5.0",
+    "@fastify/sensible": "^6.0.4",
+    "@fastify/static": "^8.3.0",
+    "db": "^0.1.0",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.11.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.1.2",
+    "concurrently": "^10.0.4",
+    "esbuild": "^0.25.12",
+    "happy-dom": "^20.11.1",
+    "tsc-alias": "^1.9.1",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^3.2.7"
+  }
+}
