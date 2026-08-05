@@ -7,6 +7,7 @@ import { desc, eq, max } from 'drizzle-orm'
 import { createDb, crawls, jobs, queries } from 'db'
 import { dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { pino } from 'pino'
 import { search, selectJobage } from 'provider-linkedin'
 
 // Resolves .env from the root directory relative to this file
@@ -16,21 +17,23 @@ const rootDir = join(__dirname, '..', '..', '..')
 
 process.loadEnvFile(join(rootDir, '.env'))
 
+const log = pino({ level: process.env.LOG_LEVEL ?? 'info' })
+
 async function main() {
   const dbPath = process.env.DATABASE
 
   if (!dbPath) throw new Error('DATABASE path empty')
-  console.log('DATABASE', isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath))
+  log.info({ database: isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath) }, 'DATABASE')
 
   const db = createDb(isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath))
 
   const qList = db.select().from(queries).where(eq(queries.enabled, true)).all()
 
   if (qList.length === 0) {
-    console.log('No enabled queries found')
+    log.warn('No enabled queries found')
   } else {
     for (const query of qList) {
-      console.log(`[${query.id}] ${query.queryText}`)
+      log.info(`[${query.id}] ${query.queryText}`)
 
       // Parse JSON string safely
       const options = query.queryOptions ? JSON.parse(query.queryOptions) : {}
@@ -49,7 +52,7 @@ async function main() {
         .get()
       const anchor = lastCrawl?.crawledAt ?? fallbackAnchor?.latest
       const jobage = selectJobage(anchor)
-      console.log(`  window: ${jobage}d (anchor: ${anchor ?? 'none'})`)
+      log.info({ window: jobage, anchor: anchor ?? 'none' }, 'window')
 
       const result = await search({
         query: query.queryText,
@@ -70,7 +73,7 @@ async function main() {
         postedAt: card.date ?? null,
       }))
       const inserted = rows.length > 0 ? db.insert(jobs).values(rows).onConflictDoNothing().run().changes : 0
-      console.log(`  found ${rows.length}, inserted ${inserted}`)
+      log.info({ found: rows.length, inserted }, 'search complete')
 
       db.insert(crawls)
         .values({
@@ -87,6 +90,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('FATAL ERROR', err)
+  log.fatal(err, 'fatal error')
   process.exit(1)
 })
