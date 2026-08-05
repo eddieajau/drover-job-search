@@ -7,7 +7,7 @@ import { createDb, jobs, type DB } from 'db'
 import fastify, { type FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import getJobs from './index.js'
+import getJobs from './getJobs.js'
 
 describe('GET /api/jobs', () => {
   let db: DB
