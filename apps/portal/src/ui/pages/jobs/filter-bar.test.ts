@@ -4,6 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
+
 import './filter-bar.js'
 import type { FilterBar } from './filter-bar.js'
 

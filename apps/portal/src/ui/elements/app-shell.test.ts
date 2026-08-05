@@ -4,6 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
 import './app-shell.js'
 import type { AppShell } from './app-shell.js'
 

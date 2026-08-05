@@ -3,9 +3,10 @@
  * @license   MIT
  */
 
-import type { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
 import { queries, type DB } from 'db'
+import { eq } from 'drizzle-orm'
+import type { FastifyPluginAsync } from 'fastify'
+
 import { toQueryJson } from '../../serializers.js'
 
 interface QueryRouteOptions {

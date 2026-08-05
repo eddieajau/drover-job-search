@@ -3,10 +3,11 @@
  * @license   MIT
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import fastify, { type FastifyInstance } from 'fastify'
 import sensible from '@fastify/sensible'
 import { createDb, queries, type DB } from 'db'
+import fastify, { type FastifyInstance } from 'fastify'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
 import getQueries from './index.js'
 
 describe('GET /api/queries', () => {

@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
 import Database from 'better-sqlite3'
+import { describe, it, expect } from 'vitest'
+
 import { createDb } from './connection.js'
 
 describe('createDb', () => {

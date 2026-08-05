@@ -3,9 +3,9 @@
  * @license   MIT
  */
 
-import type { FastifyPluginAsync } from 'fastify'
-import { count, desc } from 'drizzle-orm'
 import { jobs, type DB } from 'db'
+import { count, desc } from 'drizzle-orm'
+import type { FastifyPluginAsync } from 'fastify'
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200

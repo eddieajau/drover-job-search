@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
+
 import { escapeHtml } from './escape.js'
 
 describe('escapeHtml', () => {

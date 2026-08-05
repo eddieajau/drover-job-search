@@ -5,10 +5,12 @@
 
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { config } from 'dotenv'
-import fastify from 'fastify'
+
 import sensible from '@fastify/sensible'
 import fastifyStatic from '@fastify/static'
+import { config } from 'dotenv'
+import fastify from 'fastify'
+
 import { createDatabase } from './api/database.js'
 import getJobs from './api/routes/jobs/index.js'
 import getQueries from './api/routes/queries/index.js'

@@ -3,9 +3,10 @@
  * @license   MIT
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import fastify, { type FastifyInstance } from 'fastify'
 import { createDb, jobs, type DB } from 'db'
+import fastify, { type FastifyInstance } from 'fastify'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
 import getJobs from './index.js'
 
 describe('GET /api/jobs', () => {

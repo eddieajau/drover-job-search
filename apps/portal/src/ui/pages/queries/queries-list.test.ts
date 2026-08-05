@@ -4,6 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
+
 import type { Query } from '../../../shared/types.js'
 import './queries-list.js'
 import type { QueriesList } from './queries-list.js'

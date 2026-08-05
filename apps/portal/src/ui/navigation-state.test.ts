@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
+
 import { parseHash, toHash } from './navigation-state.js'
 
 describe('parseHash', () => {

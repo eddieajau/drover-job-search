@@ -3,8 +3,8 @@
  * @license   MIT
  */
 
-import { sqliteTable, text, integer, real, uniqueIndex, index, check } from 'drizzle-orm/sqlite-core'
 import { sql, type InferSelectModel } from 'drizzle-orm'
+import { sqliteTable, text, integer, real, uniqueIndex, index, check } from 'drizzle-orm/sqlite-core'
 
 export const queries = sqliteTable(
   'queries',

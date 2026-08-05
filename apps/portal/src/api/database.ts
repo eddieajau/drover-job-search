@@ -3,9 +3,10 @@
  * @license   MIT
  */
 
-import { createDb, type DB } from 'db'
 import { dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { createDb, type DB } from 'db'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const rootDir = join(here, '..', '..', '..', '..')

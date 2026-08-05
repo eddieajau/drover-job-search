@@ -4,6 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
+
 import type { Query } from '../../../shared/types.js'
 import './query-edit-page.js'
 import type { QueryEditPage } from './query-edit-page.js'

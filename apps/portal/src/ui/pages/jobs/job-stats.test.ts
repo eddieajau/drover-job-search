@@ -4,6 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
+
 import './job-stats.js'
 import type { JobStats } from './job-stats.js'
 

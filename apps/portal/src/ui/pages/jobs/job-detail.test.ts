@@ -4,6 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
+
 import type { Job } from '../../../shared/types.js'
 import './job-detail.js'
 import type { JobDetail } from './job-detail.js'

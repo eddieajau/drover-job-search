@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { selectJobage } from './search.js'
 
 const DAY = 86_400_000
