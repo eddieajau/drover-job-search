@@ -14,3 +14,11 @@ clean:
 	rm -f "$(DB_PATH)" *.db
 	rm -rf apps/portal/www/js/ apps/portal/dist/
 	rm -rf node_modules apps/*/node_modules packages/*/node_modules
+
+one:
+	npm run crawl
+	npm run signal-engine
+
+two:
+	npm run crawl -- --detail
+	npm run inference
