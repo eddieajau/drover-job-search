@@ -118,6 +118,7 @@ export const signalRules = sqliteTable(
     ruleName: text('rule_name').notNull(),
     ruleCategory: text('rule_category').notNull(),
     pattern: text('pattern').notNull(),
+    signalType: text('signal_type').notNull().default('skill_match'),
     scoreModifier: integer('score_modifier').notNull().default(0),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
     createdAt: text('created_at')
@@ -130,6 +131,7 @@ export const signalRules = sqliteTable(
   table => [
     uniqueIndex('uq_signal_rules_rule_name').on(table.ruleName),
     check('check_rule_category', sql`${table.ruleCategory} IN ('regex_title', 'regex_company', 'regex_description')`),
+    check('check_rule_signal_type', sql`${table.signalType} IN ('dealbreaker', 'skill_match', 'company_match')`),
     check('check_rule_enabled', sql`${table.enabled} IN (0, 1)`),
   ]
 )
@@ -256,6 +258,9 @@ CREATE TABLE IF NOT EXISTS signal_rules (
         rule_category IN ('regex_title', 'regex_company', 'regex_description')
     ),
     pattern TEXT NOT NULL,
+    signal_type TEXT NOT NULL DEFAULT 'skill_match' CHECK (
+        signal_type IN ('dealbreaker', 'skill_match', 'company_match')
+    ),
     score_modifier INTEGER NOT NULL DEFAULT 0,
     enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
     created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),

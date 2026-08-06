@@ -79,6 +79,7 @@ export interface RuleResponse {
   ruleName: string
   ruleCategory: string
   pattern: string
+  signalType: string
   scoreModifier: number
   enabled: boolean
   createdAt: string

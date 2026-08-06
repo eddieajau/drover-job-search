@@ -98,6 +98,7 @@ describe('createDb', () => {
       'rule_name',
       'rule_category',
       'pattern',
+      'signal_type',
       'score_modifier',
       'enabled',
       'created_at',
@@ -130,6 +131,25 @@ describe('createDb', () => {
     const columns = db.$client.prepare('PRAGMA table_info(analysis_queue)').all() as { name: string }[]
 
     expect(columns.map(c => c.name)).toEqual(['id', 'job_id', 'queued_at', 'completed_at'])
+
+    db.$client.close()
+  })
+
+  it('defaults signal_type to skill_match and rejects an invalid signal_type', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare("INSERT INTO signal_rules (rule_name, rule_category, pattern) VALUES ('java', 'regex_title', 'java')")
+      .run()
+    const row = db.$client.prepare('SELECT signal_type FROM signal_rules WHERE id = 1').get() as { signal_type: string }
+    expect(row.signal_type).toBe('skill_match')
+
+    expect(() =>
+      db.$client
+        .prepare(
+          "INSERT INTO signal_rules (rule_name, rule_category, pattern, signal_type) VALUES ('noise', 'regex_title', 'foo', 'noise')"
+        )
+        .run()
+    ).toThrow(/CHECK/)
 
     db.$client.close()
   })

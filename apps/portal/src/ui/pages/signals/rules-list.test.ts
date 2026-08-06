@@ -15,6 +15,7 @@ function rules(count: number): SignalRule[] {
     ruleName: `Rule ${i + 1}`,
     ruleCategory: 'regex_title' as const,
     pattern: `pattern-${i + 1}`,
+    signalType: 'skill_match' as const,
     scoreModifier: i * 10,
     enabled: true,
     createdAt: '2026-08-05 00:00:00',
@@ -43,6 +44,28 @@ describe('rules-list', () => {
     expect(rows.length).toBe(2)
     expect(rows[0]?.querySelector<HTMLInputElement>('.rule-name')?.value).toBe('Rule 1')
     expect(rows[0]?.querySelector<HTMLInputElement>('.rule-pattern')?.value).toBe('pattern-1')
+  })
+
+  it('renders the signal-type select and dispatches its value on save', () => {
+    el.setRules(rules(1))
+    const select = el.querySelector<HTMLSelectElement>('.rule-signal-type')
+    expect(select).not.toBeNull()
+    expect(select?.querySelectorAll('option').length).toBe(3)
+    select!.value = 'dealbreaker'
+    let receivedRules: unknown[] | null = null
+    el.addEventListener('rules-list:save', event => {
+      receivedRules = (event as CustomEvent<{ rules: unknown[] }>).detail.rules
+    })
+    el.querySelector<HTMLButtonElement>('[data-action="save-row"]')?.click()
+    const draft = (receivedRules as Array<{ signalType?: string }> | null)?.[0]
+    expect(draft?.signalType).toBe('dealbreaker')
+  })
+
+  it('defaults a new row signal-type to skill_match', () => {
+    el.setRules([])
+    el.querySelector<HTMLButtonElement>('[data-action="add-row"]')?.click()
+    const select = el.querySelector<HTMLSelectElement>('.rule-row-new .rule-signal-type')
+    expect(select?.value).toBe('skill_match')
   })
 
   it('dispatches rules-list:toggle from the enabled checkbox', () => {

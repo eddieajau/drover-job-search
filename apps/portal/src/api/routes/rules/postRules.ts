@@ -18,6 +18,7 @@ interface RuleBody {
   ruleName: string
   ruleCategory: string
   pattern: string
+  signalType?: string
   scoreModifier?: number
   enabled?: boolean
 }
@@ -31,6 +32,7 @@ const ruleSchema = {
     ruleName: { type: 'string', minLength: 1 },
     ruleCategory: { type: 'string', enum: ['regex_title', 'regex_company', 'regex_description'] },
     pattern: { type: 'string', minLength: 1 },
+    signalType: { type: 'string', enum: ['dealbreaker', 'skill_match', 'company_match'] },
     scoreModifier: { type: 'integer' },
     enabled: { type: 'boolean' },
   },
@@ -47,7 +49,7 @@ const postRules: FastifyPluginAsync<RulesRouteOptions> = async (app, { db }) => 
     const keptIds = new Set<number>()
 
     for (const rule of rules) {
-      const { id, ruleName, ruleCategory, pattern, scoreModifier, enabled } = rule
+      const { id, ruleName, ruleCategory, pattern, signalType, scoreModifier, enabled } = rule
 
       if (id !== undefined) {
         const existing = db.select().from(signalRules).where(eq(signalRules.id, id)).get()
@@ -59,6 +61,7 @@ const postRules: FastifyPluginAsync<RulesRouteOptions> = async (app, { db }) => 
             ruleName,
             ruleCategory,
             pattern,
+            signalType: signalType ?? existing.signalType,
             scoreModifier: scoreModifier ?? existing.scoreModifier,
             enabled: enabled ?? existing.enabled,
           })
@@ -74,6 +77,7 @@ const postRules: FastifyPluginAsync<RulesRouteOptions> = async (app, { db }) => 
           ruleName,
           ruleCategory,
           pattern,
+          signalType: signalType ?? 'skill_match',
           scoreModifier: scoreModifier ?? 0,
           enabled: enabled ?? true,
         })

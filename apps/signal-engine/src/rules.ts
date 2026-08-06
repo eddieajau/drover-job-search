@@ -13,12 +13,6 @@ const CATEGORY_FIELD: Record<SignalRule['ruleCategory'], 'title' | 'companyName'
   regex_description: 'description',
 }
 
-const SIGNAL_TYPE: Record<SignalRule['ruleCategory'], string> = {
-  regex_title: 'skill_match',
-  regex_company: 'company_match',
-  regex_description: 'skill_match',
-}
-
 function compilePattern(pattern: string, baseFlags = 'g'): RegExp {
   let flags = baseFlags
   let source = pattern
@@ -76,7 +70,7 @@ export function recomputeRule(db: DB, rule: SignalRule, log?: Logger): number {
         jobId: row.id,
         ruleId: rule.id,
         source: rule.ruleCategory,
-        signalType: SIGNAL_TYPE[rule.ruleCategory],
+        signalType: rule.signalType,
         score: rule.scoreModifier,
         metadata: JSON.stringify({ matched_keywords: keywords }),
       })

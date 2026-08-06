@@ -94,6 +94,32 @@ describe('recomputeRule', () => {
     db.$client.close()
   })
 
+  it('fires the rule-declared signal_type (dealbreaker) on matched jobs', () => {
+    const db = createDb(':memory:')
+    seed(db)
+    db.insert(signalRules)
+      .values({
+        ruleName: 'java-gate',
+        ruleCategory: 'regex_title',
+        pattern: '(?i)\\b(java|android)\\b',
+        scoreModifier: -50,
+        signalType: 'dealbreaker',
+      })
+      .run()
+    const rule = db.select().from(signalRules).get()!
+
+    const matched = recomputeRule(db, rule)
+
+    expect(matched).toBe(2)
+    const signals = db.select().from(jobSignals).all()
+    expect(signals).toHaveLength(2)
+    for (const s of signals) {
+      expect(s.signalType).toBe('dealbreaker')
+      expect(s.score).toBe(-50)
+    }
+    db.$client.close()
+  })
+
   it('re-run is idempotent (no duplicate rows)', () => {
     const db = createDb(':memory:')
     seed(db)

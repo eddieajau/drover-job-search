@@ -136,6 +136,32 @@ describe('POST /api/rules', () => {
     expect(remaining.some(rule => rule.id === stale.id)).toBe(false)
   })
 
+  it('round-trips a dealbreaker signalType through the upsert', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: [
+        { ruleName: 'Agency', ruleCategory: 'regex_title', pattern: '(?i)\\bagency\\b', signalType: 'dealbreaker' },
+      ],
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body[0]).toMatchObject({
+      ruleName: 'Agency',
+      ruleCategory: 'regex_title',
+      pattern: '(?i)\\bagency\\b',
+      signalType: 'dealbreaker',
+    })
+
+    const updated = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: [{ id: body[0].id, ruleName: 'Agency', ruleCategory: 'regex_title', pattern: '(?i)\\bagency\\b' }],
+    })
+    const kept = updated.json()
+    expect(kept[0]).toMatchObject({ signalType: 'dealbreaker' })
+  })
+
   it('deletes all rules when sent an empty array', async () => {
     db.insert(signalRules).values({ ruleName: 'Java', ruleCategory: 'regex_title', pattern: '(?i)\\bjava\\b' }).run()
 

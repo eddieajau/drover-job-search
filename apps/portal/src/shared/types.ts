@@ -51,11 +51,14 @@ export interface SearchResult {
 
 export type RuleCategory = 'regex_title' | 'regex_company' | 'regex_description'
 
+export type SignalType = 'dealbreaker' | 'skill_match' | 'company_match'
+
 export interface SignalRule {
   id: number
   ruleName: string
   ruleCategory: RuleCategory
   pattern: string
+  signalType: SignalType
   scoreModifier: number
   enabled: boolean
   createdAt: string
