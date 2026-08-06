@@ -12,7 +12,6 @@ export interface RuleDraft {
   ruleCategory: RuleCategory
   pattern: string
   signalType: SignalType
-  scoreModifier: number
   enabled: boolean
 }
 
@@ -45,7 +44,6 @@ export class RulesList extends HTMLElement {
       ruleCategory: r.ruleCategory,
       pattern: r.pattern,
       signalType: r.signalType,
-      scoreModifier: r.scoreModifier,
       enabled: r.enabled,
     }))
     this.render()
@@ -164,11 +162,10 @@ export class RulesList extends HTMLElement {
     const category = row.querySelector<HTMLSelectElement>('.rule-category')?.value as RuleCategory
     const signalType = row.querySelector<HTMLSelectElement>('.rule-signal-type')?.value as SignalType
     const pattern = row.querySelector<HTMLInputElement>('.rule-pattern')?.value.trim() ?? ''
-    const score = Number(row.querySelector<HTMLInputElement>('.rule-score')?.value ?? '0')
     if (!name || !pattern) {
       return null
     }
-    return { ruleName: name, ruleCategory: category, signalType, pattern, scoreModifier: score, enabled: true }
+    return { ruleName: name, ruleCategory: category, signalType, pattern, enabled: true }
   }
 
   #snapshot(): RuleDraft[] {
@@ -201,9 +198,6 @@ export class RulesList extends HTMLElement {
         </label>
         <label class="rule-field">Pattern
           <input type="text" class="rule-pattern" />
-        </label>
-        <label class="rule-field">Score
-          <input type="number" class="rule-score" value="0" />
         </label>
         <button type="button" class="btn" data-action="save-row">Save</button>
       </div>
@@ -239,9 +233,6 @@ export class RulesList extends HTMLElement {
             </label>
             <label class="rule-field">Pattern
               <input type="text" class="rule-pattern" value="${esc(r.pattern)}" />
-            </label>
-            <label class="rule-field">Score
-              <input type="number" class="rule-score" value="${r.scoreModifier}" />
             </label>
             <label class="rule-enabled">
               <input type="checkbox" data-action="toggle-enabled" data-id="${r.id}" ${r.enabled ? 'checked' : ''} />

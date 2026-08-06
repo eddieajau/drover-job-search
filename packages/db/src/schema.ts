@@ -119,7 +119,6 @@ export const signalRules = sqliteTable(
     ruleCategory: text('rule_category').notNull(),
     pattern: text('pattern').notNull(),
     signalType: text('signal_type').notNull().default('skill_match'),
-    scoreModifier: integer('score_modifier').notNull().default(0),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
     createdAt: text('created_at')
       .notNull()
@@ -261,7 +260,6 @@ CREATE TABLE IF NOT EXISTS signal_rules (
     signal_type TEXT NOT NULL DEFAULT 'skill_match' CHECK (
         signal_type IN ('dealbreaker', 'skill_match', 'company_match')
     ),
-    score_modifier INTEGER NOT NULL DEFAULT 0,
     enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
     created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),

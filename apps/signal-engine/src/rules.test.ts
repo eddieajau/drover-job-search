@@ -71,7 +71,6 @@ describe('recomputeRule', () => {
         ruleName: 'java-android',
         ruleCategory: 'regex_title',
         pattern: '(?i)\\b(java|android)\\b',
-        scoreModifier: 10,
       })
       .run()
     const rule = db.select().from(signalRules).get()!
@@ -85,7 +84,7 @@ describe('recomputeRule', () => {
     for (const s of signals) {
       expect(s.source).toBe('regex_title')
       expect(s.signalType).toBe('skill_match')
-      expect(s.score).toBe(10)
+      expect(s.score).toBe(0)
       expect(s.ruleId).toBe(rule.id)
       const meta = JSON.parse(s.metadata!)
       expect(meta.matched_keywords).toBeDefined()
@@ -102,7 +101,6 @@ describe('recomputeRule', () => {
         ruleName: 'java-gate',
         ruleCategory: 'regex_title',
         pattern: '(?i)\\b(java|android)\\b',
-        scoreModifier: -50,
         signalType: 'dealbreaker',
       })
       .run()
@@ -115,7 +113,7 @@ describe('recomputeRule', () => {
     expect(signals).toHaveLength(2)
     for (const s of signals) {
       expect(s.signalType).toBe('dealbreaker')
-      expect(s.score).toBe(-50)
+      expect(s.score).toBe(0)
     }
     db.$client.close()
   })
@@ -128,7 +126,6 @@ describe('recomputeRule', () => {
         ruleName: 'java-android',
         ruleCategory: 'regex_title',
         pattern: '(?i)\\b(java|android)\\b',
-        scoreModifier: 10,
       })
       .run()
     const rule = db.select().from(signalRules).get()!
@@ -149,7 +146,6 @@ describe('recomputeRule', () => {
         ruleName: 'bad-pattern',
         ruleCategory: 'regex_title',
         pattern: '(unclosed',
-        scoreModifier: 5,
       })
       .run()
     const rule = db.select().from(signalRules).get()!
@@ -170,13 +166,11 @@ describe('recomputeRule', () => {
           ruleName: 'title-rule',
           ruleCategory: 'regex_title',
           pattern: '(?i)\\bjava\\b',
-          scoreModifier: 10,
         },
         {
           ruleName: 'company-rule',
           ruleCategory: 'regex_company',
           pattern: '(?i)\\bacme\\b',
-          scoreModifier: 5,
         },
       ])
       .run()
@@ -214,14 +208,12 @@ describe('runEnabledRules', () => {
           ruleName: 'enabled-rule',
           ruleCategory: 'regex_title',
           pattern: '(?i)\\bjava\\b',
-          scoreModifier: 10,
           enabled: true,
         },
         {
           ruleName: 'disabled-rule',
           ruleCategory: 'regex_title',
           pattern: '(?i)\\bjava\\b',
-          scoreModifier: 5,
           enabled: false,
         },
       ])
@@ -235,7 +227,7 @@ describe('runEnabledRules', () => {
 
     const signals = db.select().from(jobSignals).all()
     expect(signals).toHaveLength(1)
-    expect(signals[0].score).toBe(10)
+    expect(signals[0].score).toBe(0)
     db.$client.close()
   })
 })

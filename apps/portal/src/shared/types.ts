@@ -67,7 +67,6 @@ export interface SignalRule {
   ruleCategory: RuleCategory
   pattern: string
   signalType: SignalType
-  scoreModifier: number
   enabled: boolean
   createdAt: string
   updatedAt: string

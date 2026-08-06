@@ -99,7 +99,6 @@ describe('createDb', () => {
       'rule_category',
       'pattern',
       'signal_type',
-      'score_modifier',
       'enabled',
       'created_at',
       'updated_at',

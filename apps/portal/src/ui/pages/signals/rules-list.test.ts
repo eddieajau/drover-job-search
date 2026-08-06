@@ -16,7 +16,6 @@ function rules(count: number): SignalRule[] {
     ruleCategory: 'regex_title' as const,
     pattern: `pattern-${i + 1}`,
     signalType: 'skill_match' as const,
-    scoreModifier: i * 10,
     enabled: true,
     createdAt: '2026-08-05 00:00:00',
     updatedAt: '2026-08-05 00:00:00',

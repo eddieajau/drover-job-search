@@ -15,7 +15,6 @@ interface RuleBody {
   ruleCategory: string
   pattern: string
   signalType?: string
-  scoreModifier?: number
   enabled?: boolean
 }
 
@@ -29,7 +28,6 @@ const ruleSchema = {
     ruleCategory: { type: 'string', enum: ['regex_title', 'regex_company', 'regex_description'] },
     pattern: { type: 'string', minLength: 1 },
     signalType: { type: 'string', enum: ['dealbreaker', 'skill_match', 'company_match'] },
-    scoreModifier: { type: 'integer' },
     enabled: { type: 'boolean' },
   },
 } as const
@@ -45,7 +43,7 @@ const postRules: FastifyPluginAsync = async app => {
     const keptIds = new Set<number>()
 
     for (const rule of rules) {
-      const { id, ruleName, ruleCategory, pattern, signalType, scoreModifier, enabled } = rule
+      const { id, ruleName, ruleCategory, pattern, signalType, enabled } = rule
 
       if (id !== undefined) {
         const existing = app.db.select().from(signalRules).where(eq(signalRules.id, id)).get()
@@ -59,7 +57,6 @@ const postRules: FastifyPluginAsync = async app => {
             ruleCategory,
             pattern,
             signalType: signalType ?? existing.signalType,
-            scoreModifier: scoreModifier ?? existing.scoreModifier,
             enabled: enabled ?? existing.enabled,
           })
           .where(eq(signalRules.id, id))
@@ -75,7 +72,6 @@ const postRules: FastifyPluginAsync = async app => {
           ruleCategory,
           pattern,
           signalType: signalType ?? 'skill_match',
-          scoreModifier: scoreModifier ?? 0,
           enabled: enabled ?? true,
         })
         .returning()

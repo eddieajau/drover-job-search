@@ -71,7 +71,7 @@ export function recomputeRule(db: DB, rule: SignalRule, log?: Logger): number {
         ruleId: rule.id,
         source: rule.ruleCategory,
         signalType: rule.signalType,
-        score: rule.scoreModifier,
+        score: 0,
         metadata: JSON.stringify({ matched_keywords: keywords }),
       })
       .run()

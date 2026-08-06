@@ -3,7 +3,6 @@ export const RULE_JAVA = {
   ruleCategory: 'regex_title',
   pattern: '(?i)\\bjava\\b',
   signalType: 'skill_match',
-  scoreModifier: 5,
 }
 
 export const RULE_RECRUITER = {
@@ -11,5 +10,4 @@ export const RULE_RECRUITER = {
   ruleCategory: 'regex_company',
   pattern: '(?i)recruit',
   signalType: 'company_match',
-  scoreModifier: -10,
 }

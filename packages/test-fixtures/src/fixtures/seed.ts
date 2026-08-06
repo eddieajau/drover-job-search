@@ -30,7 +30,6 @@ export interface SeedRule {
   ruleCategory: string
   pattern: string
   signalType?: string
-  scoreModifier?: number
   enabled?: boolean
 }
 

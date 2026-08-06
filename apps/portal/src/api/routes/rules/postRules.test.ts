@@ -39,10 +39,9 @@ describe('POST /api/rules', () => {
       ruleName: 'Java',
       ruleCategory: 'regex_title',
       pattern: '(?i)\\bjava\\b',
-      scoreModifier: 5,
       enabled: true,
     })
-    expect(body[1]).toMatchObject({ ruleName: 'Blockchain', scoreModifier: 0, enabled: true })
+    expect(body[1]).toMatchObject({ ruleName: 'Blockchain', enabled: true })
   })
 
   it('updates existing rules by id, preserving ids', async () => {
@@ -57,7 +56,6 @@ describe('POST /api/rules', () => {
           ruleName: 'Java+Android',
           ruleCategory: 'regex_title',
           pattern: '(?i)\\b(java|android)\\b',
-          scoreModifier: 8,
           enabled: false,
         },
       ],
@@ -69,7 +67,6 @@ describe('POST /api/rules', () => {
       id: inserted.id,
       ruleName: 'Java+Android',
       pattern: '(?i)\\b(java|android)\\b',
-      scoreModifier: 8,
       enabled: false,
     })
   })
@@ -111,7 +108,7 @@ describe('POST /api/rules', () => {
     const body = res.json()
     expect(body).toHaveLength(2)
     expect(body.map((rule: { id: number }) => rule.id)).toEqual([kept.id, body[1].id])
-    expect(body.find((rule: { id: number }) => rule.id === kept.id)).toMatchObject({ scoreModifier: 5 })
+    expect(body.find((rule: { id: number }) => rule.id === kept.id)).toMatchObject({ signalType: 'skill_match' })
 
     const remaining = db.select().from(signalRules).all()
     expect(remaining).toHaveLength(2)
