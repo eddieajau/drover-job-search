@@ -6,16 +6,18 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "start": "tsx src/cli.ts | pino-pretty",
+    "start": "tsx src/cli.ts",
     "test": "vitest run",
     "verify": "oxfmt check . && oxlint . # && npm test"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
-    "pino": "^10.3.1"
+    "pino": "^10.3.1",
+    "turndown": "^7.2.4"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
+    "@types/turndown": "^5.0.6",
     "better-sqlite3": "^13.0.2",
     "drizzle-orm": "^0.45.2",
     "vitest": "^3.2.7"

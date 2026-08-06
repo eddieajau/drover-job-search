@@ -7,6 +7,8 @@ import { analysisQueue, jobs, type DB } from 'db'
 import { eq, isNull, sql } from 'drizzle-orm'
 import type { Logger } from 'pino'
 
+import { toMarkdown } from './to-markdown.js'
+
 export type DetailFn = (opts: { id: string }) => Promise<{ description: string | null } | null>
 
 export async function processDetailQueue(
@@ -51,7 +53,7 @@ export async function processDetailQueue(
 
       db.update(jobs)
         .set({
-          description: result.description,
+          description: toMarkdown(result.description),
           updatedAt: sql`(CURRENT_TIMESTAMP)`,
         })
         .where(eq(jobs.id, row.jobId))

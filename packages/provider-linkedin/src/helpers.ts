@@ -197,11 +197,7 @@ export function parseJobDetail(html: string, id: string): JobDetail {
   const descHtml =
     extractDivContent(html, 'show-more-less-html__markup') ?? extractDivContent(html, 'description__text')
   if (descHtml) {
-    const withBreaks = descHtml.replace(/<\s*br\s*\/?>/gi, '\n').replace(/<\/(p|li|ul|ol|div|h\d)>/gi, '\n')
-    description =
-      decodeHtmlEntities(stripTags(withBreaks))
-        .replace(/\n{3,}/g, '\n\n')
-        .trim() || null
+    description = decodeHtmlEntities(descHtml).trim() || null
   }
 
   const criteria: Record<string, string> = {}

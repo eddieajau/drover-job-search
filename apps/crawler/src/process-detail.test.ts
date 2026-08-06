@@ -29,7 +29,7 @@ describe('processDetailQueue', () => {
     const db = createDb(':memory:')
     seedJob(db, '123456')
 
-    const mockDetail: DetailFn = async () => ({ description: 'Full job description text' })
+    const mockDetail: DetailFn = async () => ({ description: '<p>Full job description</p>' })
 
     const result = await processDetailQueue(db, mockDetail, 10)
 
@@ -37,10 +37,29 @@ describe('processDetailQueue', () => {
     expect(result.failed).toBe(0)
 
     const job = db.select().from(jobs).get()!
-    expect(job.description).toBe('Full job description text')
+    expect(job.description).toBe('Full job description')
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
+
+    db.$client.close()
+  })
+
+  it('stores structured HTML as markdown', async () => {
+    const db = createDb(':memory:')
+    seedJob(db, '123456')
+
+    const mockDetail: DetailFn = async () => ({
+      description: '<h2>The Team</h2><ul><li>a</li><li>b</li></ul>',
+    })
+
+    const result = await processDetailQueue(db, mockDetail, 10)
+
+    expect(result.processed).toBe(1)
+    expect(result.failed).toBe(0)
+
+    const job = db.select().from(jobs).get()!
+    expect(job.description).toBe('## The Team\n\n-   a\n-   b')
 
     db.$client.close()
   })
