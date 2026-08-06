@@ -600,6 +600,12 @@ job-card:focus-visible {
   flex: 1;
 }
 
+.detail {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 28px 32px 64px;
+}
+
 .detail-empty {
   color: var(--muted);
   font-size: 14px;
@@ -607,80 +613,58 @@ job-card:focus-visible {
   text-align: center;
 }
 
-.detail-header {
+.detail-head {
   border-bottom: 1px solid var(--border);
   padding-bottom: 20px;
   margin-bottom: 24px;
 }
 
-.detail-header h2 {
+.detail-head h2 {
   font-size: 22px;
   line-height: 1.3;
   letter-spacing: -0.01em;
   margin-bottom: 6px;
 }
 
-.detail-header .company {
+.detail-company {
   color: var(--accent);
   font-weight: 600;
   font-size: 15px;
   margin-bottom: 12px;
 }
 
-.detail-header .meta {
+.detail-meta {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  color: var(--muted);
-  font-size: 13px;
-  margin-top: 8px;
 }
 
-.detail-actions {
-  display: flex;
-  gap: 8px;
-  margin: 16px 0;
-  flex-wrap: wrap;
-}
-
-.detail-actions .btn {
-  padding: 6px 14px;
-  font-size: 13px;
-}
-
-.detail-description {
-  font-size: 14px;
-  line-height: 1.65;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.detail-description h3 {
+.job-desc h3 {
   font-size: 15px;
   margin: 22px 0 8px;
 }
 
-.detail-description h3:first-child {
+.job-desc h3:first-child {
   margin-top: 0;
 }
 
-.detail-description p {
+.job-desc p {
   margin-bottom: 12px;
   line-height: 1.65;
 }
 
-.detail-description ul {
+.job-desc ul {
   padding-left: 20px;
   margin-bottom: 12px;
 }
 
-.detail-description li {
+.job-desc li {
   margin-bottom: 6px;
   line-height: 1.55;
 }
 
-.detail-description a {
+.job-desc a {
   color: var(--accent);
 }
 
@@ -994,6 +978,16 @@ job-meta-panel {
 .chip-p3 {
   background: var(--blue-soft);
   color: var(--blue);
+}
+
+.chip-applied {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.chip-skipped {
+  background: var(--red-soft);
+  color: var(--red);
 }
 
 .signal-row {

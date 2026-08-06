@@ -83,7 +83,7 @@ describe('jobs-page', () => {
     expect(el.querySelector('job-list')?.querySelector('.job-title')?.textContent).toBe('Staff Engineer')
     expect(el.querySelector('job-stats')?.textContent).toContain('1 total')
     expect(el.querySelector('job-stats')?.textContent).toContain('1 new')
-    expect(el.querySelector('job-detail')?.querySelector('.company')?.textContent).toBe('Acme')
+    expect(el.querySelector('job-detail')?.querySelector('.detail-company')?.textContent).toBe('Acme')
   })
 
   it('shows the detail empty state when nothing is selected', () => {

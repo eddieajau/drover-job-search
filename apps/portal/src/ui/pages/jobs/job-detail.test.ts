@@ -36,33 +36,59 @@ describe('job-detail', () => {
 
   it('renders an empty prompt when no job is selected', () => {
     el.showJob(null)
-    expect(el.querySelector('.detail-empty')?.textContent).toBe('Select a job to view details')
+    expect(el.querySelector('.detail-empty')).not.toBeNull()
+    expect(el.querySelector('.detail-empty p')?.textContent).toBe('Select a job to view details')
   })
 
-  it('renders job header and description', () => {
+  it('renders title in .detail-head h2', () => {
     el.showJob({ ...job(), _status: 'new' })
-    expect(el.querySelector('h2')?.textContent).toBe('Staff Engineer')
-    expect(el.querySelector('.company')?.textContent).toBe('Acme')
-    expect(el.querySelector('.detail-description')?.textContent).toContain('Design and build.')
+    expect(el.querySelector('.detail-head h2')?.textContent).toBe('Staff Engineer')
   })
 
-  it('renders descriptionHtml as formatted HTML (not escaped)', () => {
-    el.showJob({ ...job({ descriptionHtml: '<h2>Heading</h2><ul><li>item</li></ul>' }), _status: 'new' })
-    const description = el.querySelector('.detail-description')
-    expect(description?.querySelector('h2')?.textContent).toBe('Heading')
-    expect(description?.querySelector('li')?.textContent).toBe('item')
+  it('renders company in .detail-company', () => {
+    el.showJob({ ...job(), _status: 'new' })
+    expect(el.querySelector('.detail-company')?.textContent).toBe('Acme')
+  })
+
+  it('renders four chips in .detail-meta (P1, category, location, posted)', () => {
+    el.showJob({ ...job(), _status: 'new' })
+    const chips = el.querySelectorAll('.detail-meta .chip')
+    expect(chips.length).toBe(4)
+    expect(chips[0].textContent).toBe('P1')
+    expect(chips[0].classList.contains('chip-p1')).toBe(true)
+    expect(chips[1].textContent).toBe('P1')
+    expect(chips[2].textContent).toBe('Brisbane')
+    expect(chips[3].textContent).toBe('Posted 2026-08-05')
+  })
+
+  it('renders "Posted unknown" when postedAt is null', () => {
+    el.showJob({ ...job({ postedAt: null }), _status: 'new' })
+    const chips = el.querySelectorAll('.detail-meta .chip')
+    expect(chips[3].textContent).toBe('Posted unknown')
+  })
+
+  it('renders a status chip when status is not new', () => {
+    el.showJob({ ...job(), _status: 'applied' })
+    const chips = el.querySelectorAll('.detail-meta .chip')
+    expect(chips.length).toBe(5)
+    expect(chips[4].textContent).toBe('applied')
+    expect(chips[4].classList.contains('chip-applied')).toBe(true)
+  })
+
+  it('renders descriptionHtml inside .job-desc', () => {
+    el.showJob({ ...job({ descriptionHtml: '<h3>Heading</h3><ul><li>item</li></ul>' }), _status: 'new' })
+    const desc = el.querySelector('.job-desc')
+    expect(desc?.querySelector('h3')?.textContent).toBe('Heading')
+    expect(desc?.querySelector('li')?.textContent).toBe('item')
   })
 
   it('renders the fallback when descriptionHtml is null', () => {
     el.showJob({ ...job({ descriptionHtml: null }), _status: 'new' })
-    expect(el.querySelector('.detail-description')?.querySelector('em')?.textContent).toBe(
-      'No description in search results.'
-    )
+    expect(el.querySelector('.job-desc em')?.textContent).toBe('No description in search results.')
   })
 
-  it('does not render action buttons', () => {
+  it('has no data-action buttons', () => {
     el.showJob({ ...job(), _status: 'new' })
-    expect(el.querySelector('.detail-actions')).toBeNull()
-    expect(el.querySelector('button[data-action="status"]')).toBeNull()
+    expect(el.querySelectorAll('[data-action]').length).toBe(0)
   })
 })

@@ -20,26 +20,28 @@ export class JobDetail extends HTMLElement {
 
   render(): void {
     if (!this.#job) {
-      this.innerHTML = '<div class="detail-empty">Select a job to view details</div>'
+      this.innerHTML = '<article class="detail detail-empty"><p>Select a job to view details</p></article>'
       return
     }
     const job = this.#job
     const status = job._status
     this.innerHTML = `
-      <div class="detail-header">
-        <h2>${esc(job.title)}</h2>
-        <div class="company">${esc(job.companyName)}</div>
-        <div class="meta">
-          <span>${esc(job.location)}</span>
-          <span>Posted ${esc(job.postedAt || 'unknown')}</span>
-          <span class="priority-badge p${job.priority}">P${job.priority}</span>
-          <span>${esc(job.category)}</span>
-          ${status !== 'new' ? `<span>${esc(status)}</span>` : ''}
+      <article class="detail">
+        <header class="detail-head">
+          <h2>${esc(job.title)}</h2>
+          <div class="detail-company">${esc(job.companyName)}</div>
+          <div class="detail-meta">
+            <span class="chip chip-p${job.priority}">P${job.priority}</span>
+            <span class="chip">${esc(job.category)}</span>
+            <span class="chip">${esc(job.location)}</span>
+            <span class="chip">Posted ${esc(job.postedAt ?? 'unknown')}</span>
+            ${status !== 'new' ? `<span class="chip chip-${esc(status)}">${esc(status)}</span>` : ''}
+          </div>
+        </header>
+        <div class="job-desc">
+          ${job.descriptionHtml ?? '<em>No description in search results.</em>'}
         </div>
-      </div>
-      <div class="detail-description">
-        ${job.descriptionHtml ?? '<em>No description in search results.</em>'}
-      </div>
+      </article>
     `
   }
 }
