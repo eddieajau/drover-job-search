@@ -893,3 +893,39 @@ job-card:focus-visible {
   font-size: 13px;
   text-decoration: none;
 }
+
+ai-eval-box {
+  display: block;
+}
+
+.eval-box {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--field);
+}
+
+.eval-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.eval-verdict {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.eval-why {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.eval-empty {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
