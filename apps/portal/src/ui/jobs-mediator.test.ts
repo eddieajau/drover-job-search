@@ -90,11 +90,13 @@ function mockFetch(responses: Record<string, unknown>): void {
 describe('jobs-mediator', () => {
   beforeEach(() => {
     document.body.innerHTML = '<jobs-page></jobs-page>'
+    window.location.hash = ''
   })
 
   afterEach(() => {
     _resetJobsMediatorForTesting()
     vi.restoreAllMocks()
+    window.location.hash = ''
   })
 
   it('loads each job with its joined summary in a single /api/jobs request', async () => {
@@ -354,5 +356,47 @@ describe('jobs-mediator', () => {
     await new Promise(resolve => setTimeout(resolve, 50))
 
     expect(document.querySelector('pager-nav')?.querySelector<HTMLButtonElement>('#pager-next')?.disabled).toBe(true)
+  })
+
+  it('updates the URL hash when a job is selected', async () => {
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    window.dispatchEvent(new CustomEvent('job-list:select', { detail: { jobId: 2 } }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    expect(window.location.hash).toBe('#jobs?job=2')
+  })
+
+  it('seeds the selected job from the URL hash on load', async () => {
+    window.location.hash = '#jobs?job=2'
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const activeCard = document.querySelector('.card.active')
+    expect(activeCard).not.toBeNull()
+    expect(activeCard?.getAttribute('data-job-id')).toBe('2')
+  })
+
+  it('does not rewrite the hash when selecting the same job twice', async () => {
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    window.dispatchEvent(new CustomEvent('job-list:select', { detail: { jobId: 1 } }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(window.location.hash).toBe('#jobs?job=1')
+
+    const replaceStateSpy = vi.spyOn(history, 'replaceState')
+    window.dispatchEvent(new CustomEvent('job-list:select', { detail: { jobId: 1 } }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    expect(replaceStateSpy).not.toHaveBeenCalled()
+    expect(window.location.hash).toBe('#jobs?job=1')
   })
 })

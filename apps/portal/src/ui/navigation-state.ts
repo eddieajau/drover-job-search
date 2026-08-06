@@ -4,7 +4,7 @@
  */
 
 export type NavigationState =
-  | { view: 'jobs' }
+  | { view: 'jobs'; job?: number }
   | { view: 'queries' }
   | { view: 'query-edit'; id?: number }
   | { view: 'signals' }
@@ -17,10 +17,18 @@ export function parseHash(hash: string): NavigationState | null {
   if (h === 'signals') {
     return { view: 'signals' }
   }
-  if (h === 'jobs' || h === '') {
+  const [path, queryString] = h.split('?')
+  if (path === 'jobs' || path === '') {
+    const params = new URLSearchParams(queryString ?? '')
+    const jobRaw = params.get('job')
+    if (jobRaw != null) {
+      const job = Number(jobRaw)
+      if (Number.isInteger(job) && job > 0) {
+        return { view: 'jobs', job }
+      }
+    }
     return { view: 'jobs' }
   }
-  const [path, queryString] = h.split('?')
   if (path === 'queries/edit') {
     const params = new URLSearchParams(queryString ?? '')
     const idRaw = params.get('id')
@@ -38,6 +46,9 @@ export function parseHash(hash: string): NavigationState | null {
 export function toHash(state: NavigationState): string {
   switch (state.view) {
     case 'jobs':
+      if (state.job != null) {
+        return `#jobs?job=${state.job}`
+      }
       return '#jobs'
     case 'queries':
       return '#queries'

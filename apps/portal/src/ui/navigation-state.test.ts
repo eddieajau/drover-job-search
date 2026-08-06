@@ -41,13 +41,27 @@ describe('parseHash', () => {
 
   it('returns null for unknown hashes', () => {
     expect(parseHash('#bogus')).toBeNull()
-    expect(parseHash('#jobs?x=1')).toBeNull()
+  })
+
+  it('returns jobs without job for hashes with unknown query params', () => {
+    expect(parseHash('#jobs?x=1')).toEqual({ view: 'jobs' })
+  })
+
+  it('returns jobs with job identity for the jobs hash with a valid job param', () => {
+    expect(parseHash('#jobs?job=42')).toEqual({ view: 'jobs', job: 42 })
+  })
+
+  it('returns jobs without job for non-numeric or non-positive job params', () => {
+    expect(parseHash('#jobs?job=abc')).toEqual({ view: 'jobs' })
+    expect(parseHash('#jobs?job=-5')).toEqual({ view: 'jobs' })
+    expect(parseHash('#jobs?job=0')).toEqual({ view: 'jobs' })
   })
 })
 
 describe('toHash', () => {
   it('round-trips the view states', () => {
     expect(toHash({ view: 'jobs' })).toBe('#jobs')
+    expect(toHash({ view: 'jobs', job: 42 })).toBe('#jobs?job=42')
     expect(toHash({ view: 'queries' })).toBe('#queries')
     expect(toHash({ view: 'signals' })).toBe('#signals')
     expect(toHash({ view: 'query-edit' })).toBe('#queries/edit')

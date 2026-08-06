@@ -5,6 +5,7 @@
 
 import type { Job, JobStatus } from '../shared/types.js'
 import type { JobsFilters, JobsViewState, JobWithStatus } from './jobs-view.js'
+import { parseHash } from './navigation-state.js'
 
 type ViewStatus = 'idle' | 'loading' | 'error' | 'done'
 type SeenMap = Record<number, Omit<JobStatus, 'id'>>
@@ -96,6 +97,9 @@ async function handleSearch(): Promise<void> {
   if (!jobsPage) {
     return
   }
+  if (selectedId === null) {
+    seedSelectedIdFromHash()
+  }
   viewStatus = 'loading'
   jobsPage.setLoading()
   try {
@@ -127,6 +131,7 @@ function handlePagerChange(event: Event): void {
 function handleSelect(event: Event): void {
   const { jobId } = (event as CustomEvent<{ jobId: number }>).detail
   selectedId = jobId
+  syncHash()
   pushState()
 }
 
@@ -147,6 +152,20 @@ function track(id: number, status: JobStatus['status']): void {
     seen[id] = { status, date: new Date().toISOString().slice(0, 10) }
   }
   pushState()
+}
+
+function seedSelectedIdFromHash(): void {
+  const state = parseHash(window.location.hash)
+  if (state?.view === 'jobs' && state.job != null) {
+    selectedId = state.job
+  }
+}
+
+function syncHash(): void {
+  const target = selectedId != null ? `#jobs?job=${selectedId}` : '#jobs'
+  if (window.location.hash !== target) {
+    history.replaceState(null, '', target)
+  }
 }
 
 function pushState(): void {
