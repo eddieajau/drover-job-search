@@ -8,6 +8,6 @@
   "main": "./src/index.ts",
   "scripts": {
     "test": "vitest run",
-    "verify": "oxfmt check . && oxlint . # && npm test"
+    "verify": "oxfmt check . && oxlint . && npm test"
   }
 }

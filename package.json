@@ -12,7 +12,7 @@
   "scripts": {
     "crawl": "npm start -w apps/crawler --",
     "portal": "npm run dev -w apps/portal",
-    "verify": "npm run verify -w packages/db -w packages/provider-linkedin -w apps/portal -w apps/signal-engine -w apps/inference",
+    "verify": "npm run verify -w packages/db -w packages/provider-linkedin -w apps/crawler -w apps/portal -w apps/signal-engine -w apps/inference",
     "signal-engine": "npm start -w apps/signal-engine",
     "inference": "npm start -w apps/inference"
   },

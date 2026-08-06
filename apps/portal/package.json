@@ -15,7 +15,7 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.browser.json --noEmit",
-    "verify": "oxfmt check . && oxlint . && npm run typecheck"
+    "verify": "oxfmt check . && oxlint . && npm run typecheck && npm test"
   },
   "dependencies": {
     "@fastify/autoload": "^6.5.0",
