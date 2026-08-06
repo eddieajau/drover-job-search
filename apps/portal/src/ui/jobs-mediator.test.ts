@@ -104,7 +104,7 @@ describe('jobs-mediator', () => {
     await new Promise(resolve => setTimeout(resolve, 50))
 
     const calls = vi.mocked(fetch).mock.calls.map(([url]) => url)
-    expect(calls).toEqual(['/api/jobs'])
+    expect(calls).toEqual(['/api/jobs?limit=50&offset=0'])
   })
 
   it('reads the joined signal summary and attaches weighted netScore to jobs', async () => {
@@ -309,5 +309,50 @@ describe('jobs-mediator', () => {
     expect(cards.length).toBe(3)
     const badges = document.querySelectorAll('.score-badge')
     expect(badges.length).toBe(0)
+  })
+
+  it('fetches the next page with limit and offset when next is clicked', async () => {
+    mockFetch({
+      '/api/jobs': { count: 100, limit: 50, offset: 0, results: jobsResponse().results },
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const pager = document.querySelector('pager-nav')
+    expect(pager).not.toBeNull()
+    pager?.setAttribute('page-size', '10')
+    pager?.setAttribute('page', '1')
+    pager?.setAttribute('total', '100')
+    pager?.querySelector<HTMLButtonElement>('#pager-next')?.click()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const calls = vi.mocked(fetch).mock.calls.map(([url]) => url)
+    expect(calls).toContain('/api/jobs?limit=10&offset=10')
+  })
+
+  it('updates the pager total from the response envelope', async () => {
+    mockFetch({
+      '/api/jobs': { count: 100, limit: 50, offset: 0, results: jobsResponse().results },
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(document.querySelector('pager-nav')?.getAttribute('total')).toBe('100')
+  })
+
+  it('disables next in the rendered DOM on the last page', async () => {
+    mockFetch({
+      '/api/jobs': { count: 100, limit: 10, offset: 90, results: jobsResponse().results },
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    window.dispatchEvent(new CustomEvent('pager:change', { detail: { page: 10, pageSize: 10 } }))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(document.querySelector('pager-nav')?.querySelector<HTMLButtonElement>('#pager-next')?.disabled).toBe(true)
   })
 })

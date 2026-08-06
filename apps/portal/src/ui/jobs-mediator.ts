@@ -11,6 +11,8 @@ type SeenMap = Record<number, Omit<JobStatus, 'id'>>
 
 interface JobsResponse {
   count: number
+  limit: number
+  offset: number
   results: Job[]
 }
 
@@ -42,6 +44,9 @@ let selectedId: number | null = null
 let filters: JobsFilters = { priority: '', status: '', search: '', score: '' }
 let viewStatus: ViewStatus = 'idle'
 let message = ''
+let page = 1
+let pageSize = 50
+let total = 0
 
 export function initJobsMediator(): void {
   if (registered) {
@@ -54,6 +59,7 @@ export function initJobsMediator(): void {
   window.addEventListener('job-list:status', handleStatus)
   window.addEventListener('job-detail:status', handleStatus)
   window.addEventListener('filter-bar:change', handleFilterChange)
+  window.addEventListener('pager:change', handlePagerChange)
   if (document.querySelector('jobs-page')) {
     void handleSearch()
   }
@@ -67,6 +73,7 @@ export function _resetJobsMediatorForTesting(): void {
     window.removeEventListener('job-list:status', handleStatus)
     window.removeEventListener('job-detail:status', handleStatus)
     window.removeEventListener('filter-bar:change', handleFilterChange)
+    window.removeEventListener('pager:change', handlePagerChange)
   }
   registered = false
   results = []
@@ -75,6 +82,9 @@ export function _resetJobsMediatorForTesting(): void {
   filters = { priority: '', status: '', search: '', score: '' }
   viewStatus = 'idle'
   message = ''
+  page = 1
+  pageSize = 50
+  total = 0
 }
 
 function handleReady(): void {
@@ -82,19 +92,21 @@ function handleReady(): void {
 }
 
 async function handleSearch(): Promise<void> {
-  const page = document.querySelector('jobs-page')
-  if (!page) {
+  const jobsPage = document.querySelector('jobs-page')
+  if (!jobsPage) {
     return
   }
   viewStatus = 'loading'
-  page.setLoading()
+  jobsPage.setLoading()
   try {
-    const response = await fetch('/api/jobs')
+    const params = new URLSearchParams({ limit: String(pageSize), offset: String((page - 1) * pageSize) })
+    const response = await fetch(`/api/jobs?${params.toString()}`)
     if (!response.ok) {
       throw new Error('Failed to load jobs')
     }
     const data = (await response.json()) as JobsResponse
-    results = mergeResults(results, data.results)
+    results = data.results
+    total = data.count
     viewStatus = 'done'
     message = ''
     pushState()
@@ -105,12 +117,11 @@ async function handleSearch(): Promise<void> {
   }
 }
 
-function mergeResults(existing: Job[], incoming: Job[]): Job[] {
-  const byId = new Map<number, Job>(existing.map(job => [job.id, job]))
-  for (const job of incoming) {
-    byId.set(job.id, job)
-  }
-  return Array.from(byId.values())
+function handlePagerChange(event: Event): void {
+  const { page: nextPage, pageSize: nextPageSize } = (event as CustomEvent<{ page: number; pageSize: number }>).detail
+  page = nextPage
+  pageSize = nextPageSize
+  void handleSearch()
 }
 
 function handleSelect(event: Event): void {
@@ -139,8 +150,8 @@ function track(id: number, status: JobStatus['status']): void {
 }
 
 function pushState(): void {
-  const page = document.querySelector('jobs-page')
-  if (!page) {
+  const jobsPage = document.querySelector('jobs-page')
+  if (!jobsPage) {
     return
   }
   const all: JobWithStatus[] = results.map(job => ({
@@ -182,6 +193,9 @@ function pushState(): void {
     jobs,
     filters,
     selectedId,
+    page,
+    pageSize,
+    total,
   }
-  page.setState(state)
+  jobsPage.setState(state)
 }

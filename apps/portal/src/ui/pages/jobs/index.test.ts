@@ -34,6 +34,9 @@ function state(overrides: Partial<JobsViewState> = {}): JobsViewState {
     jobs: [],
     filters: { priority: '', status: '', search: '', score: '' },
     selectedId: null,
+    page: 1,
+    pageSize: 50,
+    total: 0,
     ...overrides,
   }
 }
@@ -54,6 +57,15 @@ describe('jobs-page', () => {
     expect(el.querySelector('#btn-export')).toBeNull()
     expect(el.querySelector('job-list')).not.toBeNull()
     expect(el.querySelector('job-detail')).not.toBeNull()
+    expect(el.querySelector('pager-nav')).not.toBeNull()
+  })
+
+  it('forwards pagination to the pager element via attributes', () => {
+    el.setState(state({ page: 2, pageSize: 10, total: 25 }))
+    const pager = el.querySelector('pager-nav')
+    expect(pager?.getAttribute('page')).toBe('2')
+    expect(pager?.getAttribute('page-size')).toBe('10')
+    expect(pager?.getAttribute('total')).toBe('25')
   })
 
   it('dispatches jobs-page:ready on connect', () => {

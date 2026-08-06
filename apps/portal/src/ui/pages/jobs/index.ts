@@ -3,6 +3,8 @@
  * @license   MIT
  */
 
+import type { Pager } from '../../elements/pager.js'
+import '../../elements/pager.js'
 import type { JobsViewState } from '../../jobs-view.js'
 import './filter-bar.js'
 import type { FilterBar } from './filter-bar.js'
@@ -51,6 +53,9 @@ export class JobsPage extends HTMLElement {
     this.#stats()?.setStats(state.all.length, state.all.filter(job => job._status === 'new').length)
     this.#detail()?.showJob(state.selectedId ? (state.all.find(job => job.id === state.selectedId) ?? null) : null)
     this.#filter()?.setFilters(state.filters)
+    this.#pager()?.setAttribute('page', String(state.page))
+    this.#pager()?.setAttribute('page-size', String(state.pageSize))
+    this.#pager()?.setAttribute('total', String(state.total))
     if (!state.selectedId) {
       this.#signalsPanel()?.showSignals(null, [], false)
     }
@@ -76,6 +81,10 @@ export class JobsPage extends HTMLElement {
     return this.querySelector('filter-bar')
   }
 
+  #pager(): Pager | null {
+    return this.querySelector('pager-nav')
+  }
+
   #signalsPanel(): JobSignalsPanel | null {
     return this.querySelector('job-signals-panel')
   }
@@ -89,7 +98,10 @@ export class JobsPage extends HTMLElement {
           <button type="button" id="btn-search">Search</button>
         </div>
         <div class="layout">
-          <div class="list-panel"><job-list></job-list></div>
+          <div class="list-panel">
+            <job-list></job-list>
+            <pager-nav></pager-nav>
+          </div>
           <div class="detail-panel">
             <job-detail></job-detail>
             <job-signals-panel></job-signals-panel>

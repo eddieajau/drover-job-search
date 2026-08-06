@@ -21,4 +21,7 @@ export interface JobsViewState {
   jobs: JobWithStatus[]
   filters: JobsFilters
   selectedId: number | null
+  page: number
+  pageSize: number
+  total: number
 }
