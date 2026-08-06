@@ -3,17 +3,13 @@
  * @license   MIT
  */
 
-import { analysisQueue, jobs, type DB } from 'db'
+import { analysisQueue, jobs } from 'db'
 import { and, eq } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { toQueueJson } from '../../serializers.js'
 
-interface AnalysisQueueRouteOptions {
-  db: DB
-}
-
-const getAnalysisQueue: FastifyPluginAsync<AnalysisQueueRouteOptions> = async (app, { db }) => {
+const getAnalysisQueue: FastifyPluginAsync = async app => {
   app.get('/', async (req, reply) => {
     const { provider, providerJobId } = req.query as { provider?: string; providerJobId?: string }
 
@@ -21,7 +17,7 @@ const getAnalysisQueue: FastifyPluginAsync<AnalysisQueueRouteOptions> = async (a
       return reply.badRequest('Invalid query parameter: providerJobId')
     }
 
-    const row = db
+    const row = app.db
       .select({ queue: analysisQueue })
       .from(analysisQueue)
       .innerJoin(jobs, eq(analysisQueue.jobId, jobs.id))

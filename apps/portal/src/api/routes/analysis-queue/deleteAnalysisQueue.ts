@@ -3,15 +3,11 @@
  * @license   MIT
  */
 
-import { analysisQueue, jobs, type DB } from 'db'
+import { analysisQueue, jobs } from 'db'
 import { and, eq } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
-interface DeleteAnalysisQueueRouteOptions {
-  db: DB
-}
-
-const deleteAnalysisQueue: FastifyPluginAsync<DeleteAnalysisQueueRouteOptions> = async (app, { db }) => {
+const deleteAnalysisQueue: FastifyPluginAsync = async app => {
   app.delete('/', async (req, reply) => {
     const { provider, providerJobId } = req.query as { provider?: string; providerJobId?: string }
 
@@ -19,7 +15,7 @@ const deleteAnalysisQueue: FastifyPluginAsync<DeleteAnalysisQueueRouteOptions> =
       return reply.badRequest('Invalid query parameter: providerJobId')
     }
 
-    const job = db
+    const job = app.db
       .select()
       .from(jobs)
       .where(and(eq(jobs.provider, provider ?? 'linkedin'), eq(jobs.providerJobId, providerJobId)))
@@ -28,7 +24,7 @@ const deleteAnalysisQueue: FastifyPluginAsync<DeleteAnalysisQueueRouteOptions> =
       return reply.notFound(`Job ${providerJobId} not found`)
     }
 
-    db.delete(analysisQueue).where(eq(analysisQueue.jobId, job.id)).run()
+    app.db.delete(analysisQueue).where(eq(analysisQueue.jobId, job.id)).run()
     return reply.code(200).send({ queued: false })
   })
 }

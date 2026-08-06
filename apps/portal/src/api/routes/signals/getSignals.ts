@@ -3,17 +3,13 @@
  * @license   MIT
  */
 
-import { jobSignals, jobs, type DB } from 'db'
+import { jobSignals, jobs } from 'db'
 import { and, asc, eq } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { toSignalJson } from '../../serializers.js'
 
-interface SignalsRouteOptions {
-  db: DB
-}
-
-const getSignals: FastifyPluginAsync<SignalsRouteOptions> = async (app, { db }) => {
+const getSignals: FastifyPluginAsync = async app => {
   app.get('/', async (req, reply) => {
     const { provider, providerJobId } = req.query as { provider?: string; providerJobId?: string }
 
@@ -21,7 +17,7 @@ const getSignals: FastifyPluginAsync<SignalsRouteOptions> = async (app, { db }) 
       return reply.badRequest('Invalid query parameter: providerJobId')
     }
 
-    const job = db
+    const job = app.db
       .select()
       .from(jobs)
       .where(and(eq(jobs.provider, provider ?? 'linkedin'), eq(jobs.providerJobId, providerJobId)))
@@ -30,7 +26,7 @@ const getSignals: FastifyPluginAsync<SignalsRouteOptions> = async (app, { db }) 
       return reply.notFound(`Job ${providerJobId} not found`)
     }
 
-    const rows = db.select().from(jobSignals).where(eq(jobSignals.jobId, job.id)).orderBy(asc(jobSignals.id)).all()
+    const rows = app.db.select().from(jobSignals).where(eq(jobSignals.jobId, job.id)).orderBy(asc(jobSignals.id)).all()
     return rows.map(toSignalJson)
   })
 }

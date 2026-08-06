@@ -3,23 +3,19 @@
  * @license   MIT
  */
 
-import sensible from '@fastify/sensible'
-import { createDb, signalRules, type DB } from 'db'
-import fastify, { type FastifyInstance } from 'fastify'
+import { type DB } from 'db'
+import { build, createTestDb, RULE_JAVA, seedDatabase, seedRule } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import getRules from './getRules.js'
 
 describe('GET /api/rules', () => {
   let db: DB
-  let app: FastifyInstance
+  let app: Awaited<ReturnType<typeof build>>
 
   beforeEach(async () => {
-    db = createDb(':memory:')
-    app = fastify()
-    await app.register(sensible)
-    await app.register(getRules, { db })
-    await app.ready()
+    db = createTestDb()
+    app = await build(getRules, { db, prefix: '/' })
   })
 
   afterEach(async () => {
@@ -34,13 +30,8 @@ describe('GET /api/rules', () => {
   })
 
   it('returns all rules ordered by id', async () => {
-    db.insert(signalRules)
-      .values([
-        { ruleName: 'Java', ruleCategory: 'regex_title', pattern: '(?i)\\bjava\\b', scoreModifier: 5 },
-        { ruleName: 'Recruiter', ruleCategory: 'regex_company', pattern: '(?i)recruit', scoreModifier: -10 },
-        { ruleName: 'Blockchain', ruleCategory: 'regex_description', pattern: '(?i)\\bblockchain\\b' },
-      ])
-      .run()
+    seedDatabase(db)
+    seedRule(db, { ruleName: 'Blockchain', ruleCategory: 'regex_description', pattern: '(?i)\\bblockchain\\b' })
 
     const res = await app.inject({ method: 'GET', url: '/' })
     expect(res.statusCode).toBe(200)
@@ -48,10 +39,7 @@ describe('GET /api/rules', () => {
     expect(body).toHaveLength(3)
     expect(body.map((rule: { id: number }) => rule.id)).toEqual([1, 2, 3])
     expect(body[0]).toMatchObject({
-      ruleName: 'Java',
-      ruleCategory: 'regex_title',
-      pattern: '(?i)\\bjava\\b',
-      scoreModifier: 5,
+      ...RULE_JAVA,
       enabled: true,
     })
   })

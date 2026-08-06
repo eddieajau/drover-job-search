@@ -3,23 +3,19 @@
  * @license   MIT
  */
 
-import sensible from '@fastify/sensible'
-import { createDb, queries, type DB } from 'db'
-import fastify, { type FastifyInstance } from 'fastify'
+import { type DB } from 'db'
+import { build, createTestDb, seedQuery } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import getQueries from './getQueries.js'
 
 describe('GET /api/queries', () => {
   let db: DB
-  let app: FastifyInstance
+  let app: Awaited<ReturnType<typeof build>>
 
   beforeEach(async () => {
-    db = createDb(':memory:')
-    app = fastify()
-    await app.register(sensible)
-    await app.register(getQueries, { db })
-    await app.ready()
+    db = createTestDb()
+    app = await build(getQueries, { db, prefix: '/' })
   })
 
   afterEach(async () => {
@@ -28,12 +24,8 @@ describe('GET /api/queries', () => {
   })
 
   it('returns all queries with parsed options', async () => {
-    db.insert(queries)
-      .values([
-        { queryText: 'Engineer', queryOptions: JSON.stringify({ location: 'Brisbane', workType: 'hybrid' }) },
-        { queryText: 'Designer', enabled: false },
-      ])
-      .run()
+    seedQuery(db, { queryText: 'Engineer', queryOptions: JSON.stringify({ location: 'Brisbane', workType: 'hybrid' }) })
+    seedQuery(db, { queryText: 'Designer', enabled: false })
 
     const res = await app.inject({ method: 'GET', url: '/' })
     expect(res.statusCode).toBe(200)
@@ -49,7 +41,7 @@ describe('GET /api/queries', () => {
   })
 
   it('filters by id', async () => {
-    const inserted = db.insert(queries).values({ queryText: 'Engineer' }).returning().get()
+    const inserted = seedQuery(db, { queryText: 'Engineer' })
 
     const res = await app.inject({ method: 'GET', url: `/?id=${inserted.id}` })
     expect(res.statusCode).toBe(200)

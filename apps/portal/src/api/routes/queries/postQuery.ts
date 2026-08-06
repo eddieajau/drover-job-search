@@ -3,15 +3,11 @@
  * @license   MIT
  */
 
-import { queries, type DB } from 'db'
+import { queries } from 'db'
 import { eq } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { toQueryJson } from '../../serializers.js'
-
-interface QueryRouteOptions {
-  db: DB
-}
 
 interface QueryOptionsBody {
   location?: string
@@ -48,12 +44,12 @@ const bodySchema = {
   },
 } as const
 
-const postQuery: FastifyPluginAsync<QueryRouteOptions> = async (app, { db }) => {
+const postQuery: FastifyPluginAsync = async app => {
   app.post('/', { schema: { body: bodySchema } }, async (req, reply) => {
     const { id, provider, queryText, queryOptions, enabled } = req.body as QueryBody
 
     if (id !== undefined) {
-      const existing = db.select().from(queries).where(eq(queries.id, id)).get()
+      const existing = app.db.select().from(queries).where(eq(queries.id, id)).get()
       if (!existing) {
         return reply.notFound(`Query ${id} not found`)
       }
@@ -69,16 +65,16 @@ const postQuery: FastifyPluginAsync<QueryRouteOptions> = async (app, { db }) => 
         values.enabled = enabled
       }
 
-      db.update(queries).set(values).where(eq(queries.id, id)).run()
+      app.db.update(queries).set(values).where(eq(queries.id, id)).run()
 
-      const row = db.select().from(queries).where(eq(queries.id, id)).get()
+      const row = app.db.select().from(queries).where(eq(queries.id, id)).get()
       if (!row) {
         return reply.internalServerError('Failed to reload query')
       }
       return toQueryJson(row)
     }
 
-    const row = db
+    const row = app.db
       .insert(queries)
       .values({
         provider: provider ?? 'linkedin',

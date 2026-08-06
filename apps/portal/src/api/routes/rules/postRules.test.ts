@@ -3,23 +3,19 @@
  * @license   MIT
  */
 
-import sensible from '@fastify/sensible'
-import { createDb, jobSignals, jobs, signalRules, type DB } from 'db'
-import fastify, { type FastifyInstance } from 'fastify'
+import { jobSignals, signalRules, type DB } from 'db'
+import { build, createTestDb, JOB1, RULE_JAVA, RULE_RECRUITER, seedJob, seedRule, seedSignal } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import postRules from './postRules.js'
 
 describe('POST /api/rules', () => {
   let db: DB
-  let app: FastifyInstance
+  let app: Awaited<ReturnType<typeof build>>
 
   beforeEach(async () => {
-    db = createDb(':memory:')
-    app = fastify()
-    await app.register(sensible)
-    await app.register(postRules, { db })
-    await app.ready()
+    db = createTestDb()
+    app = await build(postRules, { db, prefix: '/' })
   })
 
   afterEach(async () => {
@@ -32,7 +28,7 @@ describe('POST /api/rules', () => {
       method: 'POST',
       url: '/',
       payload: [
-        { ruleName: 'Java', ruleCategory: 'regex_title', pattern: '(?i)\\bjava\\b', scoreModifier: 5 },
+        RULE_JAVA,
         { ruleName: 'Blockchain', ruleCategory: 'regex_description', pattern: '(?i)\\bblockchain\\b' },
       ],
     })
@@ -50,11 +46,7 @@ describe('POST /api/rules', () => {
   })
 
   it('updates existing rules by id, preserving ids', async () => {
-    const inserted = db
-      .insert(signalRules)
-      .values({ ruleName: 'Java', ruleCategory: 'regex_title', pattern: '(?i)\\bjava\\b' })
-      .returning()
-      .get()
+    const inserted = seedRule(db, RULE_JAVA)
 
     const res = await app.inject({
       method: 'POST',
@@ -83,19 +75,13 @@ describe('POST /api/rules', () => {
   })
 
   it('deletes rules missing from the sent array', async () => {
-    const kept = db
-      .insert(signalRules)
-      .values({ ruleName: 'Java', ruleCategory: 'regex_title', pattern: '(?i)\\bjava\\b' })
-      .returning()
-      .get()
-    db.insert(signalRules)
-      .values({ ruleName: 'Recruiter', ruleCategory: 'regex_company', pattern: '(?i)recruit' })
-      .run()
+    const kept = seedRule(db, RULE_JAVA)
+    seedRule(db, RULE_RECRUITER)
 
     const res = await app.inject({
       method: 'POST',
       url: '/',
-      payload: [{ id: kept.id, ruleName: 'Java', ruleCategory: 'regex_title', pattern: '(?i)\\bjava\\b' }],
+      payload: [{ id: kept.id, ...RULE_JAVA }],
     })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toHaveLength(1)
@@ -106,22 +92,18 @@ describe('POST /api/rules', () => {
   })
 
   it('mixes create, update, and delete in one call', async () => {
-    const stale = db
-      .insert(signalRules)
-      .values({ ruleName: 'Stale', ruleCategory: 'regex_title', pattern: 'stale' })
-      .returning()
-      .get()
-    const kept = db
-      .insert(signalRules)
-      .values({ ruleName: 'Java', ruleCategory: 'regex_title', pattern: '(?i)\\bjava\\b' })
-      .returning()
-      .get()
+    const stale = seedRule(db, {
+      ruleName: 'Stale',
+      ruleCategory: 'regex_title',
+      pattern: 'stale',
+    })
+    const kept = seedRule(db, RULE_JAVA)
 
     const res = await app.inject({
       method: 'POST',
       url: '/',
       payload: [
-        { id: kept.id, ruleName: 'Java', ruleCategory: 'regex_title', pattern: '(?i)\\bjava\\b', scoreModifier: 5 },
+        { id: kept.id, ...RULE_JAVA },
         { ruleName: 'Android', ruleCategory: 'regex_title', pattern: '(?i)\\bandroid\\b' },
       ],
     })
@@ -163,7 +145,7 @@ describe('POST /api/rules', () => {
   })
 
   it('deletes all rules when sent an empty array', async () => {
-    db.insert(signalRules).values({ ruleName: 'Java', ruleCategory: 'regex_title', pattern: '(?i)\\bjava\\b' }).run()
+    seedRule(db, RULE_JAVA)
 
     const res = await app.inject({ method: 'POST', url: '/', payload: [] })
     expect(res.statusCode).toBe(200)
@@ -174,19 +156,9 @@ describe('POST /api/rules', () => {
   })
 
   it('removes signals when their rule is deleted', async () => {
-    const rule = db
-      .insert(signalRules)
-      .values({ ruleName: 'Java', ruleCategory: 'regex_title', pattern: '(?i)\\bjava\\b' })
-      .returning()
-      .get()
-    const job = db
-      .insert(jobs)
-      .values({ providerJobId: 'abc', title: 'Engineer', companyName: 'Co', url: 'https://x', location: 'Brisbane' })
-      .returning()
-      .get()
-    db.insert(jobSignals)
-      .values({ jobId: job.id, ruleId: rule.id, source: 'regex_title', signalType: 'skill_match', score: 5 })
-      .run()
+    const rule = seedRule(db, RULE_JAVA)
+    const job = seedJob(db, JOB1)
+    seedSignal(db, { jobId: job.id, ruleId: rule.id, source: 'regex_title', signalType: 'skill_match', score: 5 })
 
     const res = await app.inject({ method: 'POST', url: '/', payload: [] })
     expect(res.statusCode).toBe(200)

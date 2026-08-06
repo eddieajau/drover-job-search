@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { jobs, type DB } from 'db'
+import { jobs } from 'db'
 import { count, desc } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
@@ -13,11 +13,7 @@ import { summariseSignals } from '../../services/signals-summary.js'
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
 
-interface JobsRouteOptions {
-  db: DB
-}
-
-const getJobs: FastifyPluginAsync<JobsRouteOptions> = async (app, { db }) => {
+const getJobs: FastifyPluginAsync = async app => {
   app.get('/', async req => {
     const { limit, offset } = req.query as { limit?: string; offset?: string }
 
@@ -27,8 +23,8 @@ const getJobs: FastifyPluginAsync<JobsRouteOptions> = async (app, { db }) => {
     const parsedOffset = Number.parseInt(offset ?? '', 10)
     const pageOffset = Number.isFinite(parsedOffset) && parsedOffset > 0 ? parsedOffset : 0
 
-    const [{ total }] = await db.select({ total: count() }).from(jobs)
-    const results = await db
+    const [{ total }] = await app.db.select({ total: count() }).from(jobs)
+    const results = await app.db
       .select()
       .from(jobs)
       .orderBy(desc(jobs.postedAt), desc(jobs.id))
@@ -36,7 +32,7 @@ const getJobs: FastifyPluginAsync<JobsRouteOptions> = async (app, { db }) => {
       .offset(pageOffset)
 
     const totals = summariseSignals(
-      db,
+      app.db,
       results.map(row => row.id)
     )
     return {

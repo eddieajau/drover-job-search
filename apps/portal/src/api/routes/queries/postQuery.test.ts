@@ -3,23 +3,19 @@
  * @license   MIT
  */
 
-import sensible from '@fastify/sensible'
-import { createDb, queries, type DB } from 'db'
-import fastify, { type FastifyInstance } from 'fastify'
+import { type DB } from 'db'
+import { build, createTestDb, seedQuery } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import postQuery from './postQuery.js'
 
 describe('POST /api/queries', () => {
   let db: DB
-  let app: FastifyInstance
+  let app: Awaited<ReturnType<typeof build>>
 
   beforeEach(async () => {
-    db = createDb(':memory:')
-    app = fastify()
-    await app.register(sensible)
-    await app.register(postQuery, { db })
-    await app.ready()
+    db = createTestDb()
+    app = await build(postQuery, { db, prefix: '/' })
   })
 
   afterEach(async () => {
@@ -43,7 +39,7 @@ describe('POST /api/queries', () => {
   })
 
   it('updates an existing query', async () => {
-    const inserted = db.insert(queries).values({ queryText: 'Engineer' }).returning().get()
+    const inserted = seedQuery(db, { queryText: 'Engineer' })
 
     const res = await app.inject({
       method: 'POST',

@@ -3,21 +3,19 @@
  * @license   MIT
  */
 
-import { createDb, jobSignals, jobs, type DB } from 'db'
-import fastify, { type FastifyInstance } from 'fastify'
+import { type DB } from 'db'
+import { build, createTestDb, JOB1, JOB2, JOB3, seedJob, seedSignal } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import getJobs from './getJobs.js'
 
 describe('GET /api/jobs', () => {
   let db: DB
-  let app: FastifyInstance
+  let app: Awaited<ReturnType<typeof build>>
 
   beforeEach(async () => {
-    db = createDb(':memory:')
-    app = fastify()
-    await app.register(getJobs, { db })
-    await app.ready()
+    db = createTestDb()
+    app = await build(getJobs, { db, prefix: '/' })
   })
 
   afterEach(async () => {
@@ -32,53 +30,20 @@ describe('GET /api/jobs', () => {
   })
 
   it('returns jobs sorted by posted date descending', async () => {
-    db.insert(jobs)
-      .values([
-        {
-          providerJobId: 'a',
-          title: 'A',
-          companyName: 'Co',
-          url: 'https://a',
-          location: 'Brisbane',
-          postedAt: '2026-01-01',
-        },
-        {
-          providerJobId: 'b',
-          title: 'B',
-          companyName: 'Co',
-          url: 'https://b',
-          location: 'Brisbane',
-          postedAt: '2026-03-01',
-        },
-        {
-          providerJobId: 'c',
-          title: 'C',
-          companyName: 'Co',
-          url: 'https://c',
-          location: 'Brisbane',
-          postedAt: '2026-02-01',
-        },
-      ])
-      .run()
+    for (const job of [JOB3, JOB1, JOB2]) {
+      seedJob(db, job)
+    }
 
     const res = await app.inject({ method: 'GET', url: '/' })
     const body = res.json() as { count: number; results: Array<{ providerJobId: string }> }
     expect(body.count).toBe(3)
-    expect(body.results.map(j => j.providerJobId)).toEqual(['b', 'c', 'a'])
+    expect(body.results.map(j => j.providerJobId)).toEqual([JOB3.providerJobId, JOB2.providerJobId, JOB1.providerJobId])
   })
 
   it('paginates with limit and offset', async () => {
-    db.insert(jobs)
-      .values(
-        [1, 2, 3, 4, 5].map(n => ({
-          providerJobId: `j${n}`,
-          title: `Job ${n}`,
-          companyName: 'Co',
-          url: `https://j${n}`,
-          location: 'Brisbane',
-        }))
-      )
-      .run()
+    for (const n of [1, 2, 3, 4, 5]) {
+      seedJob(db, { ...JOB1, providerJobId: `j${n}`, title: `Job ${n}` })
+    }
 
     const res = await app.inject({ method: 'GET', url: '/?limit=2&offset=2' })
     const body = res.json()
@@ -99,13 +64,11 @@ describe('GET /api/jobs', () => {
 
 describe('GET /api/jobs signal summary join', () => {
   let db: DB
-  let app: FastifyInstance
+  let app: Awaited<ReturnType<typeof build>>
 
   beforeEach(async () => {
-    db = createDb(':memory:')
-    app = fastify()
-    await app.register(getJobs, { db })
-    await app.ready()
+    db = createTestDb()
+    app = await build(getJobs, { db, prefix: '/' })
   })
 
   afterEach(async () => {
@@ -114,34 +77,17 @@ describe('GET /api/jobs signal summary join', () => {
   })
 
   it('joins the signal summary onto each job', async () => {
-    const jobA = db
-      .insert(jobs)
-      .values({ providerJobId: 'a', title: 'A', companyName: 'Co', url: 'https://a', location: 'Brisbane' })
-      .returning()
-      .get()
-    const jobB = db
-      .insert(jobs)
-      .values({ providerJobId: 'b', title: 'B', companyName: 'Co', url: 'https://b', location: 'Brisbane' })
-      .returning()
-      .get()
-    db.insert(jobSignals)
-      .values([
-        {
-          jobId: jobA.id,
-          source: 'regex_title',
-          signalType: 'skill_match',
-          score: 5,
-        },
-        {
-          jobId: jobA.id,
-          source: 'llm_deep_eval',
-          signalType: 'skill_match',
-          score: 75,
-          metadata: JSON.stringify({ dimension: 'technical' }),
-        },
-        { jobId: jobB.id, source: 'manual_review', signalType: 'company_match', score: 2 },
-      ])
-      .run()
+    const jobA = seedJob(db, JOB1)
+    const jobB = seedJob(db, JOB2)
+    seedSignal(db, { jobId: jobA.id, source: 'regex_title', signalType: 'skill_match', score: 5 })
+    seedSignal(db, {
+      jobId: jobA.id,
+      source: 'llm_deep_eval',
+      signalType: 'skill_match',
+      score: 75,
+      metadata: JSON.stringify({ dimension: 'technical' }),
+    })
+    seedSignal(db, { jobId: jobB.id, source: 'manual_review', signalType: 'company_match', score: 2 })
 
     const res = await app.inject({ method: 'GET', url: '/' })
     expect(res.statusCode).toBe(200)
@@ -154,26 +100,18 @@ describe('GET /api/jobs signal summary join', () => {
         baseScore: number
       }
     }>
-    expect(results.find(j => j.providerJobId === 'a')).toMatchObject({
+    expect(results.find(j => j.providerJobId === JOB1.providerJobId)).toMatchObject({
       signals: { signalCount: 2, gated: false, dimensions: { technical: 75 }, baseScore: 5 },
     })
-    expect(results.find(j => j.providerJobId === 'b')).toMatchObject({
+    expect(results.find(j => j.providerJobId === JOB2.providerJobId)).toMatchObject({
       signals: { signalCount: 1, gated: false, dimensions: {}, baseScore: 2 },
     })
   })
 
   it('sets gated=true when a job has a dealbreaker signal', async () => {
-    const job = db
-      .insert(jobs)
-      .values({ providerJobId: 'a', title: 'A', companyName: 'Co', url: 'https://a', location: 'Brisbane' })
-      .returning()
-      .get()
-    db.insert(jobSignals)
-      .values([
-        { jobId: job.id, source: 'regex_title', signalType: 'skill_match', score: 10 },
-        { jobId: job.id, source: 'llm_deep_eval', signalType: 'dealbreaker', score: -50 },
-      ])
-      .run()
+    const job = seedJob(db, JOB1)
+    seedSignal(db, { jobId: job.id, source: 'regex_title', signalType: 'skill_match', score: 10 })
+    seedSignal(db, { jobId: job.id, source: 'llm_deep_eval', signalType: 'dealbreaker', score: -50 })
 
     const res = await app.inject({ method: 'GET', url: '/' })
     const jobJson = res.json().results[0]
@@ -182,9 +120,7 @@ describe('GET /api/jobs signal summary join', () => {
   })
 
   it('zero-fills the summary for jobs without signals', async () => {
-    db.insert(jobs)
-      .values({ providerJobId: 'a', title: 'A', companyName: 'Co', url: 'https://a', location: 'Brisbane' })
-      .run()
+    seedJob(db, JOB1)
 
     const res = await app.inject({ method: 'GET', url: '/' })
     const jobJson = res.json().results[0]
@@ -196,26 +132,20 @@ describe('GET /api/jobs signal summary join', () => {
 
 describe('GET /api/jobs description serialization', () => {
   let db: DB
-  let app: FastifyInstance
+  let app: Awaited<ReturnType<typeof build>>
 
   function insertJob(description: string | null): void {
-    db.insert(jobs)
-      .values({
-        providerJobId: `d-${description?.slice(0, 8) ?? 'none'}`,
-        title: 'Job',
-        companyName: 'Co',
-        url: 'https://d',
-        location: 'Brisbane',
-        description,
-      })
-      .run()
+    seedJob(db, {
+      ...JOB1,
+      providerJobId: `d-${description?.slice(0, 8) ?? 'none'}`,
+      title: 'Job',
+      description,
+    })
   }
 
   beforeEach(async () => {
-    db = createDb(':memory:')
-    app = fastify()
-    await app.register(getJobs, { db })
-    await app.ready()
+    db = createTestDb()
+    app = await build(getJobs, { db, prefix: '/' })
   })
 
   afterEach(async () => {

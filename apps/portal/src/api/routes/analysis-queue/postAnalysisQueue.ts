@@ -3,17 +3,13 @@
  * @license   MIT
  */
 
-import { analysisQueue, jobs, type DB } from 'db'
+import { analysisQueue, jobs } from 'db'
 import { and, eq } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { toQueueJson } from '../../serializers.js'
 
-interface AnalysisQueueRouteOptions {
-  db: DB
-}
-
-const postAnalysisQueue: FastifyPluginAsync<AnalysisQueueRouteOptions> = async (app, { db }) => {
+const postAnalysisQueue: FastifyPluginAsync = async app => {
   app.post('/', async (req, reply) => {
     const { provider, providerJobId } = req.body as { provider?: string; providerJobId?: string }
 
@@ -21,7 +17,7 @@ const postAnalysisQueue: FastifyPluginAsync<AnalysisQueueRouteOptions> = async (
       return reply.badRequest('Invalid body parameter: providerJobId')
     }
 
-    const job = db
+    const job = app.db
       .select()
       .from(jobs)
       .where(and(eq(jobs.provider, provider ?? 'linkedin'), eq(jobs.providerJobId, providerJobId)))
@@ -30,12 +26,13 @@ const postAnalysisQueue: FastifyPluginAsync<AnalysisQueueRouteOptions> = async (
       return reply.notFound(`Job ${providerJobId} not found`)
     }
 
-    db.insert(analysisQueue)
+    app.db
+      .insert(analysisQueue)
       .values({ jobId: job.id, completedAt: null })
       .onConflictDoUpdate({ target: analysisQueue.jobId, set: { completedAt: null } })
       .run()
 
-    const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()
+    const row = app.db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()
     if (!row) {
       return reply.internalServerError('Failed to reload queue row')
     }

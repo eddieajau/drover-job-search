@@ -3,15 +3,11 @@
  * @license   MIT
  */
 
-import { signalRules, type DB } from 'db'
+import { signalRules } from 'db'
 import { asc, eq, notInArray } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { toRuleJson } from '../../serializers.js'
-
-interface RulesRouteOptions {
-  db: DB
-}
 
 interface RuleBody {
   id?: number
@@ -43,7 +39,7 @@ const bodySchema = {
   items: ruleSchema,
 } as const
 
-const postRules: FastifyPluginAsync<RulesRouteOptions> = async (app, { db }) => {
+const postRules: FastifyPluginAsync = async app => {
   app.post('/', { schema: { body: bodySchema } }, async req => {
     const rules = req.body as RuleBody[]
     const keptIds = new Set<number>()
@@ -52,11 +48,12 @@ const postRules: FastifyPluginAsync<RulesRouteOptions> = async (app, { db }) => 
       const { id, ruleName, ruleCategory, pattern, signalType, scoreModifier, enabled } = rule
 
       if (id !== undefined) {
-        const existing = db.select().from(signalRules).where(eq(signalRules.id, id)).get()
+        const existing = app.db.select().from(signalRules).where(eq(signalRules.id, id)).get()
         if (!existing) {
           continue
         }
-        db.update(signalRules)
+        app.db
+          .update(signalRules)
           .set({
             ruleName,
             ruleCategory,
@@ -71,7 +68,7 @@ const postRules: FastifyPluginAsync<RulesRouteOptions> = async (app, { db }) => 
         continue
       }
 
-      const row = db
+      const row = app.db
         .insert(signalRules)
         .values({
           ruleName,
@@ -87,14 +84,15 @@ const postRules: FastifyPluginAsync<RulesRouteOptions> = async (app, { db }) => 
     }
 
     if (keptIds.size === 0) {
-      db.delete(signalRules).run()
+      app.db.delete(signalRules).run()
     } else {
-      db.delete(signalRules)
+      app.db
+        .delete(signalRules)
         .where(notInArray(signalRules.id, [...keptIds]))
         .run()
     }
 
-    const rows = db.select().from(signalRules).orderBy(asc(signalRules.id)).all()
+    const rows = app.db.select().from(signalRules).orderBy(asc(signalRules.id)).all()
     return rows.map(toRuleJson)
   })
 }
