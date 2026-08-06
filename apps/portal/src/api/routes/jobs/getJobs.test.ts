@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { createDb, jobs, type DB } from 'db'
+import { createDb, jobSignals, jobs, type DB } from 'db'
 import fastify, { type FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -94,6 +94,103 @@ describe('GET /api/jobs', () => {
 
     const invalid = await app.inject({ method: 'GET', url: '/?limit=abc' })
     expect(invalid.json().limit).toBe(50)
+  })
+})
+
+describe('GET /api/jobs signal summary join', () => {
+  let db: DB
+  let app: FastifyInstance
+
+  beforeEach(async () => {
+    db = createDb(':memory:')
+    app = fastify()
+    await app.register(getJobs, { db })
+    await app.ready()
+  })
+
+  afterEach(async () => {
+    await app.close()
+    db.$client.close()
+  })
+
+  it('joins the signal summary onto each job', async () => {
+    const jobA = db
+      .insert(jobs)
+      .values({ providerJobId: 'a', title: 'A', companyName: 'Co', url: 'https://a', location: 'Brisbane' })
+      .returning()
+      .get()
+    const jobB = db
+      .insert(jobs)
+      .values({ providerJobId: 'b', title: 'B', companyName: 'Co', url: 'https://b', location: 'Brisbane' })
+      .returning()
+      .get()
+    db.insert(jobSignals)
+      .values([
+        {
+          jobId: jobA.id,
+          source: 'regex_title',
+          signalType: 'skill_match',
+          score: 5,
+        },
+        {
+          jobId: jobA.id,
+          source: 'llm_deep_eval',
+          signalType: 'skill_match',
+          score: 75,
+          metadata: JSON.stringify({ dimension: 'technical' }),
+        },
+        { jobId: jobB.id, source: 'manual_review', signalType: 'company_match', score: 2 },
+      ])
+      .run()
+
+    const res = await app.inject({ method: 'GET', url: '/' })
+    expect(res.statusCode).toBe(200)
+    const results = res.json().results as Array<{
+      providerJobId: string
+      signals: {
+        signalCount: number
+        gated: boolean
+        dimensions: Record<string, number>
+        baseScore: number
+      }
+    }>
+    expect(results.find(j => j.providerJobId === 'a')).toMatchObject({
+      signals: { signalCount: 2, gated: false, dimensions: { technical: 75 }, baseScore: 5 },
+    })
+    expect(results.find(j => j.providerJobId === 'b')).toMatchObject({
+      signals: { signalCount: 1, gated: false, dimensions: {}, baseScore: 2 },
+    })
+  })
+
+  it('sets gated=true when a job has a dealbreaker signal', async () => {
+    const job = db
+      .insert(jobs)
+      .values({ providerJobId: 'a', title: 'A', companyName: 'Co', url: 'https://a', location: 'Brisbane' })
+      .returning()
+      .get()
+    db.insert(jobSignals)
+      .values([
+        { jobId: job.id, source: 'regex_title', signalType: 'skill_match', score: 10 },
+        { jobId: job.id, source: 'llm_deep_eval', signalType: 'dealbreaker', score: -50 },
+      ])
+      .run()
+
+    const res = await app.inject({ method: 'GET', url: '/' })
+    const jobJson = res.json().results[0]
+    expect(jobJson.signals.gated).toBe(true)
+    expect(jobJson.signals.baseScore).toBe(10)
+  })
+
+  it('zero-fills the summary for jobs without signals', async () => {
+    db.insert(jobs)
+      .values({ providerJobId: 'a', title: 'A', companyName: 'Co', url: 'https://a', location: 'Brisbane' })
+      .run()
+
+    const res = await app.inject({ method: 'GET', url: '/' })
+    const jobJson = res.json().results[0]
+    expect(jobJson).toMatchObject({
+      signals: { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
+    })
   })
 })
 

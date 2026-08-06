@@ -3,6 +3,13 @@
  * @license   MIT
  */
 
+export interface SignalSummary {
+  signalCount: number
+  gated: boolean
+  dimensions: Record<string, number>
+  baseScore: number
+}
+
 export interface Job {
   id: number
   providerJobId: string
@@ -15,6 +22,7 @@ export interface Job {
   salaryRaw?: string | null
   priority: number
   category: string
+  signals?: SignalSummary
 }
 
 export interface JobStatus {

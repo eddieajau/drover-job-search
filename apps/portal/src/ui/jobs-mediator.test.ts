@@ -47,6 +47,29 @@ const mockJobsResponse = {
   ],
 }
 
+type JobSignals = {
+  signalCount?: number
+  gated?: boolean
+  dimensions?: Record<string, number>
+  baseScore?: number
+}
+
+function jobsResponse(signals: Record<string, JobSignals> = {}): typeof mockJobsResponse {
+  return {
+    count: 3,
+    results: mockJobsResponse.results.map(job => ({
+      ...job,
+      signals: {
+        signalCount: 0,
+        gated: false,
+        dimensions: {},
+        baseScore: 0,
+        ...signals[job.providerJobId],
+      },
+    })),
+  }
+}
+
 function mockFetch(responses: Record<string, unknown>): void {
   vi.stubGlobal(
     'fetch',
@@ -74,10 +97,19 @@ describe('jobs-mediator', () => {
     vi.restoreAllMocks()
   })
 
-  it('fetches signal summaries and attaches weighted netScore to jobs', async () => {
+  it('loads each job with its joined summary in a single /api/jobs request', async () => {
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const calls = vi.mocked(fetch).mock.calls.map(([url]) => url)
+    expect(calls).toEqual(['/api/jobs'])
+  })
+
+  it('reads the joined signal summary and attaches weighted netScore to jobs', async () => {
     mockFetch({
-      '/api/jobs': mockJobsResponse,
-      '/api/signals/summary': {
+      '/api/jobs': jobsResponse({
         'job-1': {
           signalCount: 2,
           gated: false,
@@ -91,7 +123,7 @@ describe('jobs-mediator', () => {
           baseScore: 0,
         },
         'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
-      },
+      }),
     })
 
     initJobsMediator()
@@ -106,15 +138,14 @@ describe('jobs-mediator', () => {
 
   it('weights dimension sub-scores to the documented scale, not a naive sum', async () => {
     mockFetch({
-      '/api/jobs': mockJobsResponse,
-      '/api/signals/summary': {
+      '/api/jobs': jobsResponse({
         'job-1': {
           signalCount: 4,
           gated: false,
           dimensions: { technical: 50, experience: 50, behavioral: 50, career: 50 },
           baseScore: 0,
         },
-      },
+      }),
     })
 
     initJobsMediator()
@@ -126,12 +157,11 @@ describe('jobs-mediator', () => {
 
   it('ranks by weighted dimensions so heavier dimensions dominate', async () => {
     mockFetch({
-      '/api/jobs': mockJobsResponse,
-      '/api/signals/summary': {
+      '/api/jobs': jobsResponse({
         'job-1': { signalCount: 2, gated: false, dimensions: { technical: 100 }, baseScore: 0 },
         'job-2': { signalCount: 2, gated: false, dimensions: { behavioral: 100 }, baseScore: 0 },
         'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
-      },
+      }),
     })
 
     initJobsMediator()
@@ -147,8 +177,7 @@ describe('jobs-mediator', () => {
 
   it('excludes gated jobs from default list', async () => {
     mockFetch({
-      '/api/jobs': mockJobsResponse,
-      '/api/signals/summary': {
+      '/api/jobs': jobsResponse({
         'job-1': {
           signalCount: 2,
           gated: false,
@@ -162,7 +191,7 @@ describe('jobs-mediator', () => {
           baseScore: 0,
         },
         'job-3': { signalCount: 0, gated: true, dimensions: {}, baseScore: 0 },
-      },
+      }),
     })
 
     initJobsMediator()
@@ -178,8 +207,7 @@ describe('jobs-mediator', () => {
 
   it('auto-skips a gated job regardless of dimension scores', async () => {
     mockFetch({
-      '/api/jobs': mockJobsResponse,
-      '/api/signals/summary': {
+      '/api/jobs': jobsResponse({
         'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
         'job-2': {
           signalCount: 4,
@@ -188,7 +216,7 @@ describe('jobs-mediator', () => {
           baseScore: 0,
         },
         'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
-      },
+      }),
     })
 
     initJobsMediator()
@@ -202,8 +230,7 @@ describe('jobs-mediator', () => {
 
   it('sorts non-gated jobs by weighted netScore descending', async () => {
     mockFetch({
-      '/api/jobs': mockJobsResponse,
-      '/api/signals/summary': {
+      '/api/jobs': jobsResponse({
         'job-1': {
           signalCount: 1,
           gated: false,
@@ -222,7 +249,7 @@ describe('jobs-mediator', () => {
           dimensions: { technical: 50, experience: 50, behavioral: 50, career: 50 },
           baseScore: 0,
         },
-      },
+      }),
     })
 
     initJobsMediator()
@@ -238,8 +265,7 @@ describe('jobs-mediator', () => {
 
   it('renders auto-skip badge for gated jobs when filter is auto-skip', async () => {
     mockFetch({
-      '/api/jobs': mockJobsResponse,
-      '/api/signals/summary': {
+      '/api/jobs': jobsResponse({
         'job-1': {
           signalCount: 3,
           gated: true,
@@ -252,7 +278,7 @@ describe('jobs-mediator', () => {
           dimensions: { technical: 10, experience: 10, behavioral: 10, career: 10 },
           baseScore: 0,
         },
-      },
+      }),
     })
 
     initJobsMediator()
@@ -273,11 +299,8 @@ describe('jobs-mediator', () => {
     expect(cards[0].classList.contains('gated')).toBe(true)
   })
 
-  it('handles missing signal summary gracefully', async () => {
-    mockFetch({
-      '/api/jobs': mockJobsResponse,
-      '/api/signals/summary': {},
-    })
+  it('handles jobs missing the summary fields gracefully', async () => {
+    mockFetch({ '/api/jobs': mockJobsResponse })
 
     initJobsMediator()
     await new Promise(resolve => setTimeout(resolve, 50))

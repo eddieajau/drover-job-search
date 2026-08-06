@@ -7,6 +7,8 @@ import type { AnalysisQueue, Job as JobRow, JobSignal, Query, SignalRule } from 
 import { marked } from 'marked'
 import sanitizeHtml from 'sanitize-html'
 
+import type { SignalSummary } from '../shared/types.js'
+
 const MARKDOWN_ALLOWED_TAGS = [
   'h1',
   'h2',
@@ -106,40 +108,17 @@ export function toSignalJson(row: JobSignal): SignalResponse {
   return { ...rest, metadata: parseQueryOptions(metadata) }
 }
 
-export interface JobResponse {
-  id: number
-  provider: string
-  providerJobId: string
-  title: string
-  companyName: string
-  url: string
-  location: string
-  workplaceType: string | null
-  employmentType: string | null
-  postedAt: string | null
+export interface JobResponse extends Omit<JobRow, 'description'> {
   descriptionHtml: string | null
-  salaryMin: number | null
-  salaryMax: number | null
-  salaryCurrency: string | null
-  salaryPeriod: string | null
-  isSalaryEstimated: number
-  salaryRaw: string | null
-  category: string
-  priority: number
-  status: string
-  processedBy: string | null
-  skipReason: string | null
-  createdAt: string
-  appliedAt: string | null
-  skippedAt: string | null
-  updatedAt: string
+  signals: SignalSummary
 }
 
-export function toJobJson(row: JobRow): JobResponse {
+export function toJobJson(row: JobRow, summary?: SignalSummary): JobResponse {
   const { description, ...rest } = row
   return {
     ...rest,
     descriptionHtml: description ? markdownToHtml(description) : null,
+    signals: summary ?? { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
   }
 }
 

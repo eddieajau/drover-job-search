@@ -14,13 +14,6 @@ interface JobsResponse {
   results: Job[]
 }
 
-interface SignalSummary {
-  signalCount: number
-  gated: boolean
-  dimensions: Record<string, number>
-  baseScore: number
-}
-
 const HOT_THRESHOLD = 50
 
 const DIMENSION_WEIGHTS: Record<string, number> = {
@@ -30,15 +23,15 @@ const DIMENSION_WEIGHTS: Record<string, number> = {
   career: 0.3,
 }
 
-function computeNetScore(summary: SignalSummary | undefined): number | undefined {
-  if (!summary) {
+function computeNetScore(job: Job): number | undefined {
+  if (!job.signals) {
     return undefined
   }
   let weighted = 0
-  for (const [dimension, score] of Object.entries(summary.dimensions)) {
+  for (const [dimension, score] of Object.entries(job.signals.dimensions)) {
     weighted += score * (DIMENSION_WEIGHTS[dimension] ?? 0)
   }
-  return Math.round(weighted) + summary.baseScore
+  return Math.round(weighted) + job.signals.baseScore
 }
 
 let registered = false
@@ -49,7 +42,6 @@ let selectedId: number | null = null
 let filters: JobsFilters = { priority: '', status: '', search: '', score: '' }
 let viewStatus: ViewStatus = 'idle'
 let message = ''
-let signalSummaries: Record<string, SignalSummary> = {}
 
 export function initJobsMediator(): void {
   if (registered) {
@@ -83,7 +75,6 @@ export function _resetJobsMediatorForTesting(): void {
   filters = { priority: '', status: '', search: '', score: '' }
   viewStatus = 'idle'
   message = ''
-  signalSummaries = {}
 }
 
 function handleReady(): void {
@@ -104,7 +95,6 @@ async function handleSearch(): Promise<void> {
     }
     const data = (await response.json()) as JobsResponse
     results = mergeResults(results, data.results)
-    await fetchSignalSummaries()
     viewStatus = 'done'
     message = ''
     pushState()
@@ -112,21 +102,6 @@ async function handleSearch(): Promise<void> {
     viewStatus = 'error'
     message = 'Failed to load. Is the server running?'
     pushState()
-  }
-}
-
-async function fetchSignalSummaries(): Promise<void> {
-  if (results.length === 0) {
-    return
-  }
-  const ids = results.map(j => j.providerJobId).join(',')
-  try {
-    const response = await fetch(`/api/signals/summary?provider=linkedin&ids=${encodeURIComponent(ids)}`)
-    if (response.ok) {
-      signalSummaries = (await response.json()) as Record<string, SignalSummary>
-    }
-  } catch {
-    // silently fail — signals are optional enrichment
   }
 }
 
@@ -168,15 +143,12 @@ function pushState(): void {
   if (!page) {
     return
   }
-  const all: JobWithStatus[] = results.map(job => {
-    const summary = signalSummaries[job.providerJobId]
-    return {
-      ...job,
-      _status: seen[job.id]?.status ?? 'new',
-      netScore: computeNetScore(summary),
-      gated: summary?.gated,
-    }
-  })
+  const all: JobWithStatus[] = results.map(job => ({
+    ...job,
+    _status: seen[job.id]?.status ?? 'new',
+    netScore: computeNetScore(job),
+    gated: job.signals?.gated,
+  }))
 
   let jobs = all
   if (filters.priority) {
