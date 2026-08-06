@@ -56,7 +56,7 @@ describe('jobs-page', () => {
     expect(el.querySelector('.pane-foot pager-nav')).not.toBeNull()
     expect(el.querySelector('.pane-foot job-stats')).not.toBeNull()
     expect(el.querySelector('.pane-content job-detail')).not.toBeNull()
-    expect(el.querySelector('.pane-meta job-signals-panel')).not.toBeNull()
+    expect(el.querySelector('.pane-meta job-meta-panel')).not.toBeNull()
     expect(el.querySelector('#btn-search')).toBeNull()
   })
 
@@ -90,5 +90,14 @@ describe('jobs-page', () => {
     const j: JobWithStatus = { ...job(), _status: 'new' }
     el.setState(state({ all: [j], jobs: [j], selectedId: null }))
     expect(el.querySelector('job-detail')?.querySelector('.detail-empty')).not.toBeNull()
+  })
+
+  it('forwards selected job and signals to the meta panel via setJobMeta', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 85 }
+    el.setState(state({ all: [j], jobs: [j], selectedId: 1 }))
+    el.setJobMeta('4445084022', [], false)
+    const metaPanel = el.querySelector('job-meta-panel')
+    expect(metaPanel?.querySelector('.meta-panel')).not.toBeNull()
+    expect(metaPanel?.querySelector('.meta-empty')).toBeNull()
   })
 })

@@ -91,20 +91,6 @@ describe('job-list', () => {
     expect(received.providerJobId).toBe('4445084022')
   })
 
-  it('dispatches job-list:status from action buttons without selecting', () => {
-    el.setState({ status: 'done', message: '', jobs: [withStatus(job())], selectedId: null })
-    const received = { selectFired: false, status: '' }
-    el.addEventListener('job-list:select', () => {
-      received.selectFired = true
-    })
-    el.addEventListener('job-list:status', event => {
-      received.status = (event as CustomEvent<{ status: string }>).detail.status
-    })
-    el.querySelector<HTMLButtonElement>('button[data-status="applied"]')?.click()
-    expect(received.status).toBe('applied')
-    expect(received.selectFired).toBe(false)
-  })
-
   it('renders a score chip for jobs with netScore', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'new', 85)], selectedId: null })
     const score = el.querySelector('.score')

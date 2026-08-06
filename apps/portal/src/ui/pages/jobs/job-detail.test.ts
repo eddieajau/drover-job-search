@@ -39,7 +39,7 @@ describe('job-detail', () => {
     expect(el.querySelector('.detail-empty')?.textContent).toBe('Select a job to view details')
   })
 
-  it('renders job details', () => {
+  it('renders job header and description', () => {
     el.showJob({ ...job(), _status: 'new' })
     expect(el.querySelector('h2')?.textContent).toBe('Staff Engineer')
     expect(el.querySelector('.company')?.textContent).toBe('Acme')
@@ -60,25 +60,9 @@ describe('job-detail', () => {
     )
   })
 
-  it('shows the Mark New button for non-new jobs', () => {
-    el.showJob({ ...job(), _status: 'applied' })
-    expect(el.querySelector('button[data-status="new"]')).not.toBeNull()
-  })
-
-  it('hides the Mark New button for new jobs', () => {
+  it('does not render action buttons', () => {
     el.showJob({ ...job(), _status: 'new' })
-    expect(el.querySelector('button[data-status="new"]')).toBeNull()
-  })
-
-  it('dispatches job-detail:status from action buttons', () => {
-    el.showJob({ ...job(), _status: 'new' })
-    const received = { jobId: 0, status: '' }
-    el.addEventListener('job-detail:status', event => {
-      const detail = (event as CustomEvent<{ jobId: number; status: string }>).detail
-      received.jobId = detail.jobId
-      received.status = detail.status
-    })
-    el.querySelector<HTMLButtonElement>('button[data-status="applied"]')?.click()
-    expect(received).toEqual({ jobId: 1, status: 'applied' })
+    expect(el.querySelector('.detail-actions')).toBeNull()
+    expect(el.querySelector('button[data-action="status"]')).toBeNull()
   })
 })

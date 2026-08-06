@@ -3,13 +3,10 @@
  * @license   MIT
  */
 
-import type { JobStatus } from '../../../shared/types.js'
 import { escapeHtml as esc } from '../../escape.js'
 
 export interface JobCardEventMap {
   'job-card:select': CustomEvent<{ jobId: number; providerJobId: string }>
-  'job-card:status': CustomEvent<{ jobId: number; status: JobStatus['status'] }>
-  'job-card:open': CustomEvent<{ url: string }>
 }
 
 type JobCardAttribute =
@@ -22,10 +19,8 @@ type JobCardAttribute =
   | 'priority'
   | 'score'
   | 'gated'
-  | 'status'
   | 'active'
   | 'seen'
-  | 'url'
 
 export class JobCard extends HTMLElement {
   static observedAttributes: JobCardAttribute[] = [
@@ -38,10 +33,8 @@ export class JobCard extends HTMLElement {
     'priority',
     'score',
     'gated',
-    'status',
     'active',
     'seen',
-    'url',
   ]
 
   #jobId = 0
@@ -52,10 +45,8 @@ export class JobCard extends HTMLElement {
   #posted = ''
   #score: number | undefined = undefined
   #gated = false
-  #status: JobStatus['status'] = 'new'
   #active = false
   #seen = false
-  #url = ''
   #abort: AbortController | null = null
 
   connectedCallback(): void {
@@ -95,17 +86,11 @@ export class JobCard extends HTMLElement {
       case 'gated':
         this.#gated = newValue !== null
         break
-      case 'status':
-        this.#status = (newValue as JobStatus['status']) ?? 'new'
-        break
       case 'active':
         this.#active = newValue !== null
         break
       case 'seen':
         this.#seen = newValue !== null
-        break
-      case 'url':
-        this.#url = newValue ?? ''
         break
     }
     if (this.isConnected) {
@@ -126,35 +111,7 @@ export class JobCard extends HTMLElement {
     this.#abort = null
   }
 
-  #onClick = (event: MouseEvent): void => {
-    const target = event.target as HTMLElement
-    const action = target.closest<HTMLButtonElement>('button[data-action]')
-    if (action) {
-      if (action.dataset.action === 'open') {
-        this.dispatchEvent(
-          new CustomEvent<JobCardEventMap['job-card:open'] extends CustomEvent<infer D> ? D : never>('job-card:open', {
-            bubbles: true,
-            composed: true,
-            detail: { url: action.dataset.url ?? '' },
-          })
-        )
-        return
-      }
-      const status = action.dataset.status as JobStatus['status'] | undefined
-      if (status) {
-        this.dispatchEvent(
-          new CustomEvent<JobCardEventMap['job-card:status'] extends CustomEvent<infer D> ? D : never>(
-            'job-card:status',
-            {
-              bubbles: true,
-              composed: true,
-              detail: { jobId: this.#jobId, status },
-            }
-          )
-        )
-      }
-      return
-    }
+  #onClick = (_event: MouseEvent): void => {
     this.dispatchEvent(
       new CustomEvent<JobCardEventMap['job-card:select'] extends CustomEvent<infer D> ? D : never>('job-card:select', {
         bubbles: true,
@@ -166,10 +123,6 @@ export class JobCard extends HTMLElement {
 
   #onKeydown = (event: KeyboardEvent): void => {
     if (event.key === 'Enter' || event.key === ' ') {
-      const target = event.target as HTMLElement
-      if (target.closest('button[data-action]')) {
-        return
-      }
       event.preventDefault()
       this.dispatchEvent(
         new CustomEvent<JobCardEventMap['job-card:select'] extends CustomEvent<infer D> ? D : never>(
@@ -209,11 +162,6 @@ export class JobCard extends HTMLElement {
           <span class="posted">${esc(this.#posted)}</span>
           <span class="spacer"></span>
           ${scoreHtml}
-        </div>
-        <div class="card-actions">
-          <button type="button" class="btn ${this.#status === 'applied' ? 'applied' : ''}" data-action="status" data-status="applied">Applied</button>
-          <button type="button" class="btn ${this.#status === 'skipped' ? 'skipped' : ''}" data-action="status" data-status="skipped">Skip</button>
-          <button type="button" class="btn" data-action="open" data-url="${esc(this.#url)}">LinkedIn</button>
         </div>
       </div>
     `

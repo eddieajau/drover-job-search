@@ -5,16 +5,16 @@
 
 import type { Pager } from '../../elements/pager.js'
 import '../../elements/pager.js'
-import type { JobsViewState } from '../../jobs-view.js'
+import type { JobsViewState, JobWithStatus } from '../../jobs-view.js'
 import './filter-bar.js'
 import type { FilterBar } from './filter-bar.js'
 import './job-list.js'
 import type { JobDetail } from './job-detail.js'
 import './job-detail.js'
 import type { JobList } from './job-list.js'
+import './job-meta-panel.js'
+import type { JobMetaPanel } from './job-meta-panel.js'
 import './job-stats.js'
-import type { JobSignalsPanel } from './job-signals-panel.js'
-import './job-signals-panel.js'
 import type { JobStats } from './job-stats.js'
 
 export interface JobsPageEventMap {
@@ -23,6 +23,7 @@ export interface JobsPageEventMap {
 
 export class JobsPage extends HTMLElement {
   #abort: AbortController | null = null
+  #state: JobsViewState | null = null
 
   connectedCallback(): void {
     this.render()
@@ -43,6 +44,7 @@ export class JobsPage extends HTMLElement {
   }
 
   setState(state: JobsViewState): void {
+    this.#state = state
     this.#list()?.setState({
       status: state.status,
       message: state.message,
@@ -56,12 +58,22 @@ export class JobsPage extends HTMLElement {
     this.#pager()?.setAttribute('page-size', String(state.pageSize))
     this.#pager()?.setAttribute('total', String(state.total))
     if (!state.selectedId) {
-      this.#signalsPanel()?.showSignals(null, [], false)
+      this.#metaPanel()?.showJob(null, [], false)
     }
   }
 
-  setJobSignals(providerJobId: string, signals: import('../../../shared/types.js').JobSignal[], queued: boolean): void {
-    this.#signalsPanel()?.showSignals(providerJobId, signals, queued)
+  setJobMeta(providerJobId: string, signals: import('../../../shared/types.js').JobSignal[], queued: boolean): void {
+    const selectedJob = this.#findSelectedJob()
+    if (selectedJob && selectedJob.providerJobId === providerJobId) {
+      this.#metaPanel()?.showJob(selectedJob, signals, queued)
+    }
+  }
+
+  #findSelectedJob(): JobWithStatus | null {
+    if (!this.#state?.selectedId) {
+      return null
+    }
+    return this.#state.all.find(job => job.id === this.#state!.selectedId) ?? null
   }
 
   #list(): JobList | null {
@@ -84,8 +96,8 @@ export class JobsPage extends HTMLElement {
     return this.querySelector('pager-nav')
   }
 
-  #signalsPanel(): JobSignalsPanel | null {
-    return this.querySelector('job-signals-panel')
+  #metaPanel(): JobMetaPanel | null {
+    return this.querySelector('job-meta-panel')
   }
 
   render(): void {
@@ -106,7 +118,7 @@ export class JobsPage extends HTMLElement {
             <job-detail></job-detail>
           </main>
           <aside class="pane-meta" aria-label="Job signals and actions">
-            <job-signals-panel></job-signals-panel>
+            <job-meta-panel></job-meta-panel>
           </aside>
         </div>
       </div>

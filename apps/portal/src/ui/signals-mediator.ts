@@ -18,7 +18,7 @@ export function initSignalsMediator(): void {
   window.addEventListener('rules-list:trash', handleTrash)
   window.addEventListener('rules-list:toggle', handleToggle)
   window.addEventListener('job-list:select', handleJobSelect)
-  window.addEventListener('job-signals-panel:flag', handleFlag)
+  window.addEventListener('job-meta:flag', handleFlag)
 }
 
 export function _resetSignalsMediatorForTesting(): void {
@@ -28,7 +28,7 @@ export function _resetSignalsMediatorForTesting(): void {
     window.removeEventListener('rules-list:trash', handleTrash)
     window.removeEventListener('rules-list:toggle', handleToggle)
     window.removeEventListener('job-list:select', handleJobSelect)
-    window.removeEventListener('job-signals-panel:flag', handleFlag)
+    window.removeEventListener('job-meta:flag', handleFlag)
   }
   registered = false
 }
@@ -109,7 +109,7 @@ async function handleJobSelect(event: Event): Promise<void> {
     // Show empty state on failure
   }
 
-  page.setJobSignals(providerJobId, signals, queued)
+  page.setJobMeta(providerJobId, signals, queued)
 }
 
 async function handleFlag(event: Event): Promise<void> {
@@ -125,6 +125,6 @@ async function handleFlag(event: Event): Promise<void> {
   }
   const page = document.querySelector('jobs-page')
   if (page) {
-    page.setJobSignals(providerJobId, [], true)
+    page.setJobMeta(providerJobId, [], true)
   }
 }

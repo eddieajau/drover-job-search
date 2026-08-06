@@ -3,7 +3,6 @@
  * @license   MIT
  */
 
-import type { JobStatus } from '../../../shared/types.js'
 import { escapeHtml as esc } from '../../escape.js'
 import type { JobWithStatus } from '../../jobs-view.js'
 import './job-card.js'
@@ -11,7 +10,6 @@ import type { JobCard } from './job-card.js'
 
 export interface JobListEventMap {
   'job-list:select': CustomEvent<{ jobId: number; providerJobId: string }>
-  'job-list:status': CustomEvent<{ jobId: number; status: JobStatus['status'] }>
 }
 
 export interface JobListState {
@@ -44,8 +42,6 @@ export class JobList extends HTMLElement {
     this.#abort = new AbortController()
     const opts = { signal: this.#abort.signal }
     this.addEventListener('job-card:select', this.#onCardSelect as EventListener, opts)
-    this.addEventListener('job-card:status', this.#onCardStatus as EventListener, opts)
-    this.addEventListener('job-card:open', this.#onCardOpen as EventListener, opts)
   }
 
   cleanup(): void {
@@ -62,22 +58,6 @@ export class JobList extends HTMLElement {
         detail: { jobId, providerJobId },
       })
     )
-  }
-
-  #onCardStatus = (event: Event): void => {
-    const { jobId, status } = (event as CustomEvent<{ jobId: number; status: JobStatus['status'] }>).detail
-    this.dispatchEvent(
-      new CustomEvent('job-list:status', {
-        bubbles: true,
-        composed: true,
-        detail: { jobId, status },
-      })
-    )
-  }
-
-  #onCardOpen = (event: Event): void => {
-    const { url } = (event as CustomEvent<{ url: string }>).detail
-    window.open(url, '_blank')
   }
 
   render(): void {
@@ -116,14 +96,12 @@ export class JobList extends HTMLElement {
         if (job.gated) {
           card.setAttribute('gated', '')
         }
-        card.setAttribute('status', job._status)
         if (job.id === this.#state.selectedId) {
           card.setAttribute('active', '')
         }
         if (job._status !== 'new') {
           card.setAttribute('seen', '')
         }
-        card.setAttribute('url', job.url)
         return card
       })
     )

@@ -81,7 +81,7 @@ describe('job-card', () => {
     expect(received.providerJobId).toBe('job-3')
   })
 
-  it('dispatches job-card:status from action buttons without selecting', () => {
+  it('does not render action buttons', () => {
     const card = createCard({
       'job-id': '4',
       'provider-job-id': 'job-4',
@@ -91,20 +91,8 @@ describe('job-card', () => {
       posted: '4d',
     })
 
-    const received = { selectFired: false, jobId: 0, status: '' }
-    card.addEventListener('job-card:select', () => {
-      received.selectFired = true
-    })
-    card.addEventListener('job-card:status', event => {
-      const detail = (event as CustomEvent<{ jobId: number; status: string }>).detail
-      received.jobId = detail.jobId
-      received.status = detail.status
-    })
-
-    card.querySelector<HTMLButtonElement>('button[data-action="status"][data-status="skipped"]')?.click()
-    expect(received.status).toBe('skipped')
-    expect(received.jobId).toBe(4)
-    expect(received.selectFired).toBe(false)
+    expect(card.querySelector('.card-actions')).toBeNull()
+    expect(card.querySelector('button[data-action="status"]')).toBeNull()
   })
 
   it('re-renders when score attribute changes', () => {

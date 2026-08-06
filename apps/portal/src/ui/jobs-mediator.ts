@@ -56,8 +56,8 @@ export function initJobsMediator(): void {
   registered = true
   window.addEventListener('jobs-page:ready', handleReady)
   window.addEventListener('job-list:select', handleSelect)
-  window.addEventListener('job-list:status', handleStatus)
-  window.addEventListener('job-detail:status', handleStatus)
+  window.addEventListener('job-meta:status', handleStatus)
+  window.addEventListener('job-meta:open', handleOpen)
   window.addEventListener('filter-bar:change', handleFilterChange)
   window.addEventListener('pager:change', handlePagerChange)
   if (document.querySelector('jobs-page')) {
@@ -69,8 +69,8 @@ export function _resetJobsMediatorForTesting(): void {
   if (registered) {
     window.removeEventListener('jobs-page:ready', handleReady)
     window.removeEventListener('job-list:select', handleSelect)
-    window.removeEventListener('job-list:status', handleStatus)
-    window.removeEventListener('job-detail:status', handleStatus)
+    window.removeEventListener('job-meta:status', handleStatus)
+    window.removeEventListener('job-meta:open', handleOpen)
     window.removeEventListener('filter-bar:change', handleFilterChange)
     window.removeEventListener('pager:change', handlePagerChange)
   }
@@ -136,6 +136,11 @@ function handleSelect(event: Event): void {
 function handleStatus(event: Event): void {
   const detail = (event as CustomEvent<{ jobId: number; status: JobStatus['status'] }>).detail
   track(detail.jobId, detail.status)
+}
+
+function handleOpen(event: Event): void {
+  const { url } = (event as CustomEvent<{ url: string }>).detail
+  window.open(url, '_blank')
 }
 
 function handleFilterChange(event: Event): void {
