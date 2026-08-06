@@ -355,6 +355,17 @@ body {
   margin-left: auto;
 }
 
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.btn.ghost:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
 .priority-badge {
   display: inline-flex;
   align-items: center;

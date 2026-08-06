@@ -7,6 +7,20 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
+    <script>
+      ;(function () {
+        var root = document.documentElement
+        var saved = null
+        try {
+          saved = localStorage.getItem('drover-theme')
+        } catch (e) {}
+        if (saved === 'light' || saved === 'dark') {
+          root.setAttribute('data-theme', saved)
+        } else if (matchMedia('(prefers-color-scheme: dark)').matches) {
+          root.setAttribute('data-theme', 'dark')
+        }
+      })()
+    </script>
     <app-shell></app-shell>
     <script type="module" src="/js/main.js"></script>
   </body>

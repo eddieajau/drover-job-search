@@ -35,6 +35,11 @@ describe('app-shell', () => {
     expect(links[2]?.getAttribute('href')).toBe('#signals')
   })
 
+  it('mounts a theme-toggle in the header', () => {
+    const el = createShell()
+    expect(el.querySelector('theme-toggle')).not.toBeNull()
+  })
+
   it('mounts jobs-page by default and marks Jobs active', () => {
     const el = createShell()
     expect(el.querySelector('jobs-page')).not.toBeNull()

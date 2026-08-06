@@ -3,6 +3,8 @@
  * @license   MIT
  */
 
+import './pager.js'
+import './theme-toggle.js'
 import type { NavigationState } from '../navigation-state.js'
 import { parseHash } from '../navigation-state.js'
 import '../pages/jobs/index.js'
@@ -100,6 +102,7 @@ export class AppShell extends HTMLElement {
           <a class="site-nav-link" href="#queries" data-view="queries">Queries</a>
           <a class="site-nav-link" href="#signals" data-view="signals">Signals</a>
         </nav>
+        <theme-toggle theme="light"></theme-toggle>
       </header>
       <main class="portal-main">
         <div id="page-mount"></div>
