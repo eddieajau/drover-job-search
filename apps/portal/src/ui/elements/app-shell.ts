@@ -95,14 +95,14 @@ export class AppShell extends HTMLElement {
 
   render(): void {
     this.innerHTML = `
-      <header class="site-header">
-        <p class="site-title">Drover</p>
-        <nav class="site-nav" aria-label="Site">
+      <header class="topnav">
+        <a class="brand" href="#jobs">Drover</a>
+        <nav class="nav" aria-label="Primary">
           <a class="site-nav-link" href="#jobs" data-view="jobs">Jobs</a>
           <a class="site-nav-link" href="#queries" data-view="queries">Queries</a>
           <a class="site-nav-link" href="#signals" data-view="signals">Signals</a>
         </nav>
-        <theme-toggle theme="light"></theme-toggle>
+        <theme-toggle></theme-toggle>
       </header>
       <main class="portal-main">
         <div id="page-mount"></div>

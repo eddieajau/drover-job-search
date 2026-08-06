@@ -25,19 +25,25 @@ describe('app-shell', () => {
     window.location.hash = ''
   })
 
-  it('renders the site header with Jobs, Queries, and Signals nav links', () => {
+  it('renders the topnav with brand, three nav links, and a theme-toggle', () => {
     const el = createShell()
-    expect(el.querySelector('.site-title')?.textContent).toBe('Drover')
+    expect(el.querySelector('.topnav')).not.toBeNull()
+    expect(el.querySelector('.brand')?.textContent).toBe('Drover')
     const links = el.querySelectorAll<HTMLAnchorElement>('.site-nav-link')
     expect(links.length).toBe(3)
     expect(links[0]?.getAttribute('href')).toBe('#jobs')
     expect(links[1]?.getAttribute('href')).toBe('#queries')
     expect(links[2]?.getAttribute('href')).toBe('#signals')
+    expect(el.querySelectorAll('theme-toggle').length).toBe(1)
+    expect(el.querySelector('#page-mount')).not.toBeNull()
   })
 
-  it('mounts a theme-toggle in the header', () => {
+  it('syncNav sets aria-current on the matching link only', () => {
     const el = createShell()
-    expect(el.querySelector('theme-toggle')).not.toBeNull()
+    el.syncNav('queries')
+    expect(el.querySelector('[data-view="queries"]')?.getAttribute('aria-current')).toBe('page')
+    expect(el.querySelector('[data-view="jobs"]')?.getAttribute('aria-current')).toBeNull()
+    expect(el.querySelector('[data-view="signals"]')?.getAttribute('aria-current')).toBeNull()
   })
 
   it('mounts jobs-page by default and marks Jobs active', () => {
