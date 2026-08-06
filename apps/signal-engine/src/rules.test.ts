@@ -29,7 +29,7 @@ function seed(db: ReturnType<typeof createDb>) {
         companyName: 'Gamma LLC',
         url: 'https://example.com/3',
         location: 'Remote',
-        description: 'Build Android apps with Java and Kotlin',
+        description: '- Build **Android** apps with [Java](https://example.com) and Kotlin\n- Ship to production',
       },
     ])
     .run()
@@ -40,6 +40,25 @@ describe('matches', () => {
     expect(matches('(?i)\\b(java|android)\\b', 'Senior Java Developer')).toEqual(['Java'])
     expect(matches('(?i)\\b(java|android)\\b', 'Android and Java roles')).toEqual(['Android', 'Java'])
     expect(matches('(?i)\\b(java|android)\\b', 'No match here')).toEqual([])
+  })
+
+  it('word boundaries match inside markdown emphasis and link text', () => {
+    expect(
+      matches('(?i)\\b(java|android)\\b', '- Build **Android** apps with [Java](https://example.com) and Kotlin')
+    ).toEqual(['Android', 'Java'])
+  })
+
+  it('markdown list-item rule matches sibling list items independently', () => {
+    expect(
+      matches(
+        '(?m)^\\- (.+)$',
+        '- Build **Android** apps with [Java](https://example.com) and Kotlin\n- Ship to production'
+      )
+    ).toEqual(['- Build **Android** apps with [Java](https://example.com) and Kotlin', '- Ship to production'])
+  })
+
+  it('does not match a keyword buried mid-word in a markdown link URL', () => {
+    expect(matches('(?i)\\bjava\\b', '[Senior Java Engineer](https://example.com/javacareers)')).toEqual(['Java'])
   })
 })
 
