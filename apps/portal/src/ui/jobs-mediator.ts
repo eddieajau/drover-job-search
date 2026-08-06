@@ -55,7 +55,6 @@ export function initJobsMediator(): void {
   }
   registered = true
   window.addEventListener('jobs-page:ready', handleReady)
-  window.addEventListener('jobs-page:search', handleSearch)
   window.addEventListener('job-list:select', handleSelect)
   window.addEventListener('job-list:status', handleStatus)
   window.addEventListener('job-detail:status', handleStatus)
@@ -69,7 +68,6 @@ export function initJobsMediator(): void {
 export function _resetJobsMediatorForTesting(): void {
   if (registered) {
     window.removeEventListener('jobs-page:ready', handleReady)
-    window.removeEventListener('jobs-page:search', handleSearch)
     window.removeEventListener('job-list:select', handleSelect)
     window.removeEventListener('job-list:status', handleStatus)
     window.removeEventListener('job-detail:status', handleStatus)

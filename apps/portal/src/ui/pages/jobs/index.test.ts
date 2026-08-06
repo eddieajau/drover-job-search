@@ -50,14 +50,14 @@ describe('jobs-page', () => {
     document.body.appendChild(el)
   })
 
-  it('renders the toolbar, filters, list and detail panels', () => {
-    expect(el.querySelector('job-stats')).not.toBeNull()
-    expect(el.querySelector('filter-bar')).not.toBeNull()
-    expect(el.querySelector('#btn-search')).not.toBeNull()
-    expect(el.querySelector('#btn-export')).toBeNull()
-    expect(el.querySelector('job-list')).not.toBeNull()
-    expect(el.querySelector('job-detail')).not.toBeNull()
-    expect(el.querySelector('pager-nav')).not.toBeNull()
+  it('renders the three-pane workspace with toolbar, list, footer, detail and meta', () => {
+    expect(el.querySelector('.pane-list job-list')).not.toBeNull()
+    expect(el.querySelector('.list-toolbar filter-bar')).not.toBeNull()
+    expect(el.querySelector('.pane-foot pager-nav')).not.toBeNull()
+    expect(el.querySelector('.pane-foot job-stats')).not.toBeNull()
+    expect(el.querySelector('.pane-content job-detail')).not.toBeNull()
+    expect(el.querySelector('.pane-meta job-signals-panel')).not.toBeNull()
+    expect(el.querySelector('#btn-search')).toBeNull()
   })
 
   it('forwards pagination to the pager element via attributes', () => {
@@ -90,14 +90,5 @@ describe('jobs-page', () => {
     const j: JobWithStatus = { ...job(), _status: 'new' }
     el.setState(state({ all: [j], jobs: [j], selectedId: null }))
     expect(el.querySelector('job-detail')?.querySelector('.detail-empty')).not.toBeNull()
-  })
-
-  it('dispatches jobs-page:search from the Search button', () => {
-    const received = { fired: false }
-    el.addEventListener('jobs-page:search', () => {
-      received.fired = true
-    })
-    el.querySelector<HTMLButtonElement>('#btn-search')?.click()
-    expect(received.fired).toBe(true)
   })
 })

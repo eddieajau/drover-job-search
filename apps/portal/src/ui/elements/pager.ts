@@ -107,9 +107,9 @@ export class Pager extends HTMLElement {
     const prevDisabled = page <= 1 ? 'disabled' : ''
     const nextDisabled = page >= this.totalPages ? 'disabled' : ''
     this.innerHTML = `
-      <button type="button" id="pager-prev" ${prevDisabled}>Prev</button>
+      <button type="button" id="pager-prev" ${prevDisabled}>&lsaquo;</button>
       <span class="pager-info">Page ${page} of ${this.totalPages}</span>
-      <button type="button" id="pager-next" ${nextDisabled}>Next</button>
+      <button type="button" id="pager-next" ${nextDisabled}>&rsaquo;</button>
       <select id="pager-size" aria-label="Items per page">
         ${[10, 25, 50]
           .map(size => `<option value="${size}"${size === this.#pageSize ? ' selected' : ''}>${size}</option>`)

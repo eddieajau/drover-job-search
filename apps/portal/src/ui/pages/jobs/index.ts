@@ -19,7 +19,6 @@ import type { JobStats } from './job-stats.js'
 
 export interface JobsPageEventMap {
   'jobs-page:ready': CustomEvent<void>
-  'jobs-page:search': CustomEvent<void>
 }
 
 export class JobsPage extends HTMLElement {
@@ -92,20 +91,23 @@ export class JobsPage extends HTMLElement {
   render(): void {
     this.innerHTML = `
       <div class="jobs-page">
-        <div class="jobs-toolbar">
-          <job-stats></job-stats>
-          <filter-bar></filter-bar>
-          <button type="button" id="btn-search">Search</button>
-        </div>
-        <div class="layout">
-          <div class="list-panel">
+        <div class="workspace">
+          <aside class="pane-list" aria-label="Jobs list">
+            <div class="list-toolbar">
+              <filter-bar></filter-bar>
+            </div>
             <job-list></job-list>
-            <pager-nav></pager-nav>
-          </div>
-          <div class="detail-panel">
+            <div class="pane-foot">
+              <pager-nav></pager-nav>
+              <job-stats></job-stats>
+            </div>
+          </aside>
+          <main class="pane-content">
             <job-detail></job-detail>
+          </main>
+          <aside class="pane-meta" aria-label="Job signals and actions">
             <job-signals-panel></job-signals-panel>
-          </div>
+          </aside>
         </div>
       </div>
     `
@@ -114,17 +116,11 @@ export class JobsPage extends HTMLElement {
   setupEventListeners(): void {
     this.cleanup()
     this.#abort = new AbortController()
-    const opts = { signal: this.#abort.signal }
-    this.querySelector('#btn-search')?.addEventListener('click', this.#onSearch, opts)
   }
 
   cleanup(): void {
     this.#abort?.abort()
     this.#abort = null
-  }
-
-  #onSearch = (): void => {
-    this.dispatchEvent(new CustomEvent('jobs-page:search', { bubbles: true, composed: true }))
   }
 }
 
