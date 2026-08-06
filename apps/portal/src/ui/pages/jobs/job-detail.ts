@@ -88,7 +88,7 @@ export class JobDetail extends HTMLElement {
         ${status !== 'new' ? `<button type="button" class="btn" data-action="status" data-status="new" data-job-id="${esc(String(job.id))}">Mark New</button>` : ''}
       </div>
       <div class="detail-description">
-        ${job.description ? esc(job.description) : '<em>No description in search results.</em>'}
+        ${job.descriptionHtml ?? '<em>No description in search results.</em>'}
       </div>
     `
   }

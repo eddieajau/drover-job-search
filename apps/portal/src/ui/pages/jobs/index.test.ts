@@ -21,6 +21,7 @@ function job(overrides: Partial<Job> = {}): Job {
     postedAt: '2026-08-05',
     priority: 1,
     category: 'P1',
+    descriptionHtml: null,
     ...overrides,
   }
 }

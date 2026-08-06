@@ -96,3 +96,68 @@ describe('GET /api/jobs', () => {
     expect(invalid.json().limit).toBe(50)
   })
 })
+
+describe('GET /api/jobs description serialization', () => {
+  let db: DB
+  let app: FastifyInstance
+
+  function insertJob(description: string | null): void {
+    db.insert(jobs)
+      .values({
+        providerJobId: `d-${description?.slice(0, 8) ?? 'none'}`,
+        title: 'Job',
+        companyName: 'Co',
+        url: 'https://d',
+        location: 'Brisbane',
+        description,
+      })
+      .run()
+  }
+
+  beforeEach(async () => {
+    db = createDb(':memory:')
+    app = fastify()
+    await app.register(getJobs, { db })
+    await app.ready()
+  })
+
+  afterEach(async () => {
+    await app.close()
+    db.$client.close()
+  })
+
+  it('renders markdown headings and lists to HTML', async () => {
+    insertJob('## Heading\n\n- item')
+    const res = await app.inject({ method: 'GET', url: '/' })
+    const html = res.json().results[0].descriptionHtml as string
+    expect(html).toContain('<h2>Heading</h2>')
+    expect(html).toContain('<ul>')
+    expect(html).toContain('<li>item</li>')
+  })
+
+  it('strips raw HTML embedded in markdown', async () => {
+    insertJob('<script>alert(1)</script>\n\nSafe text')
+    const res = await app.inject({ method: 'GET', url: '/' })
+    const html = res.json().results[0].descriptionHtml as string
+    expect(html).not.toContain('<script')
+    expect(html).toContain('Safe text')
+  })
+
+  it('omits the raw description markdown from the response', async () => {
+    insertJob('## Heading')
+    const res = await app.inject({ method: 'GET', url: '/' })
+    expect(res.json().results[0]).not.toHaveProperty('description')
+  })
+
+  it('round-trips plain text as a single paragraph', async () => {
+    insertJob('Just plain text')
+    const res = await app.inject({ method: 'GET', url: '/' })
+    expect(res.json().results[0].descriptionHtml).toBe('<p>Just plain text</p>')
+  })
+
+  it('returns null descriptionHtml for jobs without a description', async () => {
+    insertJob(null)
+    const res = await app.inject({ method: 'GET', url: '/' })
+    expect(res.json().results[0].descriptionHtml).toBeNull()
+  })
+})

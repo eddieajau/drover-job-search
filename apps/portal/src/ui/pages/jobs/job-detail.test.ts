@@ -20,7 +20,7 @@ function job(overrides: Partial<Job> = {}): Job {
     postedAt: '2026-08-05',
     priority: 1,
     category: 'P1',
-    description: 'Design and build.',
+    descriptionHtml: '<p>Design and build.</p>',
     ...overrides,
   }
 }
@@ -44,6 +44,20 @@ describe('job-detail', () => {
     expect(el.querySelector('h2')?.textContent).toBe('Staff Engineer')
     expect(el.querySelector('.company')?.textContent).toBe('Acme')
     expect(el.querySelector('.detail-description')?.textContent).toContain('Design and build.')
+  })
+
+  it('renders descriptionHtml as formatted HTML (not escaped)', () => {
+    el.showJob({ ...job({ descriptionHtml: '<h2>Heading</h2><ul><li>item</li></ul>' }), _status: 'new' })
+    const description = el.querySelector('.detail-description')
+    expect(description?.querySelector('h2')?.textContent).toBe('Heading')
+    expect(description?.querySelector('li')?.textContent).toBe('item')
+  })
+
+  it('renders the fallback when descriptionHtml is null', () => {
+    el.showJob({ ...job({ descriptionHtml: null }), _status: 'new' })
+    expect(el.querySelector('.detail-description')?.querySelector('em')?.textContent).toBe(
+      'No description in search results.'
+    )
   })
 
   it('shows the Mark New button for non-new jobs', () => {

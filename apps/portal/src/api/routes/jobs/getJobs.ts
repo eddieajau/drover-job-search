@@ -7,6 +7,8 @@ import { jobs, type DB } from 'db'
 import { count, desc } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
+import { toJobJson } from '../../serializers.js'
+
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
 
@@ -32,7 +34,7 @@ const getJobs: FastifyPluginAsync<JobsRouteOptions> = async (app, { db }) => {
       .limit(pageLimit)
       .offset(pageOffset)
 
-    return { count: total, limit: pageLimit, offset: pageOffset, results }
+    return { count: total, limit: pageLimit, offset: pageOffset, results: results.map(toJobJson) }
   })
 }
 

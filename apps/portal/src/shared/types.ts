@@ -11,7 +11,7 @@ export interface Job {
   url: string
   location: string
   postedAt: string | null
-  description?: string | null
+  descriptionHtml: string | null
   salaryRaw?: string | null
   priority: number
   category: string
