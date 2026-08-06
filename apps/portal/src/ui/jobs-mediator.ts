@@ -15,12 +15,31 @@ interface JobsResponse {
 }
 
 interface SignalSummary {
-  netScore: number
   signalCount: number
   gated: boolean
+  dimensions: Record<string, number>
+  baseScore: number
 }
 
 const HOT_THRESHOLD = 50
+
+const DIMENSION_WEIGHTS: Record<string, number> = {
+  technical: 0.3,
+  experience: 0.25,
+  behavioral: 0.15,
+  career: 0.3,
+}
+
+function computeNetScore(summary: SignalSummary | undefined): number | undefined {
+  if (!summary) {
+    return undefined
+  }
+  let weighted = 0
+  for (const [dimension, score] of Object.entries(summary.dimensions)) {
+    weighted += score * (DIMENSION_WEIGHTS[dimension] ?? 0)
+  }
+  return Math.round(weighted) + summary.baseScore
+}
 
 let registered = false
 
@@ -154,7 +173,7 @@ function pushState(): void {
     return {
       ...job,
       _status: seen[job.id]?.status ?? 'new',
-      netScore: summary?.netScore,
+      netScore: computeNetScore(summary),
       gated: summary?.gated,
     }
   })

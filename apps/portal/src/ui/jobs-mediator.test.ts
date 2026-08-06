@@ -74,13 +74,23 @@ describe('jobs-mediator', () => {
     vi.restoreAllMocks()
   })
 
-  it('fetches signal summaries and attaches netScore to jobs', async () => {
+  it('fetches signal summaries and attaches weighted netScore to jobs', async () => {
     mockFetch({
       '/api/jobs': mockJobsResponse,
       '/api/signals/summary': {
-        'job-1': { netScore: 75, signalCount: 2, gated: false },
-        'job-2': { netScore: 10, signalCount: 1, gated: false },
-        'job-3': { netScore: 0, signalCount: 0, gated: false },
+        'job-1': {
+          signalCount: 2,
+          gated: false,
+          dimensions: { technical: 75, experience: 75, behavioral: 75, career: 75 },
+          baseScore: 0,
+        },
+        'job-2': {
+          signalCount: 1,
+          gated: false,
+          dimensions: { technical: 10, experience: 10, behavioral: 10, career: 10 },
+          baseScore: 0,
+        },
+        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
       },
     })
 
@@ -94,13 +104,64 @@ describe('jobs-mediator', () => {
     expect(badges[0].textContent).toBe('+75')
   })
 
+  it('weights dimension sub-scores to the documented scale, not a naive sum', async () => {
+    mockFetch({
+      '/api/jobs': mockJobsResponse,
+      '/api/signals/summary': {
+        'job-1': {
+          signalCount: 4,
+          gated: false,
+          dimensions: { technical: 50, experience: 50, behavioral: 50, career: 50 },
+          baseScore: 0,
+        },
+      },
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const badge = document.querySelector('.score-badge')
+    expect(badge?.textContent).toBe('+50')
+  })
+
+  it('ranks by weighted dimensions so heavier dimensions dominate', async () => {
+    mockFetch({
+      '/api/jobs': mockJobsResponse,
+      '/api/signals/summary': {
+        'job-1': { signalCount: 2, gated: false, dimensions: { technical: 100 }, baseScore: 0 },
+        'job-2': { signalCount: 2, gated: false, dimensions: { behavioral: 100 }, baseScore: 0 },
+        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
+      },
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const cards = document.querySelectorAll('.card')
+    expect(cards.length).toBe(3)
+    const titles = Array.from(cards).map(c => c.querySelector('.card-title')?.textContent)
+    expect(titles[0]).toBe('Staff Engineer')
+    expect(titles[1]).toBe('Senior Developer')
+    expect(titles[2]).toBe('Tech Lead')
+  })
+
   it('excludes gated jobs from default list', async () => {
     mockFetch({
       '/api/jobs': mockJobsResponse,
       '/api/signals/summary': {
-        'job-1': { netScore: 75, signalCount: 2, gated: false },
-        'job-2': { netScore: 10, signalCount: 1, gated: false },
-        'job-3': { netScore: 0, signalCount: 0, gated: true },
+        'job-1': {
+          signalCount: 2,
+          gated: false,
+          dimensions: { technical: 75, experience: 75, behavioral: 75, career: 75 },
+          baseScore: 0,
+        },
+        'job-2': {
+          signalCount: 1,
+          gated: false,
+          dimensions: { technical: 10, experience: 10, behavioral: 10, career: 10 },
+          baseScore: 0,
+        },
+        'job-3': { signalCount: 0, gated: true, dimensions: {}, baseScore: 0 },
       },
     })
 
@@ -115,13 +176,52 @@ describe('jobs-mediator', () => {
     expect(titles).not.toContain('Tech Lead')
   })
 
-  it('sorts non-gated jobs by netScore descending', async () => {
+  it('auto-skips a gated job regardless of dimension scores', async () => {
     mockFetch({
       '/api/jobs': mockJobsResponse,
       '/api/signals/summary': {
-        'job-1': { netScore: 20, signalCount: 1, gated: false },
-        'job-2': { netScore: 80, signalCount: 2, gated: false },
-        'job-3': { netScore: 50, signalCount: 1, gated: false },
+        'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
+        'job-2': {
+          signalCount: 4,
+          gated: true,
+          dimensions: { technical: 100, experience: 100, behavioral: 100, career: 100 },
+          baseScore: 0,
+        },
+        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
+      },
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const cards = document.querySelectorAll('.card')
+    expect(cards.length).toBe(2)
+    const titles = Array.from(cards).map(c => c.querySelector('.card-title')?.textContent)
+    expect(titles).not.toContain('Senior Developer')
+  })
+
+  it('sorts non-gated jobs by weighted netScore descending', async () => {
+    mockFetch({
+      '/api/jobs': mockJobsResponse,
+      '/api/signals/summary': {
+        'job-1': {
+          signalCount: 1,
+          gated: false,
+          dimensions: { technical: 20, experience: 20, behavioral: 20, career: 20 },
+          baseScore: 0,
+        },
+        'job-2': {
+          signalCount: 2,
+          gated: false,
+          dimensions: { technical: 80, experience: 80, behavioral: 80, career: 80 },
+          baseScore: 0,
+        },
+        'job-3': {
+          signalCount: 1,
+          gated: false,
+          dimensions: { technical: 50, experience: 50, behavioral: 50, career: 50 },
+          baseScore: 0,
+        },
       },
     })
 
@@ -140,8 +240,18 @@ describe('jobs-mediator', () => {
     mockFetch({
       '/api/jobs': mockJobsResponse,
       '/api/signals/summary': {
-        'job-1': { netScore: 100, signalCount: 3, gated: true },
-        'job-2': { netScore: 10, signalCount: 1, gated: false },
+        'job-1': {
+          signalCount: 3,
+          gated: true,
+          dimensions: { technical: 100, experience: 100, behavioral: 100, career: 100 },
+          baseScore: 0,
+        },
+        'job-2': {
+          signalCount: 1,
+          gated: false,
+          dimensions: { technical: 10, experience: 10, behavioral: 10, career: 10 },
+          baseScore: 0,
+        },
       },
     })
 

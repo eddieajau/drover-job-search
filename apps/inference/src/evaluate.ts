@@ -11,42 +11,92 @@ import type { OllamaClient } from './ollama.js'
 import { buildPrompt } from './prompt.js'
 import { sanitise } from './sanitise.js'
 
-export interface LlmEvalResult {
+const GATE_NAMES = ['eligibility', 'language', 'location'] as const
+const DIMENSION_NAMES = ['technical', 'experience', 'behavioral', 'career'] as const
+const SIGNAL_TYPES = ['skill_match', 'company_match'] as const
+const DEFAULT_GATE_SCORE = -100
+
+export type GateName = (typeof GATE_NAMES)[number]
+export type DimensionName = (typeof DIMENSION_NAMES)[number]
+
+export interface GateVerdict {
+  name: GateName
+  passed: boolean
   score: number
-  signal_type: string
+  reason: string
+}
+
+export interface DimensionScore {
+  name: DimensionName
+  signal_type: (typeof SIGNAL_TYPES)[number]
+  score: number
   matched_keywords: string[]
   reason: string
+}
+
+export interface LlmEvalResult {
+  gates: GateVerdict[]
+  dimensions: DimensionScore[]
 }
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isGateName(value: unknown): value is GateName {
+  return typeof value === 'string' && (GATE_NAMES as readonly string[]).includes(value)
+}
+
+function isDimensionName(value: unknown): value is DimensionName {
+  return typeof value === 'string' && (DIMENSION_NAMES as readonly string[]).includes(value)
+}
+
 function parseLlmResponse(raw: string): LlmEvalResult | null {
   try {
-    const parsed = JSON.parse(raw)
-
-    if (
-      typeof parsed !== 'object' ||
-      parsed === null ||
-      typeof parsed.score !== 'number' ||
-      typeof parsed.signal_type !== 'string' ||
-      !Array.isArray(parsed.matched_keywords) ||
-      typeof parsed.reason !== 'string'
-    ) {
+    const parsed = JSON.parse(raw) as unknown
+    if (!isRecord(parsed) || !Array.isArray(parsed.gates) || !Array.isArray(parsed.dimensions)) {
       return null
     }
 
-    if (!['dealbreaker', 'skill_match', 'company_match'].includes(parsed.signal_type)) {
-      return null
+    const gates: GateVerdict[] = []
+    for (const gate of parsed.gates) {
+      if (!isRecord(gate) || !isGateName(gate.name) || typeof gate.passed !== 'boolean') {
+        return null
+      }
+      gates.push({
+        name: gate.name,
+        passed: gate.passed,
+        score: typeof gate.score === 'number' ? gate.score : DEFAULT_GATE_SCORE,
+        reason: typeof gate.reason === 'string' ? gate.reason : '',
+      })
     }
 
-    return {
-      score: clamp(parsed.score, -100, 100),
-      signal_type: parsed.signal_type,
-      matched_keywords: parsed.matched_keywords.filter((k: unknown) => typeof k === 'string'),
-      reason: parsed.reason,
+    const dimensions: DimensionScore[] = []
+    for (const dim of parsed.dimensions) {
+      if (
+        !isRecord(dim) ||
+        !isDimensionName(dim.name) ||
+        !SIGNAL_TYPES.includes(dim.signal_type as (typeof SIGNAL_TYPES)[number]) ||
+        typeof dim.score !== 'number' ||
+        !Array.isArray(dim.matched_keywords) ||
+        typeof dim.reason !== 'string'
+      ) {
+        return null
+      }
+      dimensions.push({
+        name: dim.name,
+        signal_type: dim.signal_type as DimensionScore['signal_type'],
+        score: clamp(dim.score, 0, 100),
+        matched_keywords: dim.matched_keywords.filter((k: unknown) => typeof k === 'string'),
+        reason: dim.reason,
+      })
     }
+
+    return { gates, dimensions }
   } catch {
     return null
   }
@@ -114,18 +164,41 @@ export async function evaluateJob(
     .where(and(eq(jobSignals.jobId, jobId), isNull(jobSignals.ruleId), eq(jobSignals.source, 'llm_deep_eval')))
     .run()
 
-  db.insert(jobSignals)
-    .values({
+  const values: (typeof jobSignals.$inferInsert)[] = []
+
+  for (const gate of result.gates) {
+    if (gate.passed) {
+      continue
+    }
+    values.push({
       jobId,
       ruleId: null,
       source: 'llm_deep_eval',
-      signalType: result.signal_type,
-      score: result.score,
-      metadata: JSON.stringify({ matched_keywords: result.matched_keywords, reason: result.reason }),
+      signalType: 'dealbreaker',
+      score: gate.score,
+      metadata: JSON.stringify({ gate: gate.name, reason: gate.reason }),
     })
-    .run()
+  }
 
-  log?.info({ jobId, score: result.score, signalType: result.signal_type }, 'llm_deep_eval signal written')
+  for (const dim of result.dimensions) {
+    values.push({
+      jobId,
+      ruleId: null,
+      source: 'llm_deep_eval',
+      signalType: dim.signal_type,
+      score: dim.score,
+      metadata: JSON.stringify({ dimension: dim.name, matched_keywords: dim.matched_keywords, reason: dim.reason }),
+    })
+  }
+
+  if (values.length > 0) {
+    db.insert(jobSignals).values(values).run()
+  }
+
+  log?.info(
+    { jobId, gates: result.gates.filter(g => !g.passed).length, dimensions: result.dimensions.length },
+    'llm_deep_eval signals written'
+  )
   return 'written'
 }
 

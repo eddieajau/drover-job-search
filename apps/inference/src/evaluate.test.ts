@@ -27,50 +27,126 @@ function failingClient(): OllamaClient {
   return { generate: async () => Promise.reject(new Error('network error')) }
 }
 
+const documentedResponse = JSON.stringify({
+  gates: [
+    { name: 'eligibility', passed: true, score: 0, reason: 'Australian citizen with full working rights.' },
+    { name: 'language', passed: true, score: 0, reason: 'English required and sufficient.' },
+    { name: 'location', passed: false, score: -100, reason: 'Role requires relocation to Sydney.' },
+  ],
+  dimensions: [
+    {
+      name: 'technical',
+      signal_type: 'skill_match',
+      score: 75,
+      matched_keywords: ['TypeScript', 'Node.js'],
+      reason: 'Strong technical match.',
+    },
+    {
+      name: 'experience',
+      signal_type: 'skill_match',
+      score: 62,
+      matched_keywords: ['microservices'],
+      reason: 'Deep backend experience.',
+    },
+    {
+      name: 'behavioral',
+      signal_type: 'company_match',
+      score: 50,
+      matched_keywords: ['greenfield'],
+      reason: 'Moderate culture fit.',
+    },
+    {
+      name: 'career',
+      signal_type: 'company_match',
+      score: 85,
+      matched_keywords: ['staff engineer'],
+      reason: 'Aligned career path.',
+    },
+  ],
+})
+
 describe('evaluateJob', () => {
-  it('writes llm_deep_eval signal for valid JSON response', async () => {
+  it('writes one dealbreaker per failed gate and one signal per dimension', async () => {
     const db = createDb(':memory:')
     const job = seedJob(db)
 
-    const response = JSON.stringify({
-      score: 75,
-      signal_type: 'skill_match',
-      matched_keywords: ['TypeScript', 'Node.js'],
-      reason: 'Strong technical match',
-    })
-
-    const result = await evaluateJob(db, job.id, mockClient(response))
+    const result = await evaluateJob(db, job.id, mockClient(documentedResponse))
     expect(result).toBe('written')
 
     const signals = db.select().from(jobSignals).all()
-    expect(signals).toHaveLength(1)
-    expect(signals[0].source).toBe('llm_deep_eval')
-    expect(signals[0].signalType).toBe('skill_match')
-    expect(signals[0].score).toBe(75)
-    expect(signals[0].ruleId).toBeNull()
+    expect(signals).toHaveLength(5)
+    expect(signals.every(s => s.source === 'llm_deep_eval')).toBe(true)
+    expect(signals.every(s => s.ruleId === null)).toBe(true)
 
-    const meta = JSON.parse(signals[0].metadata!)
-    expect(meta.matched_keywords).toEqual(['TypeScript', 'Node.js'])
-    expect(meta.reason).toBe('Strong technical match')
+    const gateSignal = signals.find(s => s.signalType === 'dealbreaker')!
+    expect(gateSignal.score).toBe(-100)
+    expect(JSON.parse(gateSignal.metadata!)).toEqual({
+      gate: 'location',
+      reason: 'Role requires relocation to Sydney.',
+    })
+
+    const technical = signals.find(s => s.metadata?.includes('"dimension":"technical"'))!
+    expect(technical.signalType).toBe('skill_match')
+    expect(technical.score).toBe(75)
+    expect(JSON.parse(technical.metadata!)).toEqual({
+      dimension: 'technical',
+      matched_keywords: ['TypeScript', 'Node.js'],
+      reason: 'Strong technical match.',
+    })
 
     db.$client.close()
   })
 
-  it('clamps score to -100..100', async () => {
+  it('clamps dimension score to 0..100', async () => {
     const db = createDb(':memory:')
     const job = seedJob(db)
 
     const response = JSON.stringify({
-      score: 999,
-      signal_type: 'skill_match',
-      matched_keywords: [],
-      reason: 'test',
+      gates: [],
+      dimensions: [{ name: 'technical', signal_type: 'skill_match', score: 999, matched_keywords: [], reason: 'test' }],
     })
 
     await evaluateJob(db, job.id, mockClient(response))
 
     const signal = db.select().from(jobSignals).get()!
     expect(signal.score).toBe(100)
+    db.$client.close()
+  })
+
+  it('defaults a failed gate score to -100 when omitted', async () => {
+    const db = createDb(':memory:')
+    const job = seedJob(db)
+
+    const response = JSON.stringify({
+      gates: [{ name: 'language', passed: false, reason: 'Non-English required.' }],
+      dimensions: [],
+    })
+
+    await evaluateJob(db, job.id, mockClient(response))
+
+    const signal = db.select().from(jobSignals).get()!
+    expect(signal.signalType).toBe('dealbreaker')
+    expect(signal.score).toBe(-100)
+    expect(JSON.parse(signal.metadata!)).toEqual({ gate: 'language', reason: 'Non-English required.' })
+    db.$client.close()
+  })
+
+  it('writes no signals when all gates pass', async () => {
+    const db = createDb(':memory:')
+    const job = seedJob(db)
+
+    const response = JSON.stringify({
+      gates: [
+        { name: 'eligibility', passed: true, score: 0, reason: 'ok' },
+        { name: 'language', passed: true, score: 0, reason: 'ok' },
+        { name: 'location', passed: true, score: 0, reason: 'ok' },
+      ],
+      dimensions: [],
+    })
+
+    const result = await evaluateJob(db, job.id, mockClient(response))
+    expect(result).toBe('written')
+    expect(db.select().from(jobSignals).all()).toHaveLength(0)
     db.$client.close()
   })
 
@@ -96,15 +172,26 @@ describe('evaluateJob', () => {
     db.$client.close()
   })
 
-  it('skips job when signal_type is invalid', async () => {
+  it('skips job when a gate name is invalid', async () => {
     const db = createDb(':memory:')
     const job = seedJob(db)
 
     const response = JSON.stringify({
-      score: 50,
-      signal_type: 'invalid_type',
-      matched_keywords: [],
-      reason: 'test',
+      gates: [{ name: 'salary', passed: false }],
+      dimensions: [],
+    })
+    const result = await evaluateJob(db, job.id, mockClient(response))
+    expect(result).toBe('skipped')
+    db.$client.close()
+  })
+
+  it('skips job when dimension signal_type is invalid', async () => {
+    const db = createDb(':memory:')
+    const job = seedJob(db)
+
+    const response = JSON.stringify({
+      gates: [],
+      dimensions: [{ name: 'technical', signal_type: 'invalid_type', score: 50, matched_keywords: [], reason: 'test' }],
     })
     const result = await evaluateJob(db, job.id, mockClient(response))
     expect(result).toBe('skipped')
@@ -120,30 +207,29 @@ describe('evaluateJob', () => {
     db.$client.close()
   })
 
-  it('replaces existing llm_deep_eval signal for same job', async () => {
+  it('replaces existing llm_deep_eval signals for same job', async () => {
     const db = createDb(':memory:')
     const job = seedJob(db)
 
-    const first = JSON.stringify({
-      score: 50,
-      signal_type: 'skill_match',
-      matched_keywords: ['old'],
-      reason: 'first eval',
-    })
-    await evaluateJob(db, job.id, mockClient(first))
+    await evaluateJob(db, job.id, mockClient(documentedResponse))
 
     const second = JSON.stringify({
-      score: 80,
-      signal_type: 'company_match',
-      matched_keywords: ['new'],
-      reason: 'second eval',
+      gates: [],
+      dimensions: [
+        { name: 'career', signal_type: 'company_match', score: 40, matched_keywords: ['new'], reason: 'second eval' },
+      ],
     })
     await evaluateJob(db, job.id, mockClient(second))
 
     const signals = db.select().from(jobSignals).all()
     expect(signals).toHaveLength(1)
-    expect(signals[0].score).toBe(80)
+    expect(signals[0].score).toBe(40)
     expect(signals[0].signalType).toBe('company_match')
+    expect(JSON.parse(signals[0].metadata!)).toEqual({
+      dimension: 'career',
+      matched_keywords: ['new'],
+      reason: 'second eval',
+    })
     db.$client.close()
   })
 

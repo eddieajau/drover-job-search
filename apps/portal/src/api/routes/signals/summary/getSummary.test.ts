@@ -27,7 +27,7 @@ describe('GET /api/signals/summary', () => {
     db.$client.close()
   })
 
-  it('sums netScore per job for the given ids', async () => {
+  it('sums baseScore per job for the given ids', async () => {
     const jobA = db
       .insert(jobs)
       .values({ providerJobId: 'a', title: 'A', companyName: 'Co', url: 'https://a', location: 'Brisbane' })
@@ -49,8 +49,8 @@ describe('GET /api/signals/summary', () => {
     const res = await app.inject({ method: 'GET', url: '/?provider=linkedin&ids=a,b' })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({
-      a: { netScore: 2, signalCount: 2, gated: false },
-      b: { netScore: 2, signalCount: 1, gated: false },
+      a: { signalCount: 2, gated: false, dimensions: {}, baseScore: 2 },
+      b: { signalCount: 1, gated: false, dimensions: {}, baseScore: 2 },
     })
   })
 
@@ -61,7 +61,7 @@ describe('GET /api/signals/summary', () => {
 
     const res = await app.inject({ method: 'GET', url: '/?provider=linkedin&ids=a' })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ a: { netScore: 0, signalCount: 0, gated: false } })
+    expect(res.json()).toEqual({ a: { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 } })
   })
 
   it('returns an empty object for an empty id list', async () => {
@@ -86,6 +86,40 @@ describe('GET /api/signals/summary', () => {
     expect(res.statusCode).toBe(200)
     const body = res.json()
     expect(body.a.gated).toBe(true)
-    expect(body.a.netScore).toBe(10)
+    expect(body.a.baseScore).toBe(10)
+    expect(body.a.dimensions).toEqual({})
+  })
+
+  it('accumulates dimension scores separately from baseScore', async () => {
+    const jobA = db
+      .insert(jobs)
+      .values({ providerJobId: 'a', title: 'A', companyName: 'Co', url: 'https://a', location: 'Brisbane' })
+      .returning()
+      .get()
+    db.insert(jobSignals)
+      .values([
+        {
+          jobId: jobA.id,
+          source: 'llm_deep_eval',
+          signalType: 'skill_match',
+          score: 75,
+          metadata: JSON.stringify({ dimension: 'technical', matched_keywords: ['TypeScript'], reason: 'match' }),
+        },
+        {
+          jobId: jobA.id,
+          source: 'llm_deep_eval',
+          signalType: 'company_match',
+          score: 80,
+          metadata: JSON.stringify({ dimension: 'career', matched_keywords: ['staff'], reason: 'match' }),
+        },
+        { jobId: jobA.id, source: 'regex_description', signalType: 'skill_match', score: 5 },
+      ])
+      .run()
+
+    const res = await app.inject({ method: 'GET', url: '/?provider=linkedin&ids=a' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({
+      a: { signalCount: 3, gated: false, dimensions: { technical: 75, career: 80 }, baseScore: 5 },
+    })
   })
 })

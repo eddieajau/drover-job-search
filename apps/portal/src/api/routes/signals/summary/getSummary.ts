@@ -7,8 +7,32 @@ import { jobSignals, jobs, type DB } from 'db'
 import { and, eq, inArray } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
+const DIMENSION_KEYS = ['technical', 'experience', 'behavioral', 'career']
+
+interface SignalTotals {
+  signalCount: number
+  gated: boolean
+  dimensions: Record<string, number>
+  baseScore: number
+}
+
 interface SummaryRouteOptions {
   db: DB
+}
+
+function signalDimension(metadata: string | null): string | null {
+  if (!metadata) {
+    return null
+  }
+  try {
+    const parsed = JSON.parse(metadata) as Record<string, unknown>
+    if (typeof parsed.dimension === 'string' && DIMENSION_KEYS.includes(parsed.dimension)) {
+      return parsed.dimension
+    }
+  } catch {
+    // malformed metadata is ignored
+  }
+  return null
 }
 
 const getSummary: FastifyPluginAsync<SummaryRouteOptions> = async (app, { db }) => {
@@ -36,22 +60,36 @@ const getSummary: FastifyPluginAsync<SummaryRouteOptions> = async (app, { db }) 
     const jobIds = rows.map(job => job.id)
     const signalRows = db.select().from(jobSignals).where(inArray(jobSignals.jobId, jobIds)).all()
 
-    const totals = new Map<number, { netScore: number; signalCount: number; gated: boolean }>()
+    const totals = new Map<number, SignalTotals>()
     for (const signal of signalRows) {
-      const current = totals.get(signal.jobId) ?? { netScore: 0, signalCount: 0, gated: false }
-      if (signal.signalType !== 'dealbreaker') {
-        current.netScore += signal.score
-      }
-      if (signal.signalType === 'dealbreaker') {
-        current.gated = true
+      const current = totals.get(signal.jobId) ?? {
+        signalCount: 0,
+        gated: false,
+        dimensions: {},
+        baseScore: 0,
       }
       current.signalCount += 1
+      if (signal.signalType === 'dealbreaker') {
+        current.gated = true
+      } else {
+        const dimension = signalDimension(signal.metadata)
+        if (dimension) {
+          current.dimensions[dimension] = (current.dimensions[dimension] ?? 0) + signal.score
+        } else {
+          current.baseScore += signal.score
+        }
+      }
       totals.set(signal.jobId, current)
     }
 
-    const summary: Record<string, { netScore: number; signalCount: number; gated: boolean }> = {}
+    const summary: Record<string, SignalTotals> = {}
     for (const job of rows) {
-      summary[job.providerJobId] = totals.get(job.id) ?? { netScore: 0, signalCount: 0, gated: false }
+      summary[job.providerJobId] = totals.get(job.id) ?? {
+        signalCount: 0,
+        gated: false,
+        dimensions: {},
+        baseScore: 0,
+      }
     }
     return summary
   })
