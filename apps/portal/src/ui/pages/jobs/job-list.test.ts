@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { Job } from '../../../shared/types.js'
 import type { JobWithStatus } from '../../jobs-view.js'
+import './job-card.js'
 import './job-list.js'
 import type { JobList } from './job-list.js'
 
@@ -64,19 +65,20 @@ describe('job-list', () => {
     expect(el.querySelector('.empty-state')?.textContent).toBe('No jobs match filters')
   })
 
-  it('renders job cards with metadata', () => {
+  it('renders job-card elements with metadata', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job())], selectedId: null })
-    expect(el.querySelector('.card-title')?.textContent).toBe('Staff Engineer')
-    expect(el.querySelector('.card-company')?.textContent).toBe('Acme')
-    expect(el.querySelector('.card')?.classList.contains('seen')).toBe(false)
+    expect(el.querySelector('job-card')).not.toBeNull()
+    expect(el.querySelector('.job-title')?.textContent).toBe('Staff Engineer')
+    expect(el.querySelector('.job-company')?.textContent).toBe('Acme')
+    expect(el.querySelector('.job-card')?.classList.contains('unseen')).toBe(true)
   })
 
   it('marks non-new jobs as seen', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'applied')], selectedId: null })
-    expect(el.querySelector('.card')?.classList.contains('seen')).toBe(true)
+    expect(el.querySelector('.job-card')?.classList.contains('unseen')).toBe(false)
   })
 
-  it('dispatches job-list:select on card click', () => {
+  it('dispatches job-list:select on card click via re-dispatch', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job())], selectedId: null })
     const received = { jobId: 0, providerJobId: '' }
     el.addEventListener('job-list:select', event => {
@@ -84,7 +86,7 @@ describe('job-list', () => {
       received.jobId = detail.jobId
       received.providerJobId = detail.providerJobId
     })
-    el.querySelector<HTMLElement>('.card')?.click()
+    el.querySelector<HTMLElement>('job-card')?.click()
     expect(received.jobId).toBe(1)
     expect(received.providerJobId).toBe('4445084022')
   })
@@ -103,31 +105,31 @@ describe('job-list', () => {
     expect(received.selectFired).toBe(false)
   })
 
-  it('renders a score badge for jobs with netScore', () => {
+  it('renders a score chip for jobs with netScore', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'new', 85)], selectedId: null })
-    const badge = el.querySelector('.score-badge')
-    expect(badge).not.toBeNull()
-    expect(badge?.textContent).toBe('+85')
-    expect(badge?.classList.contains('hot')).toBe(true)
+    const score = el.querySelector('.score')
+    expect(score).not.toBeNull()
+    expect(score?.textContent).toBe('+85')
+    expect(score?.classList.contains('score-high')).toBe(true)
   })
 
-  it('renders neutral class for scores below threshold', () => {
+  it('renders mid class for scores below threshold', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'new', 20)], selectedId: null })
-    const badge = el.querySelector('.score-badge')
-    expect(badge?.classList.contains('neutral')).toBe(true)
+    const score = el.querySelector('.score')
+    expect(score?.classList.contains('score-mid')).toBe(true)
   })
 
   it('renders negative scores with minus sign', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'new', -15)], selectedId: null })
-    const badge = el.querySelector('.score-badge')
-    expect(badge?.textContent).toBe('-15')
+    const score = el.querySelector('.score')
+    expect(score?.textContent).toBe('-15')
   })
 
-  it('renders auto-skip badge for gated jobs', () => {
+  it('renders auto-skip chip for gated jobs', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'new', 50, true)], selectedId: null })
-    const badge = el.querySelector('.score-badge')
-    expect(badge?.textContent).toBe('auto-skip')
-    expect(badge?.classList.contains('auto-skip')).toBe(true)
-    expect(el.querySelector('.card')?.classList.contains('gated')).toBe(true)
+    const score = el.querySelector('.score')
+    expect(score?.textContent).toBe('auto-skip')
+    expect(score?.classList.contains('score-low')).toBe(true)
+    expect(el.querySelector('.job-card')?.classList.contains('gated')).toBe(true)
   })
 })

@@ -6,6 +6,8 @@
 import type { JobStatus } from '../../../shared/types.js'
 import { escapeHtml as esc } from '../../escape.js'
 import type { JobWithStatus } from '../../jobs-view.js'
+import './job-card.js'
+import type { JobCard } from './job-card.js'
 
 export interface JobListEventMap {
   'job-list:select': CustomEvent<{ jobId: number; providerJobId: string }>
@@ -40,7 +42,10 @@ export class JobList extends HTMLElement {
   setupEventListeners(): void {
     this.cleanup()
     this.#abort = new AbortController()
-    this.addEventListener('click', this.#onClick, { signal: this.#abort.signal })
+    const opts = { signal: this.#abort.signal }
+    this.addEventListener('job-card:select', this.#onCardSelect as EventListener, opts)
+    this.addEventListener('job-card:status', this.#onCardStatus as EventListener, opts)
+    this.addEventListener('job-card:open', this.#onCardOpen as EventListener, opts)
   }
 
   cleanup(): void {
@@ -48,32 +53,8 @@ export class JobList extends HTMLElement {
     this.#abort = null
   }
 
-  #onClick = (event: MouseEvent): void => {
-    const target = event.target as HTMLElement
-    const card = target.closest<HTMLElement>('.card')
-    if (!card) {
-      return
-    }
-    const jobId = Number(card.dataset.jobId)
-    const providerJobId = card.dataset.providerJobId ?? ''
-    const action = target.closest<HTMLButtonElement>('button[data-action]')
-    if (action) {
-      if (action.dataset.action === 'open') {
-        window.open(action.dataset.url ?? '', '_blank')
-        return
-      }
-      const status = action.dataset.status as JobStatus['status'] | undefined
-      if (status) {
-        this.dispatchEvent(
-          new CustomEvent('job-list:status', {
-            bubbles: true,
-            composed: true,
-            detail: { jobId, status },
-          })
-        )
-      }
-      return
-    }
+  #onCardSelect = (event: Event): void => {
+    const { jobId, providerJobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
     this.dispatchEvent(
       new CustomEvent('job-list:select', {
         bubbles: true,
@@ -81,6 +62,22 @@ export class JobList extends HTMLElement {
         detail: { jobId, providerJobId },
       })
     )
+  }
+
+  #onCardStatus = (event: Event): void => {
+    const { jobId, status } = (event as CustomEvent<{ jobId: number; status: JobStatus['status'] }>).detail
+    this.dispatchEvent(
+      new CustomEvent('job-list:status', {
+        bubbles: true,
+        composed: true,
+        detail: { jobId, status },
+      })
+    )
+  }
+
+  #onCardOpen = (event: Event): void => {
+    const { url } = (event as CustomEvent<{ url: string }>).detail
+    window.open(url, '_blank')
   }
 
   render(): void {
@@ -103,32 +100,33 @@ export class JobList extends HTMLElement {
       return
     }
 
-    this.innerHTML = this.#state.jobs
-      .map(job => {
-        const scoreBadge = job.gated
-          ? '<span class="score-badge auto-skip">auto-skip</span>'
-          : job.netScore !== undefined
-            ? `<span class="score-badge ${job.netScore >= 50 ? 'hot' : 'neutral'}">${job.netScore >= 0 ? '+' : ''}${job.netScore}</span>`
-            : ''
-        return `
-      <div class="card ${job.id === this.#state.selectedId ? 'active' : ''} ${job._status !== 'new' ? 'seen' : ''} ${job.gated ? 'gated' : ''}" data-job-id="${esc(String(job.id))}" data-provider-job-id="${esc(job.providerJobId)}">
-        <div class="card-title">${esc(job.title)}</div>
-        <div class="card-company">${esc(job.companyName)}</div>
-        <div class="card-meta">
-          <span class="priority-badge p${job.priority}">P${job.priority}</span>
-          ${scoreBadge}
-          <span>${esc(job.location)}</span>
-          <span>${esc(job.postedAt ?? '')}</span>
-          ${job._status !== 'new' ? `<span>${esc(job._status)}</span>` : ''}
-        </div>
-        <div class="card-actions">
-          <button type="button" class="btn ${job._status === 'applied' ? 'applied' : ''}" data-action="status" data-status="applied">Applied</button>
-          <button type="button" class="btn ${job._status === 'skipped' ? 'skipped' : ''}" data-action="status" data-status="skipped">Skip</button>
-          <button type="button" class="btn" data-action="open" data-url="${esc(job.url)}">LinkedIn</button>
-        </div>
-      </div>`
+    this.replaceChildren(
+      ...this.#state.jobs.map(job => {
+        const card = document.createElement('job-card') as JobCard
+        card.setAttribute('job-id', String(job.id))
+        card.setAttribute('provider-job-id', job.providerJobId)
+        card.setAttribute('title', job.title)
+        card.setAttribute('company', job.companyName)
+        card.setAttribute('location', job.location)
+        card.setAttribute('posted', job.postedAt ?? '')
+        card.setAttribute('priority', String(job.priority))
+        if (job.netScore !== undefined) {
+          card.setAttribute('score', String(job.netScore))
+        }
+        if (job.gated) {
+          card.setAttribute('gated', '')
+        }
+        card.setAttribute('status', job._status)
+        if (job.id === this.#state.selectedId) {
+          card.setAttribute('active', '')
+        }
+        if (job._status !== 'new') {
+          card.setAttribute('seen', '')
+        }
+        card.setAttribute('url', job.url)
+        return card
       })
-      .join('')
+    )
   }
 }
 

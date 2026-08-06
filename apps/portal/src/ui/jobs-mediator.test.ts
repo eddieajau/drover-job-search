@@ -131,9 +131,9 @@ describe('jobs-mediator', () => {
     initJobsMediator()
     await new Promise(resolve => setTimeout(resolve, 50))
 
-    const cards = document.querySelectorAll('.card')
+    const cards = document.querySelectorAll('job-card')
     expect(cards.length).toBe(3)
-    const badges = document.querySelectorAll('.score-badge')
+    const badges = document.querySelectorAll('job-card .score')
     expect(badges.length).toBe(3)
     expect(badges[0].textContent).toBe('+75')
   })
@@ -153,7 +153,7 @@ describe('jobs-mediator', () => {
     initJobsMediator()
     await new Promise(resolve => setTimeout(resolve, 50))
 
-    const badge = document.querySelector('.score-badge')
+    const badge = document.querySelector('job-card .score')
     expect(badge?.textContent).toBe('+50')
   })
 
@@ -169,9 +169,9 @@ describe('jobs-mediator', () => {
     initJobsMediator()
     await new Promise(resolve => setTimeout(resolve, 50))
 
-    const cards = document.querySelectorAll('.card')
+    const cards = document.querySelectorAll('job-card')
     expect(cards.length).toBe(3)
-    const titles = Array.from(cards).map(c => c.querySelector('.card-title')?.textContent)
+    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
     expect(titles[0]).toBe('Staff Engineer')
     expect(titles[1]).toBe('Senior Developer')
     expect(titles[2]).toBe('Tech Lead')
@@ -199,9 +199,9 @@ describe('jobs-mediator', () => {
     initJobsMediator()
     await new Promise(resolve => setTimeout(resolve, 50))
 
-    const cards = document.querySelectorAll('.card')
+    const cards = document.querySelectorAll('job-card')
     expect(cards.length).toBe(2)
-    const titles = Array.from(cards).map(c => c.querySelector('.card-title')?.textContent)
+    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
     expect(titles).toContain('Staff Engineer')
     expect(titles).toContain('Senior Developer')
     expect(titles).not.toContain('Tech Lead')
@@ -224,9 +224,9 @@ describe('jobs-mediator', () => {
     initJobsMediator()
     await new Promise(resolve => setTimeout(resolve, 50))
 
-    const cards = document.querySelectorAll('.card')
+    const cards = document.querySelectorAll('job-card')
     expect(cards.length).toBe(2)
-    const titles = Array.from(cards).map(c => c.querySelector('.card-title')?.textContent)
+    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
     expect(titles).not.toContain('Senior Developer')
   })
 
@@ -257,9 +257,9 @@ describe('jobs-mediator', () => {
     initJobsMediator()
     await new Promise(resolve => setTimeout(resolve, 50))
 
-    const cards = document.querySelectorAll('.card')
+    const cards = document.querySelectorAll('job-card')
     expect(cards.length).toBe(3)
-    const titles = Array.from(cards).map(c => c.querySelector('.card-title')?.textContent)
+    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
     expect(titles[0]).toBe('Senior Developer')
     expect(titles[1]).toBe('Tech Lead')
     expect(titles[2]).toBe('Staff Engineer')
@@ -294,11 +294,11 @@ describe('jobs-mediator', () => {
     filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
     await new Promise(resolve => setTimeout(resolve, 10))
 
-    const cards = document.querySelectorAll('.card')
+    const cards = document.querySelectorAll('job-card')
     expect(cards.length).toBe(1)
-    const badge = cards[0].querySelector('.score-badge')
+    const badge = cards[0].querySelector('.score')
     expect(badge?.textContent).toBe('auto-skip')
-    expect(cards[0].classList.contains('gated')).toBe(true)
+    expect(cards[0].querySelector('.job-card')?.classList.contains('gated')).toBe(true)
   })
 
   it('handles jobs missing the summary fields gracefully', async () => {
@@ -307,9 +307,9 @@ describe('jobs-mediator', () => {
     initJobsMediator()
     await new Promise(resolve => setTimeout(resolve, 50))
 
-    const cards = document.querySelectorAll('.card')
+    const cards = document.querySelectorAll('job-card')
     expect(cards.length).toBe(3)
-    const badges = document.querySelectorAll('.score-badge')
+    const badges = document.querySelectorAll('job-card .score')
     expect(badges.length).toBe(0)
   })
 
@@ -377,9 +377,9 @@ describe('jobs-mediator', () => {
     initJobsMediator()
     await new Promise(resolve => setTimeout(resolve, 50))
 
-    const activeCard = document.querySelector('.card.active')
+    const activeCard = document.querySelector('job-card[active]')
     expect(activeCard).not.toBeNull()
-    expect(activeCard?.getAttribute('data-job-id')).toBe('2')
+    expect(activeCard?.getAttribute('job-id')).toBe('2')
   })
 
   it('does not rewrite the hash when selecting the same job twice', async () => {

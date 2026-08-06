@@ -80,7 +80,7 @@ describe('jobs-page', () => {
   it('forwards state to the list, stats and detail', () => {
     const j: JobWithStatus = { ...job(), _status: 'new' }
     el.setState(state({ all: [j], jobs: [j], selectedId: 1 }))
-    expect(el.querySelector('job-list')?.querySelector('.card-title')?.textContent).toBe('Staff Engineer')
+    expect(el.querySelector('job-list')?.querySelector('.job-title')?.textContent).toBe('Staff Engineer')
     expect(el.querySelector('job-stats')?.textContent).toContain('1 total')
     expect(el.querySelector('job-stats')?.textContent).toContain('1 new')
     expect(el.querySelector('job-detail')?.querySelector('.company')?.textContent).toBe('Acme')
