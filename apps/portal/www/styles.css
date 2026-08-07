@@ -197,6 +197,17 @@ body {
   margin-left: 0;
 }
 
+.list-toolbar .filters input {
+  flex-basis: 100%;
+}
+
+.list-toolbar .filters select {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
 job-list {
   flex: 1;
   overflow-y: auto;
@@ -263,7 +274,6 @@ job-list {
   flex: 1;
   overflow-y: auto;
   min-width: 0;
-  padding: 28px 32px 64px;
 }
 
 .pane-meta {
