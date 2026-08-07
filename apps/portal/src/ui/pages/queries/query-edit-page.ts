@@ -119,29 +119,32 @@ export class QueryEditPage extends HTMLElement {
     ).join('')
 
     this.innerHTML = `
-      <h1 class="page-title">${editing ? 'Edit Query' : 'New Query'}</h1>
-      <div class="query-edit-form">
-        <label class="field">Query text
-          <input type="text" id="edit-q-text" value="${esc(query?.queryText ?? '')}" placeholder="e.g. Staff Engineer" />
-        </label>
-        <label class="field">Location
-          <input type="text" id="edit-q-location" value="${esc(query?.queryOptions?.location ?? '')}" placeholder="e.g. Brisbane, QLD, Australia" />
-        </label>
-        <label class="field">Work type
-          <select id="edit-q-work-type">${workOptions}</select>
-        </label>
-        <fieldset class="job-type-group">
-          <legend>Job type</legend>
-          ${jobChecks}
-        </fieldset>
-        <label class="field enabled-field">
-          <input type="checkbox" id="edit-q-enabled" ${query?.enabled !== false ? 'checked' : ''} /> Enabled
-        </label>
-        <div class="form-actions">
-          <button type="button" class="btn primary" id="btn-save-query">Save</button>
-          <a class="btn" href="#queries">Cancel</a>
-        </div>
-      </div>
+      <main class="page">
+        <a class="crumb" href="#queries">← Queries</a>
+        <h1>${editing ? 'Edit query' : 'New query'}</h1>
+        <form class="form">
+          <label class="field">Query text
+            <input type="text" id="edit-q-text" value="${esc(query?.queryText ?? '')}" placeholder="e.g. Staff Engineer" />
+          </label>
+          <label class="field">Location
+            <input type="text" id="edit-q-location" value="${esc(query?.queryOptions?.location ?? '')}" placeholder="e.g. Brisbane, QLD, Australia" />
+          </label>
+          <label class="field">Work type
+            <select id="edit-q-work-type">${workOptions}</select>
+          </label>
+          <fieldset class="job-type-group">
+            <legend>Job type</legend>
+            ${jobChecks}
+          </fieldset>
+          <label class="field enabled-field">
+            <input type="checkbox" id="edit-q-enabled" ${query?.enabled !== false ? 'checked' : ''} /> Enabled
+          </label>
+          <div class="form-actions">
+            <button type="button" class="btn primary" id="btn-save-query">Save query</button>
+            <a class="btn" href="#queries">Cancel</a>
+          </div>
+        </form>
+      </main>
     `
   }
 }

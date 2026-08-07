@@ -801,18 +801,44 @@ job-card:focus-visible {
   color: var(--muted);
 }
 
-.query-edit-page {
-  padding: 24px;
-  max-width: 720px;
+.query-edit-page .page {
+  max-width: 640px;
+  padding-top: 24px;
 }
 
-.query-edit-form {
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  margin-bottom: 12px;
+}
+
+.crumb:hover {
+  color: var(--accent);
+}
+
+.query-edit-page h1 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+}
+
+.form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
 }
 
-.query-edit-form .field {
+.form .field {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -820,8 +846,8 @@ job-card:focus-visible {
   color: var(--muted);
 }
 
-.query-edit-form input,
-.query-edit-form select {
+.form input,
+.form select {
   background: var(--field);
   color: var(--text);
   border: 1px solid var(--border);
@@ -830,13 +856,13 @@ job-card:focus-visible {
   font-size: 13px;
 }
 
-.query-edit-form input:hover,
-.query-edit-form select:hover {
+.form input:hover,
+.form select:hover {
   border-color: var(--border-strong);
 }
 
-.query-edit-form input:focus,
-.query-edit-form select:focus {
+.form input:focus,
+.form select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
@@ -862,10 +888,12 @@ job-card:focus-visible {
   display: flex;
   gap: 8px;
   align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 .form-actions .btn {
-  padding: 6px 14px;
+  padding: 7px 16px;
   font-size: 13px;
   text-decoration: none;
 }

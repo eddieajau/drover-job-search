@@ -43,7 +43,19 @@ describe('query-edit-page', () => {
     expect(el.querySelector('#edit-q-text')?.getAttribute('value')).toBe('')
     expect(el.querySelector<HTMLInputElement>('#edit-q-enabled')?.checked).toBe(true)
     expect(el.querySelector('#btn-delete-query')).toBeNull()
-    expect(el.querySelector('.page-title')?.textContent).toBe('New Query')
+    expect(el.querySelector('h1')?.textContent).toBe('New query')
+  })
+
+  it('renders the page shell with crumb, h1, form card and actions', () => {
+    el.setState({})
+    const crumb = el.querySelector<HTMLAnchorElement>('.crumb')
+    expect(crumb?.getAttribute('href')).toBe('#queries')
+    expect(crumb?.textContent).toContain('Queries')
+    expect(el.querySelector('h1')?.textContent).toBe('New query')
+    expect(el.querySelector('form.form')).not.toBeNull()
+    const actions = el.querySelector('.form-actions')
+    expect(actions?.querySelector<HTMLButtonElement>('#btn-save-query')?.textContent).toBe('Save query')
+    expect(actions?.querySelector<HTMLAnchorElement>('a[href="#queries"]')?.textContent).toBe('Cancel')
   })
 
   it('prefills the form for an existing query', () => {
@@ -52,7 +64,7 @@ describe('query-edit-page', () => {
     expect(el.querySelector<HTMLInputElement>('#edit-q-location')?.value).toBe('Brisbane')
     expect(el.querySelector<HTMLSelectElement>('#edit-q-work-type')?.value).toBe('hybrid')
     expect(el.querySelector<HTMLInputElement>('#edit-q-enabled')?.checked).toBe(true)
-    expect(el.querySelector('.page-title')?.textContent).toBe('Edit Query')
+    expect(el.querySelector('h1')?.textContent).toBe('Edit query')
   })
 
   it('dispatches query-edit-page:save with the edited values', () => {
