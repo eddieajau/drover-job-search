@@ -5,7 +5,8 @@
 
 import type { Job, JobStatus } from '../shared/types.js'
 import type { JobsFilters, JobsViewState, JobWithStatus } from './jobs-view.js'
-import { parseHash } from './navigation-state.js'
+import type { NavigationState } from './navigation-state.js'
+import { parseHash, toHash } from './navigation-state.js'
 
 type ViewStatus = 'idle' | 'loading' | 'error' | 'done'
 
@@ -52,6 +53,7 @@ export function initJobsMediator(): void {
     return
   }
   registered = true
+  seedFiltersFromHash()
   window.addEventListener('jobs-page:ready', handleReady)
   window.addEventListener('job-list:select', handleSelect)
   window.addEventListener('job-list:status', handleStatus)
@@ -171,6 +173,7 @@ function handleOpen(event: Event): void {
 
 function handleFilterChange(event: Event): void {
   filters = (event as CustomEvent<JobsFilters>).detail
+  syncHash()
   pushState()
 }
 
@@ -181,8 +184,20 @@ function seedSelectedIdFromHash(): void {
   }
 }
 
+function seedFiltersFromHash(): void {
+  const state = parseHash(window.location.hash)
+  if (state?.view === 'jobs' && state.filters) {
+    filters = { ...filters, ...state.filters }
+  }
+}
+
 function syncHash(): void {
-  const target = selectedId != null ? `#jobs?job=${selectedId}` : '#jobs'
+  const state: NavigationState = { view: 'jobs' }
+  if (selectedId != null) {
+    state.job = selectedId
+  }
+  state.filters = filters
+  const target = toHash(state)
   if (window.location.hash !== target) {
     history.replaceState(null, '', target)
   }
@@ -204,10 +219,12 @@ function pushState(): void {
   if (filters.priority) {
     jobs = jobs.filter(job => String(job.priority) === filters.priority)
   }
-  if (filters.status === 'new') {
-    jobs = jobs.filter(job => job._status === 'new')
-  } else if (filters.status) {
+  if (filters.status === 'skipped') {
+    jobs = jobs.filter(job => job._status === 'skipped')
+  } else if (filters.status && filters.status !== 'skipped') {
     jobs = jobs.filter(job => job._status === filters.status)
+  } else {
+    jobs = jobs.filter(job => job._status !== 'skipped')
   }
   if (filters.search) {
     const term = filters.search.toLowerCase()

@@ -56,6 +56,14 @@ describe('filter-bar', () => {
     expect(options).toEqual(['', 'hot', 'neutral', 'auto-skip'])
   })
 
+  it('labels the default status option as excluding skipped jobs', () => {
+    const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
+    expect(statusSelect).not.toBeNull()
+    const allOption = statusSelect?.querySelector('option[value=""]')
+    expect(allOption?.textContent).toBe('All (excl. skipped)')
+    expect(allOption?.getAttribute('selected')).not.toBeNull()
+  })
+
   it('dispatches score filter value on change', () => {
     const received: { score: string } = { score: '' }
     el.addEventListener('filter-bar:change', event => {

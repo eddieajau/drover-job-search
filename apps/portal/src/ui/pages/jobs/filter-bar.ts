@@ -91,7 +91,7 @@ export class FilterBar extends HTMLElement {
         <option value="4">P4 — PM/Delivery</option>
       </select>
       <select id="filter-status" aria-label="Filter by status">
-        <option value="" selected>All</option>
+        <option value="" selected>All (excl. skipped)</option>
         <option value="new">New</option>
         <option value="applied">Applied</option>
         <option value="skipped">Skipped</option>

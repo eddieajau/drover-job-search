@@ -471,4 +471,94 @@ describe('jobs-mediator', () => {
     expect(replaceStateSpy).not.toHaveBeenCalled()
     expect(window.location.hash).toBe('#jobs?job=1')
   })
+
+  it('excludes skipped jobs from the default view', async () => {
+    mockFetch({
+      '/api/jobs': jobsResponse({}, { 'job-2': 'skipped' }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const cards = document.querySelectorAll('job-card')
+    expect(cards.length).toBe(2)
+    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
+    expect(titles).not.toContain('Senior Developer')
+  })
+
+  it('shows only skipped jobs when the status filter is skipped', async () => {
+    mockFetch({
+      '/api/jobs': jobsResponse({}, { 'job-2': 'skipped' }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    const statusSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-status')
+    if (statusSelect) {
+      statusSelect.value = 'skipped'
+    }
+    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    const cards = document.querySelectorAll('job-card')
+    expect(cards.length).toBe(1)
+    expect(cards[0].querySelector('.job-title')?.textContent).toBe('Senior Developer')
+  })
+
+  it('seeds filters from the URL and drives the first render', async () => {
+    window.location.hash = '#jobs?status=applied&q=senior'
+    mockFetch({
+      '/api/jobs': jobsResponse({}, { 'job-2': 'applied' }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    expect(filterBar?.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('applied')
+    expect(filterBar?.querySelector<HTMLInputElement>('#filter-search')?.value).toBe('senior')
+
+    const cards = document.querySelectorAll('job-card')
+    expect(cards.length).toBe(1)
+    expect(cards[0].querySelector('.job-title')?.textContent).toBe('Senior Developer')
+  })
+
+  it('writes filters to the URL on filter change', async () => {
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    const statusSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-status')
+    if (statusSelect) {
+      statusSelect.value = 'new'
+    }
+    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    expect(window.location.hash).toBe('#jobs?status=new')
+  })
+
+  it('writes job identity and filters together on selection', async () => {
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    const statusSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-status')
+    if (statusSelect) {
+      statusSelect.value = 'new'
+    }
+    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    window.dispatchEvent(new CustomEvent('job-list:select', { detail: { jobId: 2 } }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    expect(window.location.hash).toBe('#jobs?job=2&status=new')
+  })
 })
