@@ -10,6 +10,7 @@ import type { JobCard } from './job-card.js'
 
 export interface JobListEventMap {
   'job-list:select': CustomEvent<{ jobId: number; providerJobId: string }>
+  'job-list:status': CustomEvent<{ jobId: number; status: string }>
 }
 
 export interface JobListState {
@@ -42,6 +43,7 @@ export class JobList extends HTMLElement {
     this.#abort = new AbortController()
     const opts = { signal: this.#abort.signal }
     this.addEventListener('job-card:select', this.#onCardSelect as EventListener, opts)
+    this.addEventListener('job-card:status', this.#onCardStatus as EventListener, opts)
   }
 
   cleanup(): void {
@@ -56,6 +58,17 @@ export class JobList extends HTMLElement {
         bubbles: true,
         composed: true,
         detail: { jobId, providerJobId },
+      })
+    )
+  }
+
+  #onCardStatus = (event: Event): void => {
+    const { jobId, status } = (event as CustomEvent<{ jobId: number; status: string }>).detail
+    this.dispatchEvent(
+      new CustomEvent('job-list:status', {
+        bubbles: true,
+        composed: true,
+        detail: { jobId, status },
       })
     )
   }

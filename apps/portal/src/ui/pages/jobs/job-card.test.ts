@@ -218,6 +218,32 @@ describe('job-card', () => {
     expect(selectFired).toBe(false)
   })
 
+  it('dispatches job-card:status with skipped on skip click and not job-card:select', () => {
+    const card = createCard({
+      'job-id': '11',
+      'provider-job-id': 'job-11',
+      title: 'Engineer',
+      company: 'Lambda',
+      location: 'Sydney',
+      posted: '2d',
+    })
+
+    const statusEvents: Array<{ jobId: number; providerJobId: string; status: string }> = []
+    let selectFired = false
+    card.addEventListener('job-card:status', event => {
+      statusEvents.push((event as CustomEvent<{ jobId: number; providerJobId: string; status: string }>).detail)
+    })
+    card.addEventListener('job-card:select', () => {
+      selectFired = true
+    })
+
+    const skip = card.querySelector<HTMLButtonElement>('.card-skip')
+    expect(skip?.getAttribute('aria-label')).toBe('Skip job')
+    skip?.click()
+    expect(statusEvents).toEqual([{ jobId: 11, providerJobId: 'job-11', status: 'skipped' }])
+    expect(selectFired).toBe(false)
+  })
+
   it('renders a filled flag with aria-pressed=true when queued', () => {
     const card = createCard({
       'job-id': '12',

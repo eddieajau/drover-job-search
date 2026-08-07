@@ -358,6 +358,33 @@ describe('jobs-mediator', () => {
     expect(document.querySelector('job-card[job-id="1"]')?.hasAttribute('seen')).toBe(true)
   })
 
+  it('removes a skipped job from the list on job-list:status', async () => {
+    mockFetch({
+      '/api/jobs/1/status': { status: 'skipped' },
+      '/api/jobs': jobsResponse(),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const jobsPage = document.querySelector('jobs-page')
+    const setStateSpy = vi.spyOn(jobsPage!, 'setState')
+    const callCount = setStateSpy.mock.calls.length
+
+    window.dispatchEvent(new CustomEvent('job-list:status', { detail: { jobId: 1, status: 'skipped' } }))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const calls = vi.mocked(fetch).mock.calls
+    const patchCalls = calls.filter(([, init]) => init?.method === 'PATCH')
+    expect(patchCalls).toHaveLength(1)
+    const [patchUrl, patchInit] = patchCalls[0]
+    expect(patchUrl).toBe('/api/jobs/1/status')
+    expect(JSON.parse(String(patchInit?.body))).toEqual({ status: 'skipped' })
+
+    const postSkip = setStateSpy.mock.calls.slice(callCount)
+    expect(postSkip[0]?.[0].jobs.map(j => j.id)).not.toContain(1)
+  })
+
   it('fetches the next page with limit and offset when next is clicked', async () => {
     mockFetch({
       '/api/jobs': { count: 100, limit: 50, offset: 0, results: jobsResponse().results },

@@ -140,4 +140,15 @@ describe('job-list', () => {
     expect(received).toEqual([{ jobId: 1, providerJobId: '4445084022' }])
     expect(listFlagFired).toBe(false)
   })
+
+  it('forwards job-card:status as job-list:status on skip', () => {
+    el.setState({ status: 'done', message: '', jobs: [withStatus(job())], selectedId: null })
+    const received: Array<{ jobId: number; status: string }> = []
+    el.addEventListener('job-list:status', event => {
+      received.push((event as CustomEvent<{ jobId: number; status: string }>).detail)
+    })
+
+    el.querySelector<HTMLButtonElement>('job-card .card-skip')?.click()
+    expect(received).toEqual([{ jobId: 1, status: 'skipped' }])
+  })
 })

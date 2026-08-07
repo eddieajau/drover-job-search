@@ -54,6 +54,7 @@ export function initJobsMediator(): void {
   registered = true
   window.addEventListener('jobs-page:ready', handleReady)
   window.addEventListener('job-list:select', handleSelect)
+  window.addEventListener('job-list:status', handleStatus)
   window.addEventListener('job-meta:status', handleStatus)
   window.addEventListener('job-meta:open', handleOpen)
   window.addEventListener('filter-bar:change', handleFilterChange)
@@ -68,6 +69,7 @@ export function _resetJobsMediatorForTesting(): void {
   if (registered) {
     window.removeEventListener('jobs-page:ready', handleReady)
     window.removeEventListener('job-list:select', handleSelect)
+    window.removeEventListener('job-list:status', handleStatus)
     window.removeEventListener('job-meta:status', handleStatus)
     window.removeEventListener('job-meta:open', handleOpen)
     window.removeEventListener('filter-bar:change', handleFilterChange)
@@ -154,6 +156,10 @@ async function persistStatus(id: number, status: JobStatus['status']): Promise<v
   } catch {
     viewStatus = 'error'
     message = 'Failed to save job status'
+  }
+  if (status === 'skipped') {
+    results = results.filter(job => job.id !== id)
+    pushState()
   }
   void handleSearch()
 }

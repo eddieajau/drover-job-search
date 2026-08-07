@@ -514,7 +514,8 @@ job-card:focus-visible {
   flex: 1;
 }
 
-.card-flag {
+.card-flag,
+.card-skip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -528,7 +529,9 @@ job-card:focus-visible {
 }
 
 .card-flag:hover,
-.card-flag:focus-visible {
+.card-flag:focus-visible,
+.card-skip:hover,
+.card-skip:focus-visible {
   color: var(--accent);
   outline: 2px solid var(--accent);
   outline-offset: 1px;
