@@ -4,7 +4,8 @@
  */
 
 import type { Query } from '../../../shared/types.js'
-import { escapeHtml as esc } from '../../escape.js'
+import './query-row.js'
+import type { QueryRow } from './query-row.js'
 
 const PAGE_SIZE = 10
 
@@ -37,7 +38,7 @@ export class QueriesList extends HTMLElement {
     this.#abort = new AbortController()
     const opts = { signal: this.#abort.signal }
     this.addEventListener('click', this.#onClick, opts)
-    this.addEventListener('change', this.#onChange, opts)
+    this.addEventListener('query-row:toggle', this.#onRowToggle, opts)
   }
 
   cleanup(): void {
@@ -66,30 +67,19 @@ export class QueriesList extends HTMLElement {
     }
   }
 
-  #onChange = (event: Event): void => {
-    const input = event.target as HTMLInputElement
-    if (input.dataset.action !== 'toggle-enabled') {
-      return
-    }
-    const id = Number(input.dataset.id)
-    const query = this.#queries.find(q => q.id === id)
-    if (query) {
-      this.dispatchEvent(
-        new CustomEvent('queries-list:toggle', {
-          bubbles: true,
-          composed: true,
-          detail: { query: { ...query, enabled: input.checked } },
-        })
-      )
-    }
+  #onRowToggle = (event: Event): void => {
+    const { query } = (event as CustomEvent<{ query: Query }>).detail
+    this.dispatchEvent(
+      new CustomEvent('queries-list:toggle', {
+        bubbles: true,
+        composed: true,
+        detail: { query },
+      })
+    )
   }
 
   #pageCount(): number {
     return Math.max(1, Math.ceil(this.#queries.length / PAGE_SIZE))
-  }
-
-  #editHref(id: number): string {
-    return `#queries/edit?id=${id}`
   }
 
   render(): void {
@@ -108,27 +98,29 @@ export class QueriesList extends HTMLElement {
         <span class="pagination-info">Page ${this.#page} of ${pageCount} (${this.#queries.length} queries)</span>
         <button type="button" class="btn" data-action="next-page" ${this.#page >= pageCount ? 'disabled' : ''}>Next</button>
       </div>
-      <ul class="query-list">
-        ${pageQueries
-          .map(
-            q => `
-          <li class="query-row ${q.enabled ? '' : 'query-row-disabled'}">
-            <label class="query-enabled">
-              <input type="checkbox" data-action="toggle-enabled" data-id="${q.id}" ${q.enabled ? 'checked' : ''} />
-              <span class="query-enabled-label">${q.enabled ? 'Enabled' : 'Disabled'}</span>
-            </label>
-            <a class="query-row-text" href="${this.#editHref(q.id)}">
-              ${esc(q.queryText)}${q.queryOptions?.location ? ` <em class="query-location">(${esc(q.queryOptions.location)})</em>` : ''}
-            </a>
-            <span class="query-row-meta">
-              ${q.queryOptions?.workType ? `<span>${esc(q.queryOptions.workType)}</span>` : ''}
-              ${q.queryOptions?.jobType ? `<span>${esc(q.queryOptions.jobType)}</span>` : ''}
-            </span>
-          </li>`
-          )
-          .join('')}
-      </ul>
+      <ul class="query-list"></ul>
     `
+    this.querySelector<HTMLUListElement>('ul.query-list')?.replaceChildren(...this.#rows(pageQueries))
+  }
+
+  #rows(queries: Query[]): QueryRow[] {
+    return queries.map(q => {
+      const row = document.createElement('query-row') as QueryRow
+      row.setAttribute('query-id', String(q.id))
+      row.setAttribute('query-text', q.queryText)
+      if (q.queryOptions?.location) {
+        row.setAttribute('location', q.queryOptions.location)
+      }
+      row.toggleAttribute('enabled', q.enabled)
+      if (q.queryOptions?.workType) {
+        row.setAttribute('work-type', q.queryOptions.workType)
+      }
+      if (q.queryOptions?.jobType) {
+        row.setAttribute('job-type', q.queryOptions.jobType)
+      }
+      row.setAttribute('added-date', q.createdAt)
+      return row
+    })
   }
 }
 
