@@ -123,15 +123,22 @@ export class QueryEditPage extends HTMLElement {
         <a class="crumb" href="#queries">← Queries</a>
         <h1>${editing ? 'Edit query' : 'New query'}</h1>
         <form class="form">
-          <label class="field">Query text
-            <input type="text" id="edit-q-text" value="${esc(query?.queryText ?? '')}" placeholder="e.g. Staff Engineer" />
-          </label>
-          <label class="field">Location
-            <input type="text" id="edit-q-location" value="${esc(query?.queryOptions?.location ?? '')}" placeholder="e.g. Brisbane, QLD, Australia" />
-          </label>
-          <label class="field">Work type
-            <select id="edit-q-work-type">${workOptions}</select>
-          </label>
+          <div class="field">
+            <label class="field-label req" for="edit-q-text">Query text</label>
+            <input class="input" type="text" id="edit-q-text" value="${esc(query?.queryText ?? '')}" placeholder="e.g. Staff Engineer" />
+            <p class="hint">Keywords sent to the provider.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="edit-q-location">Location</label>
+            <input class="input" type="text" id="edit-q-location" value="${esc(query?.queryOptions?.location ?? '')}" placeholder="e.g. Brisbane, QLD, Australia" />
+            <p class="hint">Leave empty to search anywhere.</p>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label class="field-label" for="edit-q-work-type">Work type</label>
+              <select class="select" id="edit-q-work-type">${workOptions}</select>
+            </div>
+          </div>
           <fieldset class="job-type-group">
             <legend>Job type</legend>
             ${jobChecks}

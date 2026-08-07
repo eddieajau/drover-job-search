@@ -838,34 +838,60 @@ job-card:focus-visible {
   gap: 18px;
 }
 
-.form .field {
+.field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  border: none;
+}
+
+.field-label {
   font-size: 13px;
+  font-weight: 600;
+}
+
+.req::after {
+  content: ' *';
+  color: var(--red);
+}
+
+.hint {
+  font-size: 12px;
   color: var(--muted);
 }
 
-.form input,
-.form select {
+.input,
+.select {
   background: var(--field);
-  color: var(--text);
   border: 1px solid var(--border);
+  color: var(--text);
   border-radius: var(--radius);
-  padding: 6px 10px;
-  font-size: 13px;
+  padding: 7px 10px;
+  font: 13px var(--font);
+  width: 100%;
 }
 
-.form input:hover,
-.form select:hover {
+.input:hover,
+.select:hover {
   border-color: var(--border-strong);
 }
 
-.form input:focus,
-.form select:focus {
+.input:focus,
+.select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.input::placeholder {
+  color: var(--muted);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
 }
 
 .job-type-group {

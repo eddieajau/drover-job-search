@@ -67,6 +67,30 @@ describe('query-edit-page', () => {
     expect(el.querySelector('h1')?.textContent).toBe('Edit query')
   })
 
+  it('renders the query text field with required marker and hint', () => {
+    el.setState({ query: query() })
+    const field = el.querySelector('#edit-q-text')?.closest('.field')
+    const label = field?.querySelector('.field-label.req')
+    expect(label?.getAttribute('for')).toBe('edit-q-text')
+    expect(label?.textContent).toBe('Query text')
+    expect(field?.querySelector('.hint')?.textContent).toBe('Keywords sent to the provider.')
+  })
+
+  it('renders the location field with hint', () => {
+    el.setState({ query: query() })
+    const field = el.querySelector('#edit-q-location')?.closest('.field')
+    expect(field?.querySelector('.field-label')?.textContent).toBe('Location')
+    expect(field?.querySelector('.hint')?.textContent).toBe('Leave empty to search anywhere.')
+  })
+
+  it('places the work-type select in the field-grid', () => {
+    el.setState({ query: query() })
+    const grid = el.querySelector('.field-grid')
+    expect(grid).not.toBeNull()
+    expect(grid?.querySelector('.field-label')?.textContent).toBe('Work type')
+    expect(grid?.querySelector<HTMLSelectElement>('#edit-q-work-type')).not.toBeNull()
+  })
+
   it('dispatches query-edit-page:save with the edited values', () => {
     el.setState({ query: query() })
     const received = { fired: false }
