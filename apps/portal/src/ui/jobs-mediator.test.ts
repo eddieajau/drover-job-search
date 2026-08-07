@@ -21,6 +21,7 @@ const mockJobsResponse = {
       postedAt: '2026-08-05',
       priority: 1,
       category: 'P1',
+      status: 'new',
     },
     {
       id: 2,
@@ -32,6 +33,7 @@ const mockJobsResponse = {
       postedAt: '2026-08-04',
       priority: 2,
       category: 'P2',
+      status: 'new',
     },
     {
       id: 3,
@@ -43,6 +45,7 @@ const mockJobsResponse = {
       postedAt: '2026-08-03',
       priority: 2,
       category: 'P2',
+      status: 'new',
     },
   ],
 }
@@ -54,11 +57,15 @@ type JobSignals = {
   baseScore?: number
 }
 
-function jobsResponse(signals: Record<string, JobSignals> = {}): typeof mockJobsResponse {
+function jobsResponse(
+  signals: Record<string, JobSignals> = {},
+  statuses: Record<string, string> = {}
+): typeof mockJobsResponse {
   return {
     count: 3,
     results: mockJobsResponse.results.map(job => ({
       ...job,
+      status: statuses[job.providerJobId] ?? job.status,
       signals: {
         signalCount: 0,
         gated: false,
@@ -311,6 +318,44 @@ describe('jobs-mediator', () => {
     expect(cards.length).toBe(3)
     const badges = document.querySelectorAll('job-card .score')
     expect(badges.length).toBe(0)
+  })
+
+  it('reads the server status and marks non-new jobs as seen', async () => {
+    mockFetch({
+      '/api/jobs': jobsResponse({}, { 'job-1': 'applied' }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const cards = document.querySelectorAll('job-card')
+    expect(cards[0].hasAttribute('seen')).toBe(true)
+    expect(cards[1].hasAttribute('seen')).toBe(false)
+  })
+
+  it('persists a status change via PATCH then refreshes from the server', async () => {
+    mockFetch({
+      '/api/jobs/1/status': { status: 'applied' },
+      '/api/jobs': jobsResponse({}, { 'job-1': 'applied' }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    window.dispatchEvent(new CustomEvent('job-meta:status', { detail: { jobId: 1, status: 'applied' } }))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const calls = vi.mocked(fetch).mock.calls
+    const patchCalls = calls.filter(([, init]) => init?.method === 'PATCH')
+    expect(patchCalls).toHaveLength(1)
+    const [patchUrl, patchInit] = patchCalls[0]
+    expect(patchUrl).toBe('/api/jobs/1/status')
+    expect(JSON.parse(String(patchInit?.body))).toEqual({ status: 'applied' })
+
+    const refreshCalls = calls.filter(([url]) => url === '/api/jobs?limit=50&offset=0')
+    expect(refreshCalls).toHaveLength(2)
+
+    expect(document.querySelector('job-card[job-id="1"]')?.hasAttribute('seen')).toBe(true)
   })
 
   it('fetches the next page with limit and offset when next is clicked', async () => {

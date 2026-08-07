@@ -8,7 +8,6 @@ import type { JobsFilters, JobsViewState, JobWithStatus } from './jobs-view.js'
 import { parseHash } from './navigation-state.js'
 
 type ViewStatus = 'idle' | 'loading' | 'error' | 'done'
-type SeenMap = Record<number, Omit<JobStatus, 'id'>>
 
 interface JobsResponse {
   count: number
@@ -40,7 +39,6 @@ function computeNetScore(job: Job): number | undefined {
 let registered = false
 
 let results: Job[] = []
-let seen: SeenMap = {}
 let selectedId: number | null = null
 let filters: JobsFilters = { priority: '', status: '', search: '', score: '' }
 let viewStatus: ViewStatus = 'idle'
@@ -78,7 +76,6 @@ export function _resetJobsMediatorForTesting(): void {
   }
   registered = false
   results = []
-  seen = {}
   selectedId = null
   filters = { priority: '', status: '', search: '', score: '' }
   viewStatus = 'idle'
@@ -141,7 +138,24 @@ function handleSelect(event: Event): void {
 
 function handleStatus(event: Event): void {
   const detail = (event as CustomEvent<{ jobId: number; status: JobStatus['status'] }>).detail
-  track(detail.jobId, detail.status)
+  void persistStatus(detail.jobId, detail.status)
+}
+
+async function persistStatus(id: number, status: JobStatus['status']): Promise<void> {
+  try {
+    const response = await fetch(`/api/jobs/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (!response.ok) {
+      throw new Error('Failed to update job status')
+    }
+  } catch {
+    viewStatus = 'error'
+    message = 'Failed to save job status'
+  }
+  void handleSearch()
 }
 
 function handleOpen(event: Event): void {
@@ -151,15 +165,6 @@ function handleOpen(event: Event): void {
 
 function handleFilterChange(event: Event): void {
   filters = (event as CustomEvent<JobsFilters>).detail
-  pushState()
-}
-
-function track(id: number, status: JobStatus['status']): void {
-  if (status === 'new') {
-    delete seen[id]
-  } else {
-    seen[id] = { status, date: new Date().toISOString().slice(0, 10) }
-  }
   pushState()
 }
 
@@ -184,7 +189,7 @@ function pushState(): void {
   }
   const all: JobWithStatus[] = results.map(job => ({
     ...job,
-    _status: seen[job.id]?.status ?? 'new',
+    _status: (job.status as JobStatus['status']) ?? 'new',
     netScore: computeNetScore(job),
     gated: job.signals?.gated,
   }))

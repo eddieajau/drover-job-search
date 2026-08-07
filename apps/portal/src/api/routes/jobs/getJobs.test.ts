@@ -3,7 +3,8 @@
  * @license   MIT
  */
 
-import { type DB, analysisQueue } from 'db'
+import { analysisQueue, jobs, type DB } from 'db'
+import { eq, sql } from 'drizzle-orm'
 import { build, createTestDb, JOB1, JOB2, JOB3, seedJob, seedSignal } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -161,6 +162,58 @@ describe('GET /api/jobs queued join', () => {
     const res = await app.inject({ method: 'GET', url: '/' })
     const jobJson = res.json().results[0]
     expect(jobJson.queued).toBe(false)
+  })
+})
+
+describe('GET /api/jobs status mapping', () => {
+  let db: DB
+  let app: Awaited<ReturnType<typeof build>>
+
+  beforeEach(async () => {
+    db = createTestDb()
+    app = await build(getJobs, { db, prefix: '/' })
+  })
+
+  afterEach(async () => {
+    await app.close()
+    db.$client.close()
+  })
+
+  it('maps a default-discovered job to the UI status new', async () => {
+    seedJob(db, JOB1)
+
+    const res = await app.inject({ method: 'GET', url: '/' })
+    expect(res.json().results[0].status).toBe('new')
+  })
+
+  it('maps applied and skipped rows to their UI status', async () => {
+    const applied = seedJob(db, JOB1)
+    const skipped = seedJob(db, JOB2)
+    db.update(jobs)
+      .set({ status: 'applied', appliedAt: sql`(CURRENT_TIMESTAMP)`, updatedAt: sql`(CURRENT_TIMESTAMP)` })
+      .where(eq(jobs.id, applied.id))
+      .run()
+    db.update(jobs)
+      .set({ status: 'skipped', skippedAt: sql`(CURRENT_TIMESTAMP)`, updatedAt: sql`(CURRENT_TIMESTAMP)` })
+      .where(eq(jobs.id, skipped.id))
+      .run()
+
+    const res = await app.inject({ method: 'GET', url: '/' })
+    const results = res.json().results as Array<{ providerJobId: string; status: string }>
+    expect(results.find(j => j.providerJobId === JOB1.providerJobId)?.status).toBe('applied')
+    expect(results.find(j => j.providerJobId === JOB2.providerJobId)?.status).toBe('skipped')
+  })
+
+  it('maps bookmarked and archived rows to new for display', async () => {
+    const bookmarked = seedJob(db, JOB1)
+    const archived = seedJob(db, JOB2)
+    db.update(jobs).set({ status: 'bookmarked' }).where(eq(jobs.id, bookmarked.id)).run()
+    db.update(jobs).set({ status: 'archived' }).where(eq(jobs.id, archived.id)).run()
+
+    const res = await app.inject({ method: 'GET', url: '/' })
+    const results = res.json().results as Array<{ providerJobId: string; status: string }>
+    expect(results.find(j => j.providerJobId === JOB1.providerJobId)?.status).toBe('new')
+    expect(results.find(j => j.providerJobId === JOB2.providerJobId)?.status).toBe('new')
   })
 })
 

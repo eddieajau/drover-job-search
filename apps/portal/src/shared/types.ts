@@ -22,6 +22,7 @@ export interface Job {
   salaryRaw?: string | null
   priority: number
   category: string
+  status: string
   signals?: SignalSummary
   queued?: boolean
 }
