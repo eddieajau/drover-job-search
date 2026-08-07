@@ -782,8 +782,8 @@ ai-eval-box {
 .eval-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  margin-bottom: 6px;
 }
 
 .eval-verdict {
@@ -795,6 +795,7 @@ ai-eval-box {
 .eval-why {
   font-size: 12px;
   color: var(--muted);
+  line-height: 1.5;
   margin: 0;
 }
 
