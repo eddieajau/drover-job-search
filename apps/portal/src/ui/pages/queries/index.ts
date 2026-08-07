@@ -12,13 +12,26 @@ export interface QueriesPageEventMap {
 }
 
 export class QueriesPage extends HTMLElement {
+  #queries: Query[] = []
+
   connectedCallback(): void {
     this.render()
     this.dispatchEvent(new CustomEvent('queries-page:ready', { bubbles: true, composed: true }))
   }
 
   setQueries(queries: Query[]): void {
-    this.#list()?.setQueries(queries)
+    this.#queries = queries ?? []
+    this.#updateHead()
+    this.#list()?.setQueries(this.#queries)
+  }
+
+  #updateHead(): void {
+    const count = this.#queries.length
+    const enabled = this.#queries.filter(q => q.enabled).length
+    const el = this.querySelector<HTMLSpanElement>('.page-count')
+    if (el) {
+      el.textContent = `${count} queries · ${enabled} enabled`
+    }
   }
 
   #list(): QueriesList | null {
@@ -26,12 +39,19 @@ export class QueriesPage extends HTMLElement {
   }
 
   render(): void {
-    this.classList.add('queries-page')
     this.innerHTML = `
-      <h1 class="page-title">Queries</h1>
-      <a class="btn new-query" href="#queries/edit">New query</a>
-      <queries-list></queries-list>
+      <main class="page">
+        <div class="page-head">
+          <h1>Queries</h1>
+          <span class="page-count"></span>
+          <a class="btn primary" href="#queries/edit">New query</a>
+        </div>
+        <div class="panel">
+          <queries-list></queries-list>
+        </div>
+      </main>
     `
+    this.#updateHead()
   }
 }
 

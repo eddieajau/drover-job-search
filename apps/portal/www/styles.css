@@ -156,9 +156,39 @@ body {
   margin-bottom: 16px;
 }
 
-.queries-page {
-  padding: 24px;
-  max-width: 860px;
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 28px 24px 64px;
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.page-head h1 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.page-count {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.page-head .primary {
+  margin-left: auto;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .jobs-page {
@@ -650,14 +680,6 @@ job-card:focus-visible {
   padding: 4px 8px;
   font-size: 13px;
   width: 72px;
-}
-
-.new-query {
-  display: inline-block;
-  margin-bottom: 16px;
-  padding: 6px 14px;
-  font-size: 13px;
-  text-decoration: none;
 }
 
 .pagination {
