@@ -118,6 +118,9 @@ export class JobList extends HTMLElement {
         if (job._status !== 'new') {
           card.setAttribute('seen', '')
         }
+        if (job.descriptionHtml !== null) {
+          card.setAttribute('has-description', '')
+        }
         return card
       })
     )

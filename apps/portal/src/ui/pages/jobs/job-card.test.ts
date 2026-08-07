@@ -294,4 +294,31 @@ describe('job-card', () => {
     flag?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
     expect(selectFired).toBe(false)
   })
+
+  it('reflects has-description on the inner .job-card div when set', () => {
+    const card = createCard({
+      'job-id': '15',
+      'provider-job-id': 'job-15',
+      title: 'Engineer',
+      company: 'Omicron',
+      location: 'Brisbane',
+      posted: '1d',
+      'has-description': '',
+    })
+
+    expect(card.querySelector('.job-card')?.hasAttribute('has-description')).toBe(true)
+  })
+
+  it('does not reflect has-description on the inner .job-card div when absent', () => {
+    const card = createCard({
+      'job-id': '16',
+      'provider-job-id': 'job-16',
+      title: 'Engineer',
+      company: 'Pi',
+      location: 'Sydney',
+      posted: '2d',
+    })
+
+    expect(card.querySelector('.job-card')?.hasAttribute('has-description')).toBe(false)
+  })
 })

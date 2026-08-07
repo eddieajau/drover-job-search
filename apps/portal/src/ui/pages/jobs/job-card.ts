@@ -25,6 +25,7 @@ type JobCardAttribute =
   | 'active'
   | 'seen'
   | 'queued'
+  | 'has-description'
 
 export class JobCard extends HTMLElement {
   static observedAttributes: JobCardAttribute[] = [
@@ -40,6 +41,7 @@ export class JobCard extends HTMLElement {
     'active',
     'seen',
     'queued',
+    'has-description',
   ]
 
   #jobId = 0
@@ -53,6 +55,7 @@ export class JobCard extends HTMLElement {
   #active = false
   #seen = false
   #queued = false
+  #hasDescription = false
   #abort: AbortController | null = null
 
   connectedCallback(): void {
@@ -100,6 +103,9 @@ export class JobCard extends HTMLElement {
         break
       case 'queued':
         this.#queued = newValue !== null
+        break
+      case 'has-description':
+        this.#hasDescription = newValue !== null
         break
     }
     if (this.isConnected) {
@@ -196,8 +202,10 @@ export class JobCard extends HTMLElement {
     if (!this.#seen) classes.push('unseen')
     if (this.#gated) classes.push('gated')
 
+    const descAttr = this.#hasDescription ? ' has-description' : ''
+
     this.innerHTML = `
-      <div class="${classes.join(' ')}">
+      <div class="${classes.join(' ')}"${descAttr}>
         <div class="job-title">${esc(this.#title)}</div>
         <div class="job-company">${esc(this.#company)}</div>
         <div class="job-meta">

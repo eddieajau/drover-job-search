@@ -509,15 +509,20 @@ job-card:focus-visible {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
-.job-card.unseen .job-title::before {
+.job-card .job-title::before {
   content: '';
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--accent);
   margin-right: 6px;
   vertical-align: 1px;
+}
+
+.job-card:not([has-description]) .job-title::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 
 .job-title {

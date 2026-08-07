@@ -151,4 +151,24 @@ describe('job-list', () => {
     el.querySelector<HTMLButtonElement>('job-card .card-skip')?.click()
     expect(received).toEqual([{ jobId: 1, status: 'skipped' }])
   })
+
+  it('sets has-description on the card when job has descriptionHtml', () => {
+    el.setState({
+      status: 'done',
+      message: '',
+      jobs: [withStatus(job({ descriptionHtml: '<p>desc</p>' }))],
+      selectedId: null,
+    })
+    expect(el.querySelector('job-card')?.hasAttribute('has-description')).toBe(true)
+  })
+
+  it('does not set has-description on the card when job has no descriptionHtml', () => {
+    el.setState({
+      status: 'done',
+      message: '',
+      jobs: [withStatus(job({ descriptionHtml: null }))],
+      selectedId: null,
+    })
+    expect(el.querySelector('job-card')?.hasAttribute('has-description')).toBe(false)
+  })
 })
