@@ -1,4 +1,4 @@
-# Contributing to Zemer
+# Contributing to Drover
 
 Drover is a tool to help with job searching. This file is the contract for changing it.
 
