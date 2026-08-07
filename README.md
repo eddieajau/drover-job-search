@@ -1,69 +1,36 @@
 # Drover Job Search
 
-Lightweight job search and tracking tool. Searches LinkedIn via a Fastify API, tracks state in browser localStorage.
+Lightweight job search, tracking and application tool.
+Built by a job seeker, for job seekers.
+
+![Jobs Dashboard](/docs/dashboard.png)
+
+Job hunting is hard and job listing sites are designed for the 2010's, not for modern job seekers in 2026.
+There are a few skills-based approaches out there but they assume you can afford a Claude MAX plan while you are between roles.
+Or there is a system to do just the resume and you have to fill in all the details.
+What if there was a system that herded all those sheep in one go?
+**Drover** is a survival project that attempts to put a barbed-wire fence around that flock.
+
+Drover is designed with local-first/local-only in mind.
+
+## Goals
+
+- ✅ A better job dashboard
+- ✅ Flag jobs for deeper analysis
+- ✅ Static regex filtering for deal-breakers (looking at you Java)
+- Add jobs manually
+- Add skills, experiences, education and other facts about you
+- Reliable job scoring/matching
+- Generate tailored cover letters
+- Generate tailored resumes
+
+Currently tuning against a local `qwen3.6-35b-64k` model
 
 ## Quick Start
 
 ```bash
-npm install
-npm run dev
+make install
+npm run portal
 ```
 
 Opens at http://localhost:4000
-
-## Architecture
-
-- **Fastify API** (`src/server.ts`) — serves the SPA and proxies LinkedIn search
-- **LinkedIn provider** (`src/providers/linkedin/`) — fetches and parses LinkedIn's public `jobs-guest` endpoints, adapted from [linkedin-search-cli](https://github.com/MadsLorentzen/ai-job-search) (MIT)
-- **Browser SPA** (`www/`) — dark-theme UI with search, filter, track, export
-- **State** — all tracking (seen/applied/skipped) lives in `localStorage`, no server-side DB
-- **Config** — search queries, categories, and priorities defined in `data/queries.json`
-
-## Project Structure
-
-```
-src/
-  server.ts                       # Fastify entry point
-  main.ts                         # Browser entry (bundled to www/js/main.js by esbuild)
-  api/routes/
-    search/index.ts               # GET /api/search?q=...&location=...&jobage=...
-    config/index.ts               # GET /api/config → queries.json
-  providers/
-    linkedin/
-      index.ts                    # Public API (search, detail)
-      helpers.ts                  # HTML fetch with backoff, regex parsing
-      search.ts                   # search() → { count, results }
-      detail.ts                   # detail() → JobDetail | null
-      LICENSE                     # MIT (MadsLorentzen)
-      README.md                   # Attribution
-  shared/types.ts                 # Shared TypeScript types
-www/
-  index.html                      # SPA shell
-  styles.css                      # Dark theme
-  js/main.js                      # Bundled browser code (generated)
-data/
-  queries.json                    # Search queries and categories
-```
-
-## Scripts
-
-| Command             | Description                                        |
-| ------------------- | -------------------------------------------------- |
-| `npm run dev`       | Start server + watch browser bundle (concurrently) |
-| `npm run build`     | Production build (tsc + esbuild)                   |
-| `npm start`         | Run production build                               |
-| `npm run typecheck` | Type-check server + browser                        |
-| `npm test`          | Run tests                                          |
-
-## Configuration
-
-- `data/queries.json` — search queries, categories, priorities, location
-- `.env` — `PORT` (default 4000)
-
-## Tech Stack
-
-- [Fastify](https://fastify.dev) v5 — HTTP server
-- [tsx](https://github.com/privatenumber/tsx) — TypeScript execution (dev)
-- [esbuild](https://esbuild.github.io) — browser bundle
-- [dotenv](https://github.com/motdotla/dotenv) — env loading
-- LinkedIn provider — regex-based HTML parsing, no DOM dependencies
