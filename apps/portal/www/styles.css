@@ -161,6 +161,13 @@ body {
   max-width: 860px;
 }
 
+.jobs-page {
+  height: calc(100vh - 52px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .workspace {
   flex: 1;
   display: flex;
@@ -188,6 +195,13 @@ body {
 
 .list-toolbar .filters {
   margin-left: 0;
+}
+
+job-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: block;
 }
 
 .pane-foot {
@@ -574,21 +588,6 @@ job-card:focus-visible {
   color: var(--red);
   padding: 40px;
   text-align: center;
-}
-
-@media (max-width: 768px) {
-  .workspace {
-    flex-direction: column;
-  }
-  .pane-list {
-    width: 100%;
-    height: 50vh;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-  .pane-meta {
-    display: none;
-  }
 }
 
 .config-settings {

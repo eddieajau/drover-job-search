@@ -60,6 +60,13 @@ describe('jobs-page', () => {
     expect(el.querySelector('#btn-search')).toBeNull()
   })
 
+  it('keeps job-list as the scroll region between the toolbar and the pager foot', () => {
+    const paneChildren = [...el.querySelector('.pane-list')!.children].map(child => child.tagName.toLowerCase())
+    expect(paneChildren).toEqual(['div', 'job-list', 'div'])
+    expect(el.querySelector('.list-toolbar')!.nextElementSibling!.tagName.toLowerCase()).toBe('job-list')
+    expect(el.querySelector('job-list')!.nextElementSibling!.classList.contains('pane-foot')).toBe(true)
+  })
+
   it('forwards pagination to the pager element via attributes', () => {
     el.setState(state({ page: 2, pageSize: 10, total: 25 }))
     const pager = el.querySelector('pager-nav')
