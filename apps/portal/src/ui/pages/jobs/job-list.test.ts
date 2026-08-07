@@ -118,4 +118,25 @@ describe('job-list', () => {
     expect(score?.classList.contains('score-low')).toBe(true)
     expect(el.querySelector('.job-card')?.classList.contains('gated')).toBe(true)
   })
+
+  it('sets the queued attribute on cards for queued jobs', () => {
+    el.setState({ status: 'done', message: '', jobs: [withStatus(job({ queued: true }))], selectedId: null })
+    expect(el.querySelector('job-card')?.hasAttribute('queued')).toBe(true)
+  })
+
+  it('lets job-card:flag bubble through the list without re-dispatching', () => {
+    el.setState({ status: 'done', message: '', jobs: [withStatus(job())], selectedId: null })
+    const received: Array<{ jobId: number; providerJobId: string }> = []
+    let listFlagFired = false
+    el.addEventListener('job-card:flag', event => {
+      received.push((event as CustomEvent<{ jobId: number; providerJobId: string }>).detail)
+    })
+    el.addEventListener('job-list:flag', () => {
+      listFlagFired = true
+    })
+
+    el.querySelector<HTMLButtonElement>('job-card .card-flag')?.click()
+    expect(received).toEqual([{ jobId: 1, providerJobId: '4445084022' }])
+    expect(listFlagFired).toBe(false)
+  })
 })

@@ -514,6 +514,30 @@ job-card:focus-visible {
   flex: 1;
 }
 
+.card-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  border-radius: 4px;
+  line-height: 0;
+}
+
+.card-flag:hover,
+.card-flag:focus-visible {
+  color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.card-flag[aria-pressed='true'] {
+  color: var(--accent);
+}
+
 .detail {
   max-width: 780px;
   margin: 0 auto;

@@ -23,6 +23,7 @@ export interface Job {
   priority: number
   category: string
   signals?: SignalSummary
+  queued?: boolean
 }
 
 export interface JobStatus {

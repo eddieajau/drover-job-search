@@ -19,6 +19,7 @@ export function initSignalsMediator(): void {
   window.addEventListener('rules-list:toggle', handleToggle)
   window.addEventListener('job-list:select', handleJobSelect)
   window.addEventListener('job-meta:flag', handleFlag)
+  window.addEventListener('job-card:flag', handleFlag)
 }
 
 export function _resetSignalsMediatorForTesting(): void {
@@ -29,6 +30,7 @@ export function _resetSignalsMediatorForTesting(): void {
     window.removeEventListener('rules-list:toggle', handleToggle)
     window.removeEventListener('job-list:select', handleJobSelect)
     window.removeEventListener('job-meta:flag', handleFlag)
+    window.removeEventListener('job-card:flag', handleFlag)
   }
   registered = false
 }
@@ -115,11 +117,14 @@ async function handleJobSelect(event: Event): Promise<void> {
 async function handleFlag(event: Event): Promise<void> {
   const { providerJobId } = (event as CustomEvent<{ providerJobId: string }>).detail
   try {
-    await fetch('/api/analysis-queue', {
+    const response = await fetch('/api/analysis-queue', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ providerJobId }),
     })
+    if (!response.ok) {
+      return
+    }
   } catch {
     return
   }
@@ -127,4 +132,5 @@ async function handleFlag(event: Event): Promise<void> {
   if (page) {
     page.setJobMeta(providerJobId, [], true)
   }
+  window.dispatchEvent(new CustomEvent('jobs:refresh-request'))
 }

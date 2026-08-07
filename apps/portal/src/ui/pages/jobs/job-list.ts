@@ -96,6 +96,9 @@ export class JobList extends HTMLElement {
         if (job.gated) {
           card.setAttribute('gated', '')
         }
+        if (job.queued) {
+          card.setAttribute('queued', '')
+        }
         if (job.id === this.#state.selectedId) {
           card.setAttribute('active', '')
         }

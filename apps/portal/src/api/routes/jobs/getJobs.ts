@@ -3,8 +3,8 @@
  * @license   MIT
  */
 
-import { jobs } from 'db'
-import { count, desc } from 'drizzle-orm'
+import { analysisQueue, jobs } from 'db'
+import { count, desc, inArray } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { toJobJson } from '../../serializers.js'
@@ -35,11 +35,29 @@ const getJobs: FastifyPluginAsync = async app => {
       app.db,
       results.map(row => row.id)
     )
+
+    const queuedIds = new Set<number>()
+    if (results.length > 0) {
+      const queueRows = app.db
+        .select({ jobId: analysisQueue.jobId })
+        .from(analysisQueue)
+        .where(
+          inArray(
+            analysisQueue.jobId,
+            results.map(row => row.id)
+          )
+        )
+        .all()
+      for (const row of queueRows) {
+        queuedIds.add(row.jobId)
+      }
+    }
+
     return {
       count: total,
       limit: pageLimit,
       offset: pageOffset,
-      results: results.map(row => toJobJson(row, totals.get(row.id))),
+      results: results.map(row => toJobJson(row, totals.get(row.id), queuedIds.has(row.id))),
     }
   })
 }

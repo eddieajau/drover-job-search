@@ -193,4 +193,79 @@ describe('job-card', () => {
 
     expect(card.querySelector('.posted')?.textContent).toBe('2d')
   })
+
+  it('dispatches job-card:flag on flag click and not job-card:select', () => {
+    const card = createCard({
+      'job-id': '11',
+      'provider-job-id': 'job-11',
+      title: 'Engineer',
+      company: 'Lambda',
+      location: 'Sydney',
+      posted: '2d',
+    })
+
+    const flagEvents: Array<{ jobId: number; providerJobId: string }> = []
+    let selectFired = false
+    card.addEventListener('job-card:flag', event => {
+      flagEvents.push((event as CustomEvent<{ jobId: number; providerJobId: string }>).detail)
+    })
+    card.addEventListener('job-card:select', () => {
+      selectFired = true
+    })
+
+    card.querySelector<HTMLButtonElement>('.card-flag')?.click()
+    expect(flagEvents).toEqual([{ jobId: 11, providerJobId: 'job-11' }])
+    expect(selectFired).toBe(false)
+  })
+
+  it('renders a filled flag with aria-pressed=true when queued', () => {
+    const card = createCard({
+      'job-id': '12',
+      'provider-job-id': 'job-12',
+      title: 'Engineer',
+      company: 'Mu',
+      location: 'Perth',
+      posted: '3d',
+      queued: '',
+    })
+
+    const flag = card.querySelector<HTMLButtonElement>('.card-flag')
+    expect(flag?.getAttribute('aria-pressed')).toBe('true')
+    expect(flag?.querySelector('svg')?.getAttribute('fill')).toBe('currentColor')
+  })
+
+  it('renders a hollow flag with aria-pressed=false when not queued', () => {
+    const card = createCard({
+      'job-id': '13',
+      'provider-job-id': 'job-13',
+      title: 'Engineer',
+      company: 'Nu',
+      location: 'Hobart',
+      posted: '4d',
+    })
+
+    const flag = card.querySelector<HTMLButtonElement>('.card-flag')
+    expect(flag?.getAttribute('aria-pressed')).toBe('false')
+    expect(flag?.querySelector('svg')?.getAttribute('fill')).toBe('none')
+  })
+
+  it('does not dispatch job-card:select when Enter is pressed on the flag button', () => {
+    const card = createCard({
+      'job-id': '14',
+      'provider-job-id': 'job-14',
+      title: 'Engineer',
+      company: 'Xi',
+      location: 'Darwin',
+      posted: '5d',
+    })
+
+    let selectFired = false
+    card.addEventListener('job-card:select', () => {
+      selectFired = true
+    })
+
+    const flag = card.querySelector<HTMLButtonElement>('.card-flag')
+    flag?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    expect(selectFired).toBe(false)
+  })
 })

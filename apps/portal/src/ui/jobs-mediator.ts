@@ -60,6 +60,7 @@ export function initJobsMediator(): void {
   window.addEventListener('job-meta:open', handleOpen)
   window.addEventListener('filter-bar:change', handleFilterChange)
   window.addEventListener('pager:change', handlePagerChange)
+  window.addEventListener('jobs:refresh-request', handleRefreshRequest)
   if (document.querySelector('jobs-page')) {
     void handleSearch()
   }
@@ -73,6 +74,7 @@ export function _resetJobsMediatorForTesting(): void {
     window.removeEventListener('job-meta:open', handleOpen)
     window.removeEventListener('filter-bar:change', handleFilterChange)
     window.removeEventListener('pager:change', handlePagerChange)
+    window.removeEventListener('jobs:refresh-request', handleRefreshRequest)
   }
   registered = false
   results = []
@@ -87,6 +89,10 @@ export function _resetJobsMediatorForTesting(): void {
 }
 
 function handleReady(): void {
+  void handleSearch()
+}
+
+function handleRefreshRequest(): void {
   void handleSearch()
 }
 

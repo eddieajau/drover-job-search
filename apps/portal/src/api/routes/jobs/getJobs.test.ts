@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { type DB } from 'db'
+import { type DB, analysisQueue } from 'db'
 import { build, createTestDb, JOB1, JOB2, JOB3, seedJob, seedSignal } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -127,6 +127,40 @@ describe('GET /api/jobs signal summary join', () => {
     expect(jobJson).toMatchObject({
       signals: { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
     })
+  })
+})
+
+describe('GET /api/jobs queued join', () => {
+  let db: DB
+  let app: Awaited<ReturnType<typeof build>>
+
+  beforeEach(async () => {
+    db = createTestDb()
+    app = await build(getJobs, { db, prefix: '/' })
+  })
+
+  afterEach(async () => {
+    await app.close()
+    db.$client.close()
+  })
+
+  it('marks a job queued when an analysis_queue row exists', async () => {
+    const jobA = seedJob(db, JOB1)
+    seedJob(db, JOB2)
+    db.insert(analysisQueue).values({ jobId: jobA.id }).run()
+
+    const res = await app.inject({ method: 'GET', url: '/' })
+    const results = res.json().results as Array<{ providerJobId: string; queued: boolean }>
+    expect(results.find(j => j.providerJobId === JOB1.providerJobId)?.queued).toBe(true)
+    expect(results.find(j => j.providerJobId === JOB2.providerJobId)?.queued).toBe(false)
+  })
+
+  it('returns queued=false when no analysis_queue rows exist', async () => {
+    seedJob(db, JOB1)
+
+    const res = await app.inject({ method: 'GET', url: '/' })
+    const jobJson = res.json().results[0]
+    expect(jobJson.queued).toBe(false)
   })
 })
 

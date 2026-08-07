@@ -110,14 +110,16 @@ export function toSignalJson(row: JobSignal): SignalResponse {
 export interface JobResponse extends Omit<JobRow, 'description'> {
   descriptionHtml: string | null
   signals: SignalSummary
+  queued: boolean
 }
 
-export function toJobJson(row: JobRow, summary?: SignalSummary): JobResponse {
+export function toJobJson(row: JobRow, summary?: SignalSummary, queued = false): JobResponse {
   const { description, ...rest } = row
   return {
     ...rest,
     descriptionHtml: description ? markdownToHtml(description) : null,
     signals: summary ?? { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
+    queued,
   }
 }
 
