@@ -4,6 +4,7 @@
  */
 
 import { escapeHtml as esc } from '../../escape.js'
+import { relativeAge } from './posted-age.js'
 
 export interface JobCardEventMap {
   'job-card:select': CustomEvent<{ jobId: number; providerJobId: string }>
@@ -159,7 +160,7 @@ export class JobCard extends HTMLElement {
         <div class="job-company">${esc(this.#company)}</div>
         <div class="job-meta">
           <span class="loc">${esc(this.#location)}</span>
-          <span class="posted">${esc(this.#posted)}</span>
+          <span class="posted">${esc(relativeAge(this.#posted))}</span>
           <span class="spacer"></span>
           ${scoreHtml}
         </div>

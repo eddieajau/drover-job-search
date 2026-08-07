@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import './job-card.js'
 import type { JobCard } from './job-card.js'
@@ -20,6 +20,10 @@ function createCard(attrs: Record<string, string> = {}): JobCard {
 describe('job-card', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders a high-score active unseen card', () => {
@@ -172,5 +176,21 @@ describe('job-card', () => {
 
     expect(card.getAttribute('tabindex')).toBe('0')
     expect(card.getAttribute('role')).toBe('row')
+  })
+
+  it('renders a relative posted-age label in .posted', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-07T12:00:00Z'))
+
+    const card = createCard({
+      'job-id': '10',
+      'provider-job-id': 'job-10',
+      title: 'Engineer',
+      company: 'Kappa',
+      location: 'Brisbane',
+      posted: '2026-08-05',
+    })
+
+    expect(card.querySelector('.posted')?.textContent).toBe('2d')
   })
 })

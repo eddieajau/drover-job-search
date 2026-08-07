@@ -5,6 +5,7 @@
 
 import { escapeHtml as esc } from '../../escape.js'
 import type { JobWithStatus } from '../../jobs-view.js'
+import { relativeAge } from './posted-age.js'
 
 export class JobDetail extends HTMLElement {
   #job: JobWithStatus | null = null
@@ -34,7 +35,7 @@ export class JobDetail extends HTMLElement {
             <span class="chip chip-p${job.priority}">P${job.priority}</span>
             <span class="chip">${esc(job.category)}</span>
             <span class="chip">${esc(job.location)}</span>
-            <span class="chip">Posted ${esc(job.postedAt ?? 'unknown')}</span>
+            <span class="chip">Posted ${esc(relativeAge(job.postedAt) || 'unknown')}</span>
             ${status !== 'new' ? `<span class="chip chip-${esc(status)}">${esc(status)}</span>` : ''}
           </div>
         </header>

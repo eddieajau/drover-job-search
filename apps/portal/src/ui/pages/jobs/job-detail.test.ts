@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Job } from '../../../shared/types.js'
 import './job-detail.js'
@@ -32,6 +32,12 @@ describe('job-detail', () => {
     document.body.innerHTML = ''
     el = document.createElement('job-detail')
     document.body.appendChild(el)
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-07T12:00:00Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders an empty prompt when no job is selected', () => {
@@ -58,7 +64,7 @@ describe('job-detail', () => {
     expect(chips[0].classList.contains('chip-p1')).toBe(true)
     expect(chips[1].textContent).toBe('P1')
     expect(chips[2].textContent).toBe('Brisbane')
-    expect(chips[3].textContent).toBe('Posted 2026-08-05')
+    expect(chips[3].textContent).toBe('Posted 2d')
   })
 
   it('renders "Posted unknown" when postedAt is null', () => {
