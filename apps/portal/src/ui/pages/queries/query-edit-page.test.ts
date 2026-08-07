@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { Query } from '../../../shared/types.js'
+import type { ToggleSwitch } from '../../elements/toggle-switch.js'
 import './query-edit-page.js'
 import type { QueryEditPage } from './query-edit-page.js'
 
@@ -41,7 +42,7 @@ describe('query-edit-page', () => {
   it('renders a blank form for a new query, enabled by default', () => {
     el.setState({})
     expect(el.querySelector('#edit-q-text')?.getAttribute('value')).toBe('')
-    expect(el.querySelector<HTMLInputElement>('#edit-q-enabled')?.checked).toBe(true)
+    expect(el.querySelector<ToggleSwitch>('toggle-switch#edit-q-enabled')?.checked).toBe(true)
     expect(el.querySelector('#btn-delete-query')).toBeNull()
     expect(el.querySelector('h1')?.textContent).toBe('New query')
   })
@@ -63,7 +64,7 @@ describe('query-edit-page', () => {
     expect(el.querySelector<HTMLInputElement>('#edit-q-text')?.value).toBe('Staff Engineer')
     expect(el.querySelector<HTMLInputElement>('#edit-q-location')?.value).toBe('Brisbane')
     expect(el.querySelector<HTMLSelectElement>('#edit-q-work-type')?.value).toBe('hybrid')
-    expect(el.querySelector<HTMLInputElement>('#edit-q-enabled')?.checked).toBe(true)
+    expect(el.querySelector<ToggleSwitch>('toggle-switch#edit-q-enabled')?.checked).toBe(true)
     expect(el.querySelector('h1')?.textContent).toBe('Edit query')
   })
 
@@ -83,12 +84,26 @@ describe('query-edit-page', () => {
     expect(field?.querySelector('.hint')?.textContent).toBe('Leave empty to search anywhere.')
   })
 
-  it('places the work-type select in the field-grid', () => {
+  it('places the work-type select and job-type pills in the field-grid', () => {
     el.setState({ query: query() })
     const grid = el.querySelector('.field-grid')
     expect(grid).not.toBeNull()
     expect(grid?.querySelector('.field-label')?.textContent).toBe('Work type')
     expect(grid?.querySelector<HTMLSelectElement>('#edit-q-work-type')).not.toBeNull()
+    const jobField = grid?.querySelector<HTMLFieldSetElement>('fieldset.field')
+    expect(jobField?.querySelector('.field-label')?.textContent).toBe('Job type')
+    expect(jobField?.querySelectorAll('.check-pill input[name="q-job-type"]')).toHaveLength(3)
+  })
+
+  it('renders the enabled control as a toggle-switch switch-field', () => {
+    el.setState({ query: query() })
+    const field = el.querySelector('.switch-field')
+    expect(field).not.toBeNull()
+    expect(field?.querySelector<ToggleSwitch>('toggle-switch#edit-q-enabled')).not.toBeNull()
+    expect(field?.querySelector('.switch-text .field-label')?.textContent).toBe('Enabled')
+    expect(field?.querySelector('.switch-text .hint')?.textContent).toBe(
+      'Disabled queries are kept but excluded from searches.'
+    )
   })
 
   it('dispatches query-edit-page:save with the edited values', () => {
@@ -129,17 +144,32 @@ describe('query-edit-page', () => {
     expect(received.fired).toBe(false)
   })
 
-  it('reports an unchecked enabled box', () => {
+  it('reflects a toggle-switch change in the saved enabled flag', () => {
     el.setState({ query: query() })
     const received = { enabled: true }
     el.addEventListener('query-edit-page:save', event => {
       received.enabled = (event as CustomEvent).detail.enabled
     })
-    const checkbox = el.querySelector<HTMLInputElement>('#edit-q-enabled')
-    if (checkbox) {
-      checkbox.checked = false
-    }
+    el.querySelector<ToggleSwitch>('toggle-switch#edit-q-enabled')?.querySelector('input')?.click()
     el.querySelector<HTMLButtonElement>('#btn-save-query')?.click()
     expect(received.enabled).toBe(false)
+  })
+
+  it('renders an unchecked switch for a disabled query', () => {
+    el.setState({ query: { ...query(), enabled: false } })
+    expect(el.querySelector<ToggleSwitch>('toggle-switch#edit-q-enabled')?.checked).toBe(false)
+  })
+
+  it('flows checked job-type pills into the saved jobType', () => {
+    el.setState({})
+    el.querySelector<HTMLInputElement>('input[name="q-job-type"][value="fulltime"]')!.checked = true
+    el.querySelector<HTMLInputElement>('input[name="q-job-type"][value="contract"]')!.checked = true
+    const received = { jobType: '' }
+    el.addEventListener('query-edit-page:save', event => {
+      received.jobType = (event as CustomEvent).detail.queryOptions.jobType
+    })
+    el.querySelector<HTMLInputElement>('#edit-q-text')!.value = 'Staff Engineer'
+    el.querySelector<HTMLButtonElement>('#btn-save-query')?.click()
+    expect(received.jobType).toBe('fulltime,contract')
   })
 })

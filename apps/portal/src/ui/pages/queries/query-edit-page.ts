@@ -5,6 +5,7 @@
 
 import type { Query } from '../../../shared/types.js'
 import { escapeHtml as esc } from '../../escape.js'
+import '../../elements/toggle-switch.js'
 
 export interface QueryEditPageState {
   query?: Query
@@ -33,6 +34,7 @@ function label(value: string): string {
 
 export class QueryEditPage extends HTMLElement {
   #query: Query | undefined = undefined
+  #enabled = true
   #abort: AbortController | null = null
 
   connectedCallback(): void {
@@ -47,13 +49,16 @@ export class QueryEditPage extends HTMLElement {
 
   setState(state: QueryEditPageState): void {
     this.#query = state.query
+    this.#enabled = state.query?.enabled !== false
     this.render()
   }
 
   setupEventListeners(): void {
     this.cleanup()
     this.#abort = new AbortController()
-    this.addEventListener('click', this.#onClick, { signal: this.#abort.signal })
+    const opts = { signal: this.#abort.signal }
+    this.addEventListener('click', this.#onClick, opts)
+    this.addEventListener('toggle-switch:change', this.#onSwitchChange, opts)
   }
 
   cleanup(): void {
@@ -67,13 +72,16 @@ export class QueryEditPage extends HTMLElement {
     }
   }
 
+  #onSwitchChange = (event: Event): void => {
+    this.#enabled = (event as CustomEvent<{ checked: boolean }>).detail.checked
+  }
+
   #onSave(): void {
     const qInput = this.querySelector<HTMLInputElement>('#edit-q-text')
     const locInput = this.querySelector<HTMLInputElement>('#edit-q-location')
     const workSelect = this.querySelector<HTMLSelectElement>('#edit-q-work-type')
     const jobChecks = this.querySelectorAll<HTMLInputElement>('input[name="q-job-type"]:checked')
-    const enabledCheck = this.querySelector<HTMLInputElement>('#edit-q-enabled')
-    if (!qInput || !enabledCheck) {
+    if (!qInput) {
       return
     }
     const queryText = qInput.value.trim()
@@ -95,7 +103,7 @@ export class QueryEditPage extends HTMLElement {
                 .map(cb => cb.value)
                 .join(',') || undefined,
           },
-          enabled: enabledCheck.checked,
+          enabled: this.#enabled,
         },
       })
     )
@@ -115,7 +123,10 @@ export class QueryEditPage extends HTMLElement {
       .join('')
     const jobChecks = JOB_TYPES.map(
       jt => `
-        <label><input type="checkbox" name="q-job-type" value="${jt}" ${jobTypes.includes(jt) ? 'checked' : ''} /> ${label(jt)}</label>`
+        <label class="check-pill">
+          <input type="checkbox" name="q-job-type" value="${jt}" ${jobTypes.includes(jt) ? 'checked' : ''} />
+          <span>${label(jt)}</span>
+        </label>`
     ).join('')
 
     this.innerHTML = `
@@ -138,14 +149,18 @@ export class QueryEditPage extends HTMLElement {
               <label class="field-label" for="edit-q-work-type">Work type</label>
               <select class="select" id="edit-q-work-type">${workOptions}</select>
             </div>
+            <fieldset class="field">
+              <legend class="field-label">Job type</legend>
+              <div class="pills">${jobChecks}</div>
+            </fieldset>
           </div>
-          <fieldset class="job-type-group">
-            <legend>Job type</legend>
-            ${jobChecks}
-          </fieldset>
-          <label class="field enabled-field">
-            <input type="checkbox" id="edit-q-enabled" ${query?.enabled !== false ? 'checked' : ''} /> Enabled
-          </label>
+          <div class="field switch-field">
+            <toggle-switch id="edit-q-enabled" label="Enabled"${this.#enabled ? ' checked' : ''}></toggle-switch>
+            <div class="switch-text">
+              <label class="field-label" for="edit-q-enabled">Enabled</label>
+              <p class="hint">Disabled queries are kept but excluded from searches.</p>
+            </div>
+          </div>
           <div class="form-actions">
             <button type="button" class="btn primary" id="btn-save-query">Save query</button>
             <a class="btn" href="#queries">Cancel</a>
