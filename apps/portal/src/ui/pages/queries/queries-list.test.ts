@@ -44,28 +44,39 @@ describe('queries-list', () => {
     expect(rows[0]?.querySelector<HTMLAnchorElement>('.query-text')?.getAttribute('href')).toBe('#queries/edit?id=1')
   })
 
-  it('shows pagination controls and paginates long lists', () => {
+  it('renders a pager-nav in the panel-foot with correct attributes and count', () => {
     el.setQueries(queries(12))
-    expect(el.querySelector('.pagination-info')?.textContent).toContain('Page 1 of 2')
+    const pager = el.querySelector('.panel-foot pager-nav')
+    expect(pager).not.toBeNull()
+    expect(pager?.getAttribute('page')).toBe('1')
+    expect(pager?.getAttribute('page-size')).toBe('10')
+    expect(pager?.getAttribute('total')).toBe('12')
+    expect(pager?.querySelector('.pager-info')?.textContent).toContain('Page 1 of 2')
+    expect(el.querySelector('.panel-foot .count')?.textContent).toBe('12 queries')
     expect(el.querySelectorAll('query-row').length).toBe(10)
-    expect(el.querySelector<HTMLButtonElement>('[data-action="prev-page"]')?.disabled).toBe(true)
-    expect(el.querySelector<HTMLButtonElement>('[data-action="next-page"]')?.disabled).toBe(false)
+  })
 
-    el.querySelector<HTMLButtonElement>('[data-action="next-page"]')?.click()
-    expect(el.querySelector('.pagination-info')?.textContent).toContain('Page 2 of 2')
+  it('advances the page slice when pager:change is dispatched', () => {
+    el.setQueries(queries(12))
+    el.dispatchEvent(new CustomEvent('pager:change', { bubbles: true, detail: { page: 2, pageSize: 10 } }))
+    expect(el.querySelector('.panel-foot pager-nav')?.getAttribute('page')).toBe('2')
+    expect(el.querySelector('.panel-foot pager-nav')?.querySelector('.pager-info')?.textContent).toContain(
+      'Page 2 of 2'
+    )
     expect(el.querySelectorAll('query-row').length).toBe(2)
     expect(el.querySelector('query-row')?.textContent).toContain('Staff Engineer 11')
-
-    el.querySelector<HTMLButtonElement>('[data-action="prev-page"]')?.click()
-    expect(el.querySelector('.pagination-info')?.textContent).toContain('Page 1 of 2')
+    expect(el.querySelector('.panel-foot .count')?.textContent).toBe('12 queries')
   })
 
   it('resets to the first page when queries are reloaded', () => {
     el.setQueries(queries(12))
-    el.querySelector<HTMLButtonElement>('[data-action="next-page"]')?.click()
-    expect(el.querySelector('.pagination-info')?.textContent).toContain('Page 2 of 2')
+    el.dispatchEvent(new CustomEvent('pager:change', { bubbles: true, detail: { page: 2, pageSize: 10 } }))
+    expect(el.querySelector('.panel-foot pager-nav')?.getAttribute('page')).toBe('2')
     el.setQueries(queries(12))
-    expect(el.querySelector('.pagination-info')?.textContent).toContain('Page 1 of 2')
+    expect(el.querySelector('.panel-foot pager-nav')?.getAttribute('page')).toBe('1')
+    expect(el.querySelector('.panel-foot pager-nav')?.querySelector('.pager-info')?.textContent).toContain(
+      'Page 1 of 2'
+    )
   })
 
   it('forwards query-row:toggle as queries-list:toggle', () => {

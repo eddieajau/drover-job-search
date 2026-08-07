@@ -682,16 +682,57 @@ job-card:focus-visible {
   width: 72px;
 }
 
-.pagination {
+.panel-foot {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--muted);
 }
 
-.pagination-info {
-  font-size: 13px;
-  color: var(--muted);
+.panel-foot .count {
+  margin-left: auto;
+}
+
+.panel-foot pager-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.panel-foot pager-nav .pager-info {
+  font-size: 12px;
+}
+
+.panel-foot pager-nav button {
+  padding: 2px 8px;
+  font-size: 14px;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.panel-foot pager-nav button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.panel-foot pager-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.panel-foot pager-nav select {
+  font-size: 12px;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--field);
+  color: var(--text);
 }
 
 .query-list {

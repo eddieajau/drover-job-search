@@ -4,6 +4,8 @@
  */
 
 import type { Query } from '../../../shared/types.js'
+import '../../elements/pager.js'
+import type { Pager } from '../../elements/pager.js'
 import './query-row.js'
 import type { QueryRow } from './query-row.js'
 
@@ -37,7 +39,7 @@ export class QueriesList extends HTMLElement {
     this.cleanup()
     this.#abort = new AbortController()
     const opts = { signal: this.#abort.signal }
-    this.addEventListener('click', this.#onClick, opts)
+    this.addEventListener('pager:change', this.#onPagerChange, opts)
     this.addEventListener('query-row:toggle', this.#onRowToggle, opts)
   }
 
@@ -46,25 +48,13 @@ export class QueriesList extends HTMLElement {
     this.#abort = null
   }
 
-  #onClick = (event: MouseEvent): void => {
-    const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-action]')
-    if (!btn) {
+  #onPagerChange = (event: Event): void => {
+    const { page } = (event as CustomEvent<{ page: number; pageSize: number }>).detail
+    if (page === this.#page) {
       return
     }
-    switch (btn.dataset.action) {
-      case 'prev-page':
-        if (this.#page > 1) {
-          this.#page -= 1
-          this.render()
-        }
-        break
-      case 'next-page':
-        if (this.#page < this.#pageCount()) {
-          this.#page += 1
-          this.render()
-        }
-        break
-    }
+    this.#page = page
+    this.render()
   }
 
   #onRowToggle = (event: Event): void => {
@@ -78,29 +68,31 @@ export class QueriesList extends HTMLElement {
     )
   }
 
-  #pageCount(): number {
-    return Math.max(1, Math.ceil(this.#queries.length / PAGE_SIZE))
-  }
-
   render(): void {
     if (this.#queries.length === 0) {
       this.innerHTML = '<p class="empty-state">No queries registered yet.</p>'
       return
     }
 
-    const pageCount = this.#pageCount()
     const start = (this.#page - 1) * PAGE_SIZE
     const pageQueries = this.#queries.slice(start, start + PAGE_SIZE)
 
     this.innerHTML = `
-      <div class="pagination">
-        <button type="button" class="btn" data-action="prev-page" ${this.#page <= 1 ? 'disabled' : ''}>Prev</button>
-        <span class="pagination-info">Page ${this.#page} of ${pageCount} (${this.#queries.length} queries)</span>
-        <button type="button" class="btn" data-action="next-page" ${this.#page >= pageCount ? 'disabled' : ''}>Next</button>
+      <div class="panel-foot">
+        <pager-nav></pager-nav>
+        <span class="count">${this.#queries.length} queries</span>
       </div>
       <ul class="query-list"></ul>
     `
     this.querySelector<HTMLUListElement>('ul.query-list')?.replaceChildren(...this.#rows(pageQueries))
+    this.#syncPager()
+  }
+
+  #syncPager(): void {
+    const pager = this.querySelector<Pager>('pager-nav')
+    pager?.setAttribute('page', String(this.#page))
+    pager?.setAttribute('page-size', String(PAGE_SIZE))
+    pager?.setAttribute('total', String(this.#queries.length))
   }
 
   #rows(queries: Query[]): QueryRow[] {
