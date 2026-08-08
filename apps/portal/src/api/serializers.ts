@@ -147,3 +147,21 @@ export interface QueueResponse {
 export function toQueueJson(row: AnalysisQueue): QueueResponse {
   return { ...row }
 }
+
+export interface QueueSummaryRow {
+  id: number
+  jobId: number
+  title: string
+  companyName: string
+  providerJobId: string
+  stage: 'fetch_job_details' | 'rank'
+  queuedAt: string
+  completedAt: string | null
+}
+
+export interface QueueSummaryResponse {
+  pending: { fetch_job_details: number; rank: number }
+  done: number
+  total: number
+  recent: QueueSummaryRow[]
+}
