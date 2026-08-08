@@ -28,6 +28,25 @@ describe('parseHash', () => {
     expect(parseHash('#queues')).toEqual({ view: 'queues' })
   })
 
+  it('returns facts for the facts hash', () => {
+    expect(parseHash('#facts')).toEqual({ view: 'facts' })
+  })
+
+  it('returns fact-edit without params for the new fact hash', () => {
+    expect(parseHash('#facts/edit')).toEqual({ view: 'fact-edit' })
+    expect(parseHash('#facts/edit?')).toEqual({ view: 'fact-edit' })
+  })
+
+  it('returns fact-edit with identity for the edit hash', () => {
+    expect(parseHash('#facts/edit?id=5')).toEqual({ view: 'fact-edit', id: 5 })
+  })
+
+  it('returns null for fact-edit hashes with an invalid identity', () => {
+    expect(parseHash('#facts/edit?id=abc')).toBeNull()
+    expect(parseHash('#facts/edit?id=0')).toBeNull()
+    expect(parseHash('#facts/edit?id=-2')).toBeNull()
+  })
+
   it('returns query-edit without params for the new query hash', () => {
     expect(parseHash('#queries/edit')).toEqual({ view: 'query-edit' })
     expect(parseHash('#queries/edit?')).toEqual({ view: 'query-edit' })
@@ -96,8 +115,11 @@ describe('toHash', () => {
     expect(toHash({ view: 'queries' })).toBe('#queries')
     expect(toHash({ view: 'signals' })).toBe('#signals')
     expect(toHash({ view: 'queues' })).toBe('#queues')
+    expect(toHash({ view: 'facts' })).toBe('#facts')
     expect(toHash({ view: 'query-edit' })).toBe('#queries/edit')
     expect(toHash({ view: 'query-edit', id: 3 })).toBe('#queries/edit?id=3')
+    expect(toHash({ view: 'fact-edit' })).toBe('#facts/edit')
+    expect(toHash({ view: 'fact-edit', id: 5 })).toBe('#facts/edit?id=5')
   })
 
   it('round-trips the jobs filters into the query string', () => {

@@ -4,6 +4,7 @@
  */
 
 import './ui/elements/app-shell.js'
+import { initFactsMediator } from './ui/facts-mediator.js'
 import { initJobsMediator } from './ui/jobs-mediator.js'
 import { initQueriesMediator } from './ui/queries-mediator.js'
 import { initQueuesMediator } from './ui/queues-mediator.js'
@@ -13,5 +14,6 @@ import { initThemeMediator } from './ui/theme-mediator.js'
 initThemeMediator()
 initJobsMediator()
 initQueriesMediator()
+initFactsMediator()
 initQueuesMediator()
 initSignalsMediator()

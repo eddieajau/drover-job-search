@@ -807,6 +807,73 @@ job-card:focus-visible {
   color: var(--accent);
 }
 
+.fact-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.fact-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fact-row:hover {
+  background: var(--surface-2);
+}
+
+.fact-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.fact-text {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.fact-text:hover {
+  color: var(--accent);
+}
+
+.fact-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.fact-date {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.fact-filter {
+  background: var(--field);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--font);
+}
+
+.fact-filter:hover {
+  border-color: var(--border-strong);
+}
+
+.fact-filter:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 .query-row.is-disabled .query-text,
 .query-row.is-disabled .query-loc {
   color: var(--muted);

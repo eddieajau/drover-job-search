@@ -11,11 +11,16 @@ export type NavigationState =
   | { view: 'query-edit'; id?: number }
   | { view: 'signals' }
   | { view: 'queues' }
+  | { view: 'facts' }
+  | { view: 'fact-edit'; id?: number }
 
 export function parseHash(hash: string): NavigationState | null {
   const h = hash.startsWith('#') ? hash.slice(1) : hash
   if (h === 'queries') {
     return { view: 'queries' }
+  }
+  if (h === 'facts') {
+    return { view: 'facts' }
   }
   if (h === 'signals') {
     return { view: 'signals' }
@@ -49,6 +54,17 @@ export function parseHash(hash: string): NavigationState | null {
     const id = Number(idRaw)
     if (Number.isInteger(id) && id > 0) {
       return { view: 'query-edit', id }
+    }
+  }
+  if (path === 'facts/edit') {
+    const params = new URLSearchParams(queryString ?? '')
+    const idRaw = params.get('id')
+    if (idRaw == null) {
+      return { view: 'fact-edit' }
+    }
+    const id = Number(idRaw)
+    if (Number.isInteger(id) && id > 0) {
+      return { view: 'fact-edit', id }
     }
   }
   return null
@@ -96,11 +112,19 @@ export function toHash(state: NavigationState): string {
       return '#signals'
     case 'queues':
       return '#queues'
+    case 'facts':
+      return '#facts'
     case 'query-edit': {
       if (state.id == null) {
         return '#queries/edit'
       }
       return `#queries/edit?id=${state.id}`
+    }
+    case 'fact-edit': {
+      if (state.id == null) {
+        return '#facts/edit'
+      }
+      return `#facts/edit?id=${state.id}`
     }
   }
 }
