@@ -13,6 +13,7 @@ export type NavigationState =
   | { view: 'queues' }
   | { view: 'facts' }
   | { view: 'fact-edit'; id?: number }
+  | { view: 'fact-ingest' }
 
 export function parseHash(hash: string): NavigationState | null {
   const h = hash.startsWith('#') ? hash.slice(1) : hash
@@ -21,6 +22,9 @@ export function parseHash(hash: string): NavigationState | null {
   }
   if (h === 'facts') {
     return { view: 'facts' }
+  }
+  if (h === 'facts/ingest') {
+    return { view: 'fact-ingest' }
   }
   if (h === 'signals') {
     return { view: 'signals' }
@@ -126,5 +130,7 @@ export function toHash(state: NavigationState): string {
       }
       return `#facts/edit?id=${state.id}`
     }
+    case 'fact-ingest':
+      return '#facts/ingest'
   }
 }

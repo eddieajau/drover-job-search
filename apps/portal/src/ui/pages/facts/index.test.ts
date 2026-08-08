@@ -42,6 +42,13 @@ describe('facts-page', () => {
     expect(el.querySelector('.panel > facts-list')).not.toBeNull()
   })
 
+  it('renders an "Import resume" link pointing at #facts/ingest', () => {
+    const links = el.querySelectorAll<HTMLAnchorElement>('.page-head .btn')
+    const importLink = Array.from(links).find(a => a.textContent === 'Import resume')
+    expect(importLink).toBeDefined()
+    expect(importLink?.getAttribute('href')).toBe('#facts/ingest')
+  })
+
   it('reflects counts from setFacts in the head', () => {
     el.setFacts(facts(3))
     expect(el.querySelector('.page-count')?.textContent).toBe('3 facts · 2 active')

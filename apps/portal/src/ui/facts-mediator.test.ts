@@ -9,6 +9,8 @@ import { _resetFactsMediatorForTesting, initFactsMediator } from './facts-mediat
 import './pages/facts/index.js'
 import type { FactEditPage } from './pages/facts/fact-edit-page.js'
 import './pages/facts/fact-edit-page.js'
+import type { FactIngestPage } from './pages/facts/fact-ingest-page.js'
+import './pages/facts/fact-ingest-page.js'
 import type { FactsPage } from './pages/facts/index.js'
 
 const factsData = [
@@ -231,5 +233,66 @@ describe('facts-mediator', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(window.location.hash).toBe(originalHash)
+  })
+
+  it('POSTs to /api/facts/ingest on fact-ingest-page:ingest and calls setBusy + setResult', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 201, json: async () => ({ inserted: 3 }) }))
+    )
+    initFactsMediator()
+    const page = document.createElement('fact-ingest-page') as FactIngestPage
+    document.body.appendChild(page)
+
+    const setBusySpy = vi.spyOn(page, 'setBusy')
+    const setResultSpy = vi.spyOn(page, 'setResult')
+
+    window.dispatchEvent(new CustomEvent('fact-ingest-page:ingest', { detail: { resume: 'My resume text' } }))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(setBusySpy).toHaveBeenCalledWith(true)
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/facts/ingest', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ resume: 'My resume text' }),
+    })
+    expect(setResultSpy).toHaveBeenCalledWith({ inserted: 3 })
+    expect(setBusySpy).toHaveBeenCalledWith(false)
+  })
+
+  it('sets an error result on 422 from /api/facts/ingest', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 422, json: async () => ({ error: 'ingestion produced no facts' }) }))
+    )
+    initFactsMediator()
+    const page = document.createElement('fact-ingest-page') as FactIngestPage
+    document.body.appendChild(page)
+
+    const setResultSpy = vi.spyOn(page, 'setResult')
+
+    window.dispatchEvent(new CustomEvent('fact-ingest-page:ingest', { detail: { resume: 'empty resume' } }))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(setResultSpy).toHaveBeenCalledWith({ error: 'ingestion produced no facts' })
+  })
+
+  it('sets a generic error result on network failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('network error')
+      })
+    )
+    initFactsMediator()
+    const page = document.createElement('fact-ingest-page') as FactIngestPage
+    document.body.appendChild(page)
+
+    const setResultSpy = vi.spyOn(page, 'setResult')
+
+    window.dispatchEvent(new CustomEvent('fact-ingest-page:ingest', { detail: { resume: 'some text' } }))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(setResultSpy).toHaveBeenCalledWith({ error: 'ingestion failed' })
   })
 })

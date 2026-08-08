@@ -14,6 +14,7 @@ import '../pages/signals/index.js'
 import '../pages/queues/index.js'
 import '../pages/facts/index.js'
 import '../pages/facts/fact-edit-page.js'
+import '../pages/facts/fact-ingest-page.js'
 
 type PageTag =
   | 'jobs-page'
@@ -23,6 +24,7 @@ type PageTag =
   | 'queues-page'
   | 'facts-page'
   | 'fact-edit-page'
+  | 'fact-ingest-page'
 
 function pageFor(state: NavigationState | null): PageTag {
   if (state?.view === 'queries') {
@@ -43,6 +45,9 @@ function pageFor(state: NavigationState | null): PageTag {
   if (state?.view === 'fact-edit') {
     return 'fact-edit-page'
   }
+  if (state?.view === 'fact-ingest') {
+    return 'fact-ingest-page'
+  }
   return 'jobs-page'
 }
 
@@ -56,7 +61,7 @@ function navViewFor(state: NavigationState | null): 'jobs' | 'queries' | 'signal
   if (state?.view === 'queues') {
     return 'queues'
   }
-  if (state?.view === 'facts' || state?.view === 'fact-edit') {
+  if (state?.view === 'facts' || state?.view === 'fact-edit' || state?.view === 'fact-ingest') {
     return 'facts'
   }
   return 'jobs'

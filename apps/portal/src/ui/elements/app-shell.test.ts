@@ -147,6 +147,14 @@ describe('app-shell', () => {
     expect(el.querySelector('[data-view="facts"]')?.getAttribute('aria-current')).toBe('page')
   })
 
+  it('mounts fact-ingest-page for the facts/ingest hash and marks Facts active', () => {
+    window.location.hash = '#facts/ingest'
+    const el = createShell()
+    expect(el.querySelector('fact-ingest-page')).not.toBeNull()
+    expect(el.querySelector('jobs-page')).toBeNull()
+    expect(el.querySelector('[data-view="facts"]')?.getAttribute('aria-current')).toBe('page')
+  })
+
   it('falls back to jobs for unknown hashes', () => {
     window.location.hash = '#bogus'
     const el = createShell()

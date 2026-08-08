@@ -88,6 +88,7 @@ export class FactsPage extends HTMLElement {
             <option value="1">Active</option>
             <option value="0">Inactive</option>
           </select>
+          <a class="btn" href="#facts/ingest">Import resume</a>
           <a class="btn primary" href="#facts/edit">New fact</a>
         </div>
         <div class="panel">

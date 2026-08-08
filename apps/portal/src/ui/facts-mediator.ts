@@ -30,6 +30,7 @@ export function initFactsMediator(): void {
   window.addEventListener('facts-page:filter', handleFilter)
   window.addEventListener('fact-edit-page:ready', handleEditReady)
   window.addEventListener('fact-edit-page:save', handleSave)
+  window.addEventListener('fact-ingest-page:ingest', handleIngest)
 
   if (document.querySelector('facts-page')) {
     void handleFactsReady()
@@ -45,6 +46,7 @@ export function _resetFactsMediatorForTesting(): void {
     window.removeEventListener('facts-page:filter', handleFilter)
     window.removeEventListener('fact-edit-page:ready', handleEditReady)
     window.removeEventListener('fact-edit-page:save', handleSave)
+    window.removeEventListener('fact-ingest-page:ingest', handleIngest)
   }
   registered = false
 }
@@ -105,6 +107,43 @@ async function handleSave(event: Event): Promise<void> {
     return
   }
   window.location.hash = '#facts'
+}
+
+async function handleIngest(event: Event): Promise<void> {
+  const page = document.querySelector('fact-ingest-page')
+  if (!page) {
+    return
+  }
+  const { resume } = (event as CustomEvent<{ resume: string }>).detail
+  page.setBusy(true)
+  try {
+    const response = await fetch('/api/facts/ingest', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ resume }),
+    })
+    if (response.status === 201) {
+      const data = (await response.json()) as { inserted: number }
+      page.setResult({ inserted: data.inserted })
+    } else if (response.status === 422) {
+      let message = 'ingestion produced no facts'
+      try {
+        const body = (await response.json()) as { error?: string }
+        if (body.error) {
+          message = body.error
+        }
+      } catch {
+        // use default message
+      }
+      page.setResult({ error: message })
+    } else {
+      page.setResult({ error: 'ingestion failed' })
+    }
+  } catch {
+    page.setResult({ error: 'ingestion failed' })
+  } finally {
+    page.setBusy(false)
+  }
 }
 
 async function refreshFacts(category?: string, active?: string): Promise<void> {
