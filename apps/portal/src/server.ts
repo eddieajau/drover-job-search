@@ -13,12 +13,11 @@ import fastifyStatic from '@fastify/static'
 import { type DB } from 'db'
 import { config } from 'dotenv'
 import fastify from 'fastify'
-import { createQueueService, type QueueService } from 'workers'
+import { detail } from 'provider-linkedin'
+import { createQueueService, startDetailsWorker, startRankWorker, type QueueService } from 'workers'
 
 import { createDatabase } from './api/database.js'
 import type { BusEvents } from './bus.js'
-import { startDetailsWorker } from './workers/details-worker.js'
-import { startRankWorker } from './workers/rank-worker.js'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -52,12 +51,32 @@ const queues = createQueueService({
 })
 app.decorate('queues', queues)
 
-const stopDetailsWorker = startDetailsWorker(app.bus, db, app.log)
-app.addHook('onClose', () => stopDetailsWorker())
+const details = startDetailsWorker({
+  db,
+  log: app.log,
+  detailFn: detail,
+  onDrained: () => bus.emit('descriptions-ready', { jobId: 0 }),
+})
+const onFlagged = () => details.kick()
+bus.on('flagged', onFlagged)
+app.addHook('onClose', () => {
+  bus.off('flagged', onFlagged)
+  details.stop()
+})
 bus.emit('flagged', { jobId: 0 })
 
-const stopRankWorker = startRankWorker(app.bus, db, app.log)
-app.addHook('onClose', () => stopRankWorker())
+const rank = startRankWorker({
+  db,
+  log: app.log,
+  ollamaBaseUrl: process.env.OLLAMA_BASE_URL,
+  ollamaModel: process.env.OLLAMA_MODEL,
+})
+const onDescriptionsReady = () => rank.kick()
+bus.on('descriptions-ready', onDescriptionsReady)
+app.addHook('onClose', () => {
+  bus.off('descriptions-ready', onDescriptionsReady)
+  rank.stop()
+})
 bus.emit('descriptions-ready', { jobId: 0 })
 
 await app.register(fastifyStatic, {
