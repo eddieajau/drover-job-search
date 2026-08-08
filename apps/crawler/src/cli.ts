@@ -10,8 +10,7 @@ import { createDb, crawls, jobs, queries } from 'db'
 import { desc, eq, max } from 'drizzle-orm'
 import { pino } from 'pino'
 import { detail, search, selectJobage } from 'provider-linkedin'
-
-import { processDetailQueue } from './process-detail.js'
+import { fetchJobDetails } from 'workers'
 
 // Resolves .env from the root directory relative to this file
 const __filename = fileURLToPath(import.meta.url)
@@ -36,7 +35,15 @@ async function main() {
   const db = createDb(isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath))
 
   if (isDetail) {
-    const { processed, failed } = await processDetailQueue(db, detail, limit, log)
+    const { processed, failed } = await fetchJobDetails.drain(db, {
+      detailFn: detail,
+      limit,
+      onProgress: row => log.info({ providerJobId: row.providerJobId }, 'description saved'),
+      onError: (row, err) =>
+        err === null
+          ? log.warn({ providerJobId: row.providerJobId }, 'no description returned; leaving pending')
+          : log.error({ providerJobId: row.providerJobId, err }, 'detail fetch failed; leaving pending'),
+    })
     log.info({ processed, failed }, 'detail crawl complete')
     db.$client.close()
     return
