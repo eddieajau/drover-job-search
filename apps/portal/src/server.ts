@@ -47,7 +47,7 @@ app.decorate('bus', bus)
 
 const queues = createQueueService({
   db,
-  onEnqueue: (jobId, _stage) => bus.emit('flagged', { jobId }),
+  onEnqueue: (_jobId, stage) => bus.emit('kick', { stage }),
 })
 app.decorate('queues', queues)
 
@@ -55,15 +55,17 @@ const details = startDetailsWorker({
   db,
   log: app.log,
   detailFn: detail,
-  onDrained: () => bus.emit('descriptions-ready', { jobId: 0 }),
+  onDrained: () => bus.emit('kick', { stage: 'rank' }),
 })
-const onFlagged = () => details.kick()
-bus.on('flagged', onFlagged)
+const onKickDetails = ({ stage }: { stage: string }) => {
+  if (stage === 'fetch_job_details') details.kick()
+}
+bus.on('kick', onKickDetails)
 app.addHook('onClose', () => {
-  bus.off('flagged', onFlagged)
+  bus.off('kick', onKickDetails)
   details.stop()
 })
-bus.emit('flagged', { jobId: 0 })
+bus.emit('kick', { stage: 'fetch_job_details' })
 
 const rank = startRankWorker({
   db,
@@ -71,13 +73,15 @@ const rank = startRankWorker({
   ollamaBaseUrl: process.env.OLLAMA_BASE_URL,
   ollamaModel: process.env.OLLAMA_MODEL,
 })
-const onDescriptionsReady = () => rank.kick()
-bus.on('descriptions-ready', onDescriptionsReady)
+const onKickRank = ({ stage }: { stage: string }) => {
+  if (stage === 'rank') rank.kick()
+}
+bus.on('kick', onKickRank)
 app.addHook('onClose', () => {
-  bus.off('descriptions-ready', onDescriptionsReady)
+  bus.off('kick', onKickRank)
   rank.stop()
 })
-bus.emit('descriptions-ready', { jobId: 0 })
+bus.emit('kick', { stage: 'rank' })
 
 await app.register(fastifyStatic, {
   root: resolve(__dirname, '../www'),

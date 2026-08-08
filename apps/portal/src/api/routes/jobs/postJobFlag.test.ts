@@ -52,16 +52,16 @@ describe('POST /api/jobs/:jobId/flag', () => {
     expect(row?.completedAt).toBeNull()
   })
 
-  it('emits flagged with jobId on the bus after a successful flag', async () => {
+  it('emits kick with stage fetch_job_details on the bus after a successful flag', async () => {
     const job = seedJob(db, JOB1)
-    let received: { jobId: number } | undefined
-    app.bus.on('flagged', payload => {
+    let received: { stage: string } | undefined
+    app.bus.on('kick', payload => {
       received = payload
     })
 
     const res = await app.inject({ method: 'POST', url: `/${job.id}/flag` })
     expect(res.statusCode).toBe(202)
-    expect(received).toEqual({ jobId: job.id })
+    expect(received).toEqual({ stage: 'fetch_job_details' })
   })
 
   it('resets stage and clears errorMessage on re-flag (upsert path)', async () => {

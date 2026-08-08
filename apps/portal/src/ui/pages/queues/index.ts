@@ -9,13 +9,13 @@ import { relativeAge } from '../jobs/posted-age.js'
 
 export interface QueuesPageEventMap {
   'queues-page:ready': CustomEvent<void>
-  'queues-page:kick': CustomEvent<{ event: 'flagged' | 'descriptions-ready' }>
+  'queues-page:kick': CustomEvent<{ stage: 'fetch_job_details' | 'rank' }>
   'queues-page:tick': CustomEvent<void>
 }
 
-const KICK_ACTIONS: Record<string, 'flagged' | 'descriptions-ready'> = {
-  'kick-details': 'flagged',
-  'kick-rank': 'descriptions-ready',
+const KICK_ACTIONS: Record<string, 'fetch_job_details' | 'rank'> = {
+  'kick-details': 'fetch_job_details',
+  'kick-rank': 'rank',
 }
 
 function emptySummary(): QueueSummaryResponse {
@@ -44,8 +44,8 @@ export class QueuesPage extends HTMLElement {
     this.#renderRows()
   }
 
-  setKickBusy(event: 'flagged' | 'descriptions-ready', busy: boolean): void {
-    const action = event === 'flagged' ? 'kick-details' : 'kick-rank'
+  setKickBusy(stage: 'fetch_job_details' | 'rank', busy: boolean): void {
+    const action = stage === 'fetch_job_details' ? 'kick-details' : 'kick-rank'
     const btn = this.querySelector<HTMLButtonElement>(`[data-action="${action}"]`)
     if (!btn) return
     btn.disabled = busy
@@ -77,11 +77,11 @@ export class QueuesPage extends HTMLElement {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-action]')
     const action = target?.dataset.action
     if (!action || !(action in KICK_ACTIONS)) return
-    const busEvent = KICK_ACTIONS[action]
+    const stage = KICK_ACTIONS[action]
     this.dispatchEvent(
       new CustomEvent<QueuesPageEventMap['queues-page:kick'] extends CustomEvent<infer D> ? D : never>(
         'queues-page:kick',
-        { bubbles: true, composed: true, detail: { event: busEvent } }
+        { bubbles: true, composed: true, detail: { stage } }
       )
     )
   }

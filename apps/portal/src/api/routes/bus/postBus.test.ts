@@ -23,37 +23,42 @@ describe('POST /api/bus', () => {
     db.$client.close()
   })
 
-  it('emits flagged with the jobId 0 sentinel', async () => {
-    let received: { jobId: number } | undefined
-    app.bus.on('flagged', payload => {
+  it('emits kick with stage fetch_job_details', async () => {
+    let received: { stage: string } | undefined
+    app.bus.on('kick', payload => {
       received = payload
     })
 
-    const res = await app.inject({ method: 'POST', url: '/', payload: { event: 'flagged' } })
+    const res = await app.inject({ method: 'POST', url: '/', payload: { stage: 'fetch_job_details' } })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ ok: true, event: 'flagged' })
-    expect(received).toEqual({ jobId: 0 })
+    expect(res.json()).toEqual({ ok: true, stage: 'fetch_job_details' })
+    expect(received).toEqual({ stage: 'fetch_job_details' })
   })
 
-  it('emits descriptions-ready with the jobId 0 sentinel', async () => {
-    let received: { jobId: number } | undefined
-    app.bus.on('descriptions-ready', payload => {
+  it('emits kick with stage rank', async () => {
+    let received: { stage: string } | undefined
+    app.bus.on('kick', payload => {
       received = payload
     })
 
-    const res = await app.inject({ method: 'POST', url: '/', payload: { event: 'descriptions-ready' } })
+    const res = await app.inject({ method: 'POST', url: '/', payload: { stage: 'rank' } })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ ok: true, event: 'descriptions-ready' })
-    expect(received).toEqual({ jobId: 0 })
+    expect(res.json()).toEqual({ ok: true, stage: 'rank' })
+    expect(received).toEqual({ stage: 'rank' })
   })
 
-  it('rejects an unknown event name', async () => {
-    const res = await app.inject({ method: 'POST', url: '/', payload: { event: 'nonsense' } })
+  it('rejects an unknown stage', async () => {
+    const res = await app.inject({ method: 'POST', url: '/', payload: { stage: 'nonsense' } })
     expect(res.statusCode).toBe(400)
-    expect(res.json().message).toBe('Invalid body: event must be "flagged" or "descriptions-ready"')
+    expect(res.json().message).toBe('Invalid body: stage must be "fetch_job_details" or "rank"')
   })
 
-  it('rejects a request without an event', async () => {
+  it('rejects a legacy event-based body', async () => {
+    const res = await app.inject({ method: 'POST', url: '/', payload: { event: 'flagged' } })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('rejects a request without a stage', async () => {
     const res = await app.inject({ method: 'POST', url: '/', payload: {} })
     expect(res.statusCode).toBe(400)
   })

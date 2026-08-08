@@ -7,8 +7,8 @@ import Fastify from 'fastify'
 import { vi } from 'vitest'
 import { createQueueService, type QueueService } from 'workers'
 
-type BusEventName = 'flagged' | 'descriptions-ready'
-type BusEvents = Record<BusEventName, [payload: { jobId: number }]>
+type BusEventName = 'kick'
+type BusEvents = Record<BusEventName, [payload: { stage: 'fetch_job_details' | 'rank' }]>
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -24,7 +24,10 @@ export async function build(route: FastifyPluginAsync, options: { db: DB; prefix
   app.decorate('db', options.db)
   const bus = new EventEmitter<BusEvents>()
   app.decorate('bus', bus)
-  app.decorate('queues', createQueueService({ db: options.db, onEnqueue: jobId => bus.emit('flagged', { jobId }) }))
+  app.decorate(
+    'queues',
+    createQueueService({ db: options.db, onEnqueue: (_jobId, stage) => bus.emit('kick', { stage }) })
+  )
   if (options.prefix === undefined) {
     await app.register(route)
   } else {

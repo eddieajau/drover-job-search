@@ -34,20 +34,20 @@ async function handleReady(): Promise<void> {
 }
 
 async function handleKick(event: Event): Promise<void> {
-  const { event: busEvent } = (event as CustomEvent<{ event: 'flagged' | 'descriptions-ready' }>).detail
+  const { stage } = (event as CustomEvent<{ stage: 'fetch_job_details' | 'rank' }>).detail
   const page = document.querySelector<QueuesPage>('queues-page')
   if (!page) return
-  page.setKickBusy(busEvent, true)
+  page.setKickBusy(stage, true)
   try {
     await fetch('/api/bus', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ event: busEvent }),
+      body: JSON.stringify({ stage }),
     })
   } catch {
     // Keep the UI visible on failure
   }
-  page.setKickBusy(busEvent, false)
+  page.setKickBusy(stage, false)
   await refreshSummary(page)
 }
 

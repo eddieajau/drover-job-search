@@ -97,49 +97,49 @@ describe('queues-page', () => {
     expect(rank?.textContent).toBe('Run rank')
   })
 
-  it('dispatches queues-page:kick with flagged on Run fetch-details click', () => {
-    let detail: { event: string } | undefined
+  it('dispatches queues-page:kick with stage fetch_job_details on Run fetch-details click', () => {
+    let detail: { stage: string } | undefined
     const handler = (e: Event) => {
       detail = (e as CustomEvent).detail
     }
     document.addEventListener('queues-page:kick', handler)
 
     el.querySelector<HTMLButtonElement>('[data-action="kick-details"]')?.click()
-    expect(detail).toEqual({ event: 'flagged' })
+    expect(detail).toEqual({ stage: 'fetch_job_details' })
 
     document.removeEventListener('queues-page:kick', handler)
   })
 
-  it('dispatches queues-page:kick with descriptions-ready on Run rank click', () => {
-    let detail: { event: string } | undefined
+  it('dispatches queues-page:kick with stage rank on Run rank click', () => {
+    let detail: { stage: string } | undefined
     const handler = (e: Event) => {
       detail = (e as CustomEvent).detail
     }
     document.addEventListener('queues-page:kick', handler)
 
     el.querySelector<HTMLButtonElement>('[data-action="kick-rank"]')?.click()
-    expect(detail).toEqual({ event: 'descriptions-ready' })
+    expect(detail).toEqual({ stage: 'rank' })
 
     document.removeEventListener('queues-page:kick', handler)
   })
 
   it('disables the details button and sets aria-busy via setKickBusy', () => {
-    el.setKickBusy('flagged', true)
+    el.setKickBusy('fetch_job_details', true)
     const btn = el.querySelector<HTMLButtonElement>('[data-action="kick-details"]')
     expect(btn?.disabled).toBe(true)
     expect(btn?.getAttribute('aria-busy')).toBe('true')
   })
 
   it('disables the rank button and sets aria-busy via setKickBusy', () => {
-    el.setKickBusy('descriptions-ready', true)
+    el.setKickBusy('rank', true)
     const btn = el.querySelector<HTMLButtonElement>('[data-action="kick-rank"]')
     expect(btn?.disabled).toBe(true)
     expect(btn?.getAttribute('aria-busy')).toBe('true')
   })
 
   it('re-enables the button via setKickBusy false', () => {
-    el.setKickBusy('flagged', true)
-    el.setKickBusy('flagged', false)
+    el.setKickBusy('fetch_job_details', true)
+    el.setKickBusy('fetch_job_details', false)
     const btn = el.querySelector<HTMLButtonElement>('[data-action="kick-details"]')
     expect(btn?.disabled).toBe(false)
     expect(btn?.getAttribute('aria-busy')).toBe('false')

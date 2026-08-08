@@ -1,2 +1,4 @@
-export type BusEventName = 'flagged' | 'descriptions-ready'
-export type BusEvents = Record<BusEventName, [payload: { jobId: number }]>
+import type { AnalysisStage } from 'workers'
+
+export type BusEventName = 'kick'
+export type BusEvents = Record<BusEventName, [payload: { stage: AnalysisStage }]>
