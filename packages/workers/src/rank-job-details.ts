@@ -16,6 +16,8 @@ import { sanitise } from './sanitise.js'
 // and failing the row would re-drain it forever. This diverges from the
 // fetch-job-details drain, which fails rows and leaves them pending for retry.
 
+export { createOllamaClient } from './ollama.js'
+
 const GATE_NAMES = ['eligibility', 'language', 'location'] as const
 const DIMENSION_NAMES = ['technical', 'experience', 'behavioral', 'career'] as const
 const SIGNAL_TYPES = ['skill_match', 'company_match'] as const

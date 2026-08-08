@@ -7,13 +7,14 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/cli.ts | pino-pretty",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "verify": "oxfmt check . && oxlint . && npm test"
   },
   "dependencies": {
     "db": "*",
     "dotenv": "^17.4.2",
-    "pino": "^10.3.1"
+    "pino": "^10.3.1",
+    "workers": "^0.1.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",

@@ -8,9 +8,7 @@ import { fileURLToPath } from 'node:url'
 
 import { createDb } from 'db'
 import { pino } from 'pino'
-
-import { evaluateJob, selectJobsForEval } from './evaluate.js'
-import { createOllamaClient } from './ollama.js'
+import { rankJobDetails } from 'workers'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -27,21 +25,15 @@ async function main() {
   log.info({ database: basename(dbPath) }, 'DATABASE')
 
   const db = createDb(isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath))
-  const client = createOllamaClient(process.env.OLLAMA_BASE_URL, process.env.OLLAMA_MODEL, log)
+  const client = rankJobDetails.createOllamaClient(process.env.OLLAMA_BASE_URL, process.env.OLLAMA_MODEL, log)
 
-  const pending = selectJobsForEval(db)
-  log.info({ pending: pending.length }, 'jobs to evaluate')
-
-  let written = 0
-  let skipped = 0
-
-  for (const job of pending) {
-    const result = await evaluateJob(db, job.id, client, log)
-    if (result === 'written') written++
-    else skipped++
-  }
-
-  log.info({ written, skipped, total: pending.length }, 'inference complete')
+  const { written, skipped } = await rankJobDetails.drain(db, {
+    client,
+    onProgress: row => log.info({ jobId: row.jobId, title: row.title }, 'evaluated'),
+    onError: (row, err) =>
+      log.warn({ jobId: row.jobId, err: err instanceof Error ? err.message : err }, 'inference skipped'),
+  })
+  log.info({ written, skipped }, 'inference complete')
   db.$client.close()
 }
 
