@@ -129,7 +129,7 @@ describe('createDb', () => {
     const db = createDb(':memory:')
     const columns = db.$client.prepare('PRAGMA table_info(analysis_queue)').all() as { name: string }[]
 
-    expect(columns.map(c => c.name)).toEqual(['id', 'job_id', 'queued_at', 'completed_at'])
+    expect(columns.map(c => c.name)).toEqual(['id', 'job_id', 'stage', 'error_message', 'queued_at', 'completed_at'])
 
     db.$client.close()
   })
@@ -214,9 +214,68 @@ describe('createDb', () => {
       )
       .run()
 
-    const insert = db.$client.prepare('INSERT INTO analysis_queue (job_id) VALUES (1)')
+    const insert = db.$client.prepare("INSERT INTO analysis_queue (job_id, stage) VALUES (1, 'fetch_job_details')")
     insert.run()
     expect(() => insert.run()).toThrow(/UNIQUE/)
+
+    db.$client.close()
+  })
+
+  it('defaults analysis_queue stage to fetch_job_details and accepts inference', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare(
+        "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location) VALUES ('linkedin', 'job-1', 'Title', 'Acme', 'https://example.com', 'Remote')"
+      )
+      .run()
+
+    db.$client.prepare("INSERT INTO analysis_queue (job_id, stage) VALUES (1, 'fetch_job_details')").run()
+    const row = db.$client.prepare('SELECT stage, error_message FROM analysis_queue WHERE id = 1').get() as {
+      stage: string
+      error_message: string | null
+    }
+    expect(row.stage).toBe('fetch_job_details')
+    expect(row.error_message).toBeNull()
+
+    db.$client.prepare("UPDATE analysis_queue SET stage = 'inference' WHERE id = 1").run()
+    const updated = db.$client.prepare('SELECT stage FROM analysis_queue WHERE id = 1').get() as { stage: string }
+    expect(updated.stage).toBe('inference')
+
+    db.$client.close()
+  })
+
+  it('rejects an analysis_queue row with an invalid stage', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare(
+        "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location) VALUES ('linkedin', 'job-1', 'Title', 'Acme', 'https://example.com', 'Remote')"
+      )
+      .run()
+
+    expect(() =>
+      db.$client.prepare("INSERT INTO analysis_queue (job_id, stage) VALUES (1, 'invalid_stage')").run()
+    ).toThrow(/CHECK/)
+
+    db.$client.close()
+  })
+
+  it('stores an error_message on an analysis_queue row', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare(
+        "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location) VALUES ('linkedin', 'job-1', 'Title', 'Acme', 'https://example.com', 'Remote')"
+      )
+      .run()
+
+    db.$client
+      .prepare(
+        "INSERT INTO analysis_queue (job_id, stage, error_message) VALUES (1, 'fetch_job_details', 'fetch failed: timeout')"
+      )
+      .run()
+    const row = db.$client.prepare('SELECT error_message FROM analysis_queue WHERE id = 1').get() as {
+      error_message: string
+    }
+    expect(row.error_message).toBe('fetch failed: timeout')
 
     db.$client.close()
   })
@@ -236,7 +295,7 @@ describe('createDb', () => {
         "INSERT INTO job_signals (job_id, rule_id, source, signal_type, score) VALUES (1, 1, 'regex_title', 'skill_match', 5)"
       )
       .run()
-    db.$client.prepare('INSERT INTO analysis_queue (job_id) VALUES (1)').run()
+    db.$client.prepare("INSERT INTO analysis_queue (job_id, stage) VALUES (1, 'fetch_job_details')").run()
 
     db.$client.prepare('DELETE FROM jobs WHERE id = 1').run()
 

@@ -20,7 +20,7 @@ function seedJob(db: ReturnType<typeof createDb>, providerJobId: string) {
     })
     .run()
   const job = db.select().from(jobs).get()!
-  db.insert(analysisQueue).values({ jobId: job.id }).run()
+  db.insert(analysisQueue).values({ jobId: job.id, stage: 'fetch_job_details' }).run()
   return job
 }
 
@@ -123,7 +123,7 @@ describe('processDetailQueue', () => {
         .where()
         .all()
         .find(j => j.providerJobId === id)!
-      db.insert(analysisQueue).values({ jobId: job.id }).run()
+      db.insert(analysisQueue).values({ jobId: job.id, stage: 'fetch_job_details' }).run()
     }
 
     const calls: string[] = []

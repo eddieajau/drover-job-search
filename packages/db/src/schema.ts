@@ -170,12 +170,17 @@ export const analysisQueue = sqliteTable(
     jobId: integer('job_id')
       .notNull()
       .references(() => jobs.id, { onDelete: 'cascade' }),
+    stage: text('stage').notNull(),
+    errorMessage: text('error_message'),
     queuedAt: text('queued_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
     completedAt: text('completed_at'),
   },
-  table => [uniqueIndex('uq_analysis_queue_job_id').on(table.jobId)]
+  table => [
+    uniqueIndex('uq_analysis_queue_job_id').on(table.jobId),
+    check('check_queue_stage', sql`${table.stage} IN ('fetch_jobs_details', 'inference')`),
+  ]
 )
 
 export type Query = InferSelectModel<typeof queries>
@@ -286,8 +291,11 @@ CREATE INDEX IF NOT EXISTS idx_job_signals_rule_id ON job_signals(rule_id);
 CREATE TABLE IF NOT EXISTS analysis_queue (
     id INTEGER PRIMARY KEY,
     job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    stage TEXT NOT NULL,
+    error_message TEXT,
     queued_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     completed_at TEXT,
-    CONSTRAINT uq_analysis_queue_job_id UNIQUE (job_id)
+    CONSTRAINT uq_analysis_queue_job_id UNIQUE (job_id),
+    CONSTRAINT check_queue_stage CHECK (stage IN ('fetch_job_details', 'inference'))
 );
 `

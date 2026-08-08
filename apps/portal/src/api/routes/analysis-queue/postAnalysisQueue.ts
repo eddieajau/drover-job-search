@@ -28,8 +28,11 @@ const postAnalysisQueue: FastifyPluginAsync = async app => {
 
     app.db
       .insert(analysisQueue)
-      .values({ jobId: job.id, completedAt: null })
-      .onConflictDoUpdate({ target: analysisQueue.jobId, set: { completedAt: null } })
+      .values({ jobId: job.id, stage: 'fetch_job_details', completedAt: null })
+      .onConflictDoUpdate({
+        target: analysisQueue.jobId,
+        set: { completedAt: null, stage: 'fetch_job_details', errorMessage: null },
+      })
       .run()
 
     const row = app.db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()
