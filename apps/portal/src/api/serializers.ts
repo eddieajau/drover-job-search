@@ -7,7 +7,9 @@ import type { AnalysisQueue, Job as JobRow, JobSignal, Query, SignalRule } from 
 import { marked } from 'marked'
 import sanitizeHtml from 'sanitize-html'
 
-import type { SignalSummary } from '../shared/types.js'
+import type { QueueSummaryResponse, QueueSummaryRow, SignalSummary } from '../shared/types.js'
+
+export type { QueueSummaryResponse, QueueSummaryRow }
 
 const MARKDOWN_ALLOWED_TAGS = [
   'h1',
@@ -146,22 +148,4 @@ export interface QueueResponse {
 
 export function toQueueJson(row: AnalysisQueue): QueueResponse {
   return { ...row }
-}
-
-export interface QueueSummaryRow {
-  id: number
-  jobId: number
-  title: string
-  companyName: string
-  providerJobId: string
-  stage: 'fetch_job_details' | 'rank'
-  queuedAt: string
-  completedAt: string | null
-}
-
-export interface QueueSummaryResponse {
-  pending: { fetch_job_details: number; rank: number }
-  done: number
-  total: number
-  recent: QueueSummaryRow[]
 }

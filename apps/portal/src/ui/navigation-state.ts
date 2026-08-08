@@ -10,6 +10,7 @@ export type NavigationState =
   | { view: 'queries' }
   | { view: 'query-edit'; id?: number }
   | { view: 'signals' }
+  | { view: 'queues' }
 
 export function parseHash(hash: string): NavigationState | null {
   const h = hash.startsWith('#') ? hash.slice(1) : hash
@@ -18,6 +19,9 @@ export function parseHash(hash: string): NavigationState | null {
   }
   if (h === 'signals') {
     return { view: 'signals' }
+  }
+  if (h === 'queues') {
+    return { view: 'queues' }
   }
   const [path, queryString] = h.split('?')
   if (path === 'jobs' || path === '') {
@@ -90,6 +94,8 @@ export function toHash(state: NavigationState): string {
       return '#queries'
     case 'signals':
       return '#signals'
+    case 'queues':
+      return '#queues'
     case 'query-edit': {
       if (state.id == null) {
         return '#queries/edit'

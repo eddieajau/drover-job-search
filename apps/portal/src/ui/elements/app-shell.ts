@@ -11,8 +11,9 @@ import '../pages/jobs/index.js'
 import '../pages/queries/index.js'
 import '../pages/queries/query-edit-page.js'
 import '../pages/signals/index.js'
+import '../pages/queues/index.js'
 
-type PageTag = 'jobs-page' | 'queries-page' | 'query-edit-page' | 'signals-page'
+type PageTag = 'jobs-page' | 'queries-page' | 'query-edit-page' | 'signals-page' | 'queues-page'
 
 function pageFor(state: NavigationState | null): PageTag {
   if (state?.view === 'queries') {
@@ -24,15 +25,21 @@ function pageFor(state: NavigationState | null): PageTag {
   if (state?.view === 'signals') {
     return 'signals-page'
   }
+  if (state?.view === 'queues') {
+    return 'queues-page'
+  }
   return 'jobs-page'
 }
 
-function navViewFor(state: NavigationState | null): 'jobs' | 'queries' | 'signals' {
+function navViewFor(state: NavigationState | null): 'jobs' | 'queries' | 'signals' | 'queues' {
   if (state?.view === 'queries' || state?.view === 'query-edit') {
     return 'queries'
   }
   if (state?.view === 'signals') {
     return 'signals'
+  }
+  if (state?.view === 'queues') {
+    return 'queues'
   }
   return 'jobs'
 }
@@ -83,7 +90,7 @@ export class AppShell extends HTMLElement {
     mount.appendChild(document.createElement(tag))
   }
 
-  syncNav(current: 'jobs' | 'queries' | 'signals'): void {
+  syncNav(current: 'jobs' | 'queries' | 'signals' | 'queues'): void {
     for (const link of this.querySelectorAll<HTMLAnchorElement>('.site-nav-link')) {
       if (link.dataset.view === current) {
         link.setAttribute('aria-current', 'page')
@@ -101,6 +108,7 @@ export class AppShell extends HTMLElement {
           <a class="site-nav-link" href="#jobs" data-view="jobs">Jobs</a>
           <a class="site-nav-link" href="#queries" data-view="queries">Queries</a>
           <a class="site-nav-link" href="#signals" data-view="signals">Signals</a>
+          <a class="site-nav-link" href="#queues" data-view="queues">Queues</a>
         </nav>
         <theme-toggle></theme-toggle>
       </header>
