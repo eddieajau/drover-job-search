@@ -183,12 +183,49 @@ export const analysisQueue = sqliteTable(
   ]
 )
 
+export const facts = sqliteTable(
+  'facts',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    category: text('category').notNull(),
+    label: text('label').notNull(),
+    detail: text('detail'),
+    evidenceType: text('evidence_type'),
+    startedAt: text('started_at'),
+    endedAt: text('ended_at'),
+    period: text('period'),
+    confidence: text('confidence').notNull().default('stated'),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  table => [
+    index('idx_facts_category').on(table.category),
+    index('idx_facts_active').on(table.active),
+    check(
+      'check_fact_category',
+      sql`${table.category} IN ('skill', 'role', 'precedent_story', 'gap', 'credential', 'principle')`
+    ),
+    check(
+      'check_fact_evidence_type',
+      sql`${table.evidenceType} IN ('fast_pivot', 'genuine_precedent', 'genuine_gap') OR ${table.evidenceType} IS NULL`
+    ),
+    check('check_fact_confidence', sql`${table.confidence} IN ('stated', 'inferred', 'stretch')`),
+    check('check_fact_active', sql`${table.active} IN (0, 1)`),
+  ]
+)
+
 export type Query = InferSelectModel<typeof queries>
 export type Job = InferSelectModel<typeof jobs>
 export type Crawl = InferSelectModel<typeof crawls>
 export type SignalRule = InferSelectModel<typeof signalRules>
 export type JobSignal = InferSelectModel<typeof jobSignals>
 export type AnalysisQueue = InferSelectModel<typeof analysisQueue>
+export type Fact = InferSelectModel<typeof facts>
 
 export const TABLE_DDL = `
 CREATE TABLE IF NOT EXISTS queries (
@@ -298,4 +335,28 @@ CREATE TABLE IF NOT EXISTS analysis_queue (
     CONSTRAINT uq_analysis_queue_job_id UNIQUE (job_id),
     CONSTRAINT check_queue_stage CHECK (stage IN ('fetch_job_details', 'rank'))
 );
+
+CREATE TABLE IF NOT EXISTS facts (
+    id INTEGER PRIMARY KEY,
+    category TEXT NOT NULL CHECK (
+        category IN ('skill', 'role', 'precedent_story', 'gap', 'credential', 'principle')
+    ),
+    label TEXT NOT NULL,
+    detail TEXT,
+    evidence_type TEXT CHECK (
+        evidence_type IN ('fast_pivot', 'genuine_precedent', 'genuine_gap') OR evidence_type IS NULL
+    ),
+    started_at TEXT,
+    ended_at TEXT,
+    period TEXT,
+    confidence TEXT NOT NULL DEFAULT 'stated' CHECK (
+        confidence IN ('stated', 'inferred', 'stretch')
+    ),
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+);
+
+CREATE INDEX IF NOT EXISTS idx_facts_category ON facts(category);
+CREATE INDEX IF NOT EXISTS idx_facts_active ON facts(active);
 `
