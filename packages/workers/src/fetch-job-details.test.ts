@@ -63,7 +63,7 @@ describe('fetch-job-details drain', () => {
     expect(onProgress).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the row pending when detail returns null', async () => {
+  it('marks the row done when detail returns null', async () => {
     seedQueue(db, '123456')
     const onError = vi.fn()
 
@@ -75,13 +75,13 @@ describe('fetch-job-details drain', () => {
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.stage).toBe('fetch_job_details')
-    expect(queue.completedAt).toBeNull()
+    expect(queue.completedAt).not.toBeNull()
     expect(queue.errorMessage).toBe('no description')
     expect(onError).toHaveBeenCalledTimes(1)
     expect(onError.mock.calls[0][1]).toBeNull()
   })
 
-  it('keeps the row pending when detail throws', async () => {
+  it('marks the row done when detail throws', async () => {
     seedQueue(db, '123456')
     const onError = vi.fn()
     const error = new Error('network error')
@@ -99,10 +99,22 @@ describe('fetch-job-details drain', () => {
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.stage).toBe('fetch_job_details')
-    expect(queue.completedAt).toBeNull()
+    expect(queue.completedAt).not.toBeNull()
     expect(queue.errorMessage).toBe('network error')
     expect(onError).toHaveBeenCalledTimes(1)
     expect(onError.mock.calls[0][1]).toBe(error)
+  })
+
+  it('does not re-drain a row already failed on a previous pass', async () => {
+    seedQueue(db, '123456')
+    const detailFn = vi.fn<DetailFn>(async () => null)
+
+    await drain(db, { detailFn })
+    await drain(db, { detailFn })
+
+    expect(detailFn).toHaveBeenCalledTimes(1)
+    const queue = db.select().from(analysisQueue).get()!
+    expect(queue.completedAt).not.toBeNull()
   })
 
   it('respects the limit', async () => {
@@ -164,6 +176,7 @@ describe('fetch-job-details drain', () => {
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.errorMessage).toBe('network error')
     expect(queue.stage).toBe('fetch_job_details')
+    expect(queue.completedAt).not.toBeNull()
   })
 
   it('drainOne returns failed for an unknown queue id', async () => {

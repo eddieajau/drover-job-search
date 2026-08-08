@@ -30,7 +30,7 @@ export function createOllamaClient(
       const url = `${baseUrl}/api/generate`
       const body = JSON.stringify({ model, prompt, stream: false, format: 'json' })
 
-      log?.debug({ url, model, promptLength: prompt.length }, 'ollama request')
+      log?.debug?.({ url, model, promptLength: prompt.length }, 'ollama request')
 
       const res = await fetch(url, {
         method: 'POST',
@@ -40,15 +40,15 @@ export function createOllamaClient(
 
       if (!res.ok) {
         const errorBody = await res.text().catch(() => '')
-        log?.error({ status: res.status, statusText: res.statusText, body: errorBody }, 'ollama HTTP error')
+        log?.error?.({ status: res.status, statusText: res.statusText, body: errorBody }, 'ollama HTTP error')
         throw new Error(`ollama generate failed: ${res.status} ${res.statusText}`)
       }
 
       const raw = await res.text()
-      log?.debug({ rawLength: raw.length, rawPreview: raw.slice(0, 500) }, 'ollama raw response body')
+      log?.debug?.({ rawLength: raw.length, rawPreview: raw.slice(0, 500) }, 'ollama raw response body')
 
       const data = JSON.parse(raw) as OllamaGenerateResponse & Record<string, unknown>
-      log?.debug(
+      log?.debug?.(
         { responseLength: data.response?.length ?? 0, thinkingLength: data.thinking?.length ?? 0 },
         'ollama response parsed'
       )

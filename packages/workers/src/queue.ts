@@ -46,6 +46,12 @@ export function complete(db: DB, queueId: number): void {
     .run()
 }
 
+// Failures are terminal: the row leaves the pending set (completed_at is set)
+// so a drain pass terminates. Retrying failed rows is deferred to a later
+// iteration.
 export function fail(db: DB, queueId: number, message: string): void {
-  db.update(analysisQueue).set({ errorMessage: message, completedAt: null }).where(eq(analysisQueue.id, queueId)).run()
+  db.update(analysisQueue)
+    .set({ errorMessage: message, completedAt: sql`(CURRENT_TIMESTAMP)` })
+    .where(eq(analysisQueue.id, queueId))
+    .run()
 }

@@ -41,8 +41,8 @@ async function main() {
       onProgress: row => log.info({ providerJobId: row.providerJobId }, 'description saved'),
       onError: (row, err) =>
         err === null
-          ? log.warn({ providerJobId: row.providerJobId }, 'no description returned; leaving pending')
-          : log.error({ providerJobId: row.providerJobId, err }, 'detail fetch failed; leaving pending'),
+          ? log.warn({ providerJobId: row.providerJobId }, 'no description returned; marked done')
+          : log.error({ providerJobId: row.providerJobId, err }, 'detail fetch failed; marked done'),
     })
     log.info({ processed, failed }, 'detail crawl complete')
     db.$client.close()

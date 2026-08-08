@@ -13,8 +13,9 @@ import { sanitise } from './sanitise.js'
 
 // Skips mark the queue row done rather than leaving it pending. A missing
 // description and invalid LLM output are deterministic — retrying won't help,
-// and failing the row would re-drain it forever. This diverges from the
-// fetch-job-details drain, which fails rows and leaves them pending for retry.
+// and failing the row would re-drain it forever. The fetch-job-details drain
+// marks failures done too (via fail()), so both drains keep the portal worker
+// loop from spinning; retrying failed rows is deferred to a later iteration.
 
 export { createOllamaClient } from './ollama.js'
 

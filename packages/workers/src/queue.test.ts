@@ -109,7 +109,7 @@ describe('queue helpers', () => {
   })
 
   describe('fail', () => {
-    it('records error_message and leaves completed_at null and stage untouched', () => {
+    it('records error_message, stamps completed_at, and leaves stage untouched', () => {
       seedJob(db, 'a')
 
       const row = db.select().from(analysisQueue).get()!
@@ -117,8 +117,18 @@ describe('queue helpers', () => {
 
       const updated = db.select().from(analysisQueue).get()!
       expect(updated.errorMessage).toBe('no description')
-      expect(updated.completedAt).toBeNull()
+      expect(updated.completedAt).not.toBeNull()
       expect(updated.stage).toBe('fetch_job_details')
+    })
+
+    it('removes the row from the pending set', () => {
+      seedJob(db, 'a')
+
+      const row = db.select().from(analysisQueue).get()!
+      fail(db, row.id, 'boom')
+
+      const pending = selectPending(db, 'fetch_job_details')
+      expect(pending).toHaveLength(0)
     })
   })
 })
