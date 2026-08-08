@@ -9,6 +9,13 @@ import { relativeAge } from '../jobs/posted-age.js'
 
 export interface QueuesPageEventMap {
   'queues-page:ready': CustomEvent<void>
+  'queues-page:kick': CustomEvent<{ event: 'flagged' | 'descriptions-ready' }>
+  'queues-page:tick': CustomEvent<void>
+}
+
+const KICK_ACTIONS: Record<string, 'flagged' | 'descriptions-ready'> = {
+  'kick-details': 'flagged',
+  'kick-rank': 'descriptions-ready',
 }
 
 function emptySummary(): QueueSummaryResponse {
@@ -17,16 +24,66 @@ function emptySummary(): QueueSummaryResponse {
 
 export class QueuesPage extends HTMLElement {
   #summary: QueueSummaryResponse = emptySummary()
+  #abort: AbortController | null = null
+  #timer: ReturnType<typeof setInterval> | null = null
 
   connectedCallback(): void {
     this.render()
+    this.#setupListeners()
+    this.#startPolling()
     this.dispatchEvent(new CustomEvent('queues-page:ready', { bubbles: true, composed: true }))
+  }
+
+  disconnectedCallback(): void {
+    this.#cleanup()
   }
 
   setSummary(summary: QueueSummaryResponse): void {
     this.#summary = summary ?? emptySummary()
     this.#updateHead()
     this.#renderRows()
+  }
+
+  setKickBusy(event: 'flagged' | 'descriptions-ready', busy: boolean): void {
+    const action = event === 'flagged' ? 'kick-details' : 'kick-rank'
+    const btn = this.querySelector<HTMLButtonElement>(`[data-action="${action}"]`)
+    if (!btn) return
+    btn.disabled = busy
+    btn.setAttribute('aria-busy', String(busy))
+  }
+
+  #setupListeners(): void {
+    this.#cleanup()
+    this.#abort = new AbortController()
+    this.addEventListener('click', this.#onClick, { signal: this.#abort.signal })
+  }
+
+  #startPolling(): void {
+    this.#timer = setInterval(() => {
+      this.dispatchEvent(new CustomEvent('queues-page:tick', { bubbles: true, composed: true }))
+    }, 5000)
+  }
+
+  #cleanup(): void {
+    this.#abort?.abort()
+    this.#abort = null
+    if (this.#timer !== null) {
+      clearInterval(this.#timer)
+      this.#timer = null
+    }
+  }
+
+  #onClick = (event: MouseEvent): void => {
+    const target = (event.target as HTMLElement).closest<HTMLElement>('[data-action]')
+    const action = target?.dataset.action
+    if (!action || !(action in KICK_ACTIONS)) return
+    const busEvent = KICK_ACTIONS[action]
+    this.dispatchEvent(
+      new CustomEvent<QueuesPageEventMap['queues-page:kick'] extends CustomEvent<infer D> ? D : never>(
+        'queues-page:kick',
+        { bubbles: true, composed: true, detail: { event: busEvent } }
+      )
+    )
   }
 
   #updateHead(): void {
@@ -39,9 +96,7 @@ export class QueuesPage extends HTMLElement {
 
   #renderRows(): void {
     const list = this.querySelector<HTMLUListElement>('.queue-list')
-    if (!list) {
-      return
-    }
+    if (!list) return
     if (this.#summary.recent.length === 0) {
       list.innerHTML = '<li class="queue-row queue-empty">Nothing queued yet.</li>'
       return
@@ -55,6 +110,10 @@ export class QueuesPage extends HTMLElement {
         <div class="page-head">
           <h1>Queues</h1>
           <span class="page-count"></span>
+          <div class="head-actions">
+            <button class="btn" type="button" data-action="kick-details">Run fetch-details</button>
+            <button class="btn" type="button" data-action="kick-rank">Run rank</button>
+          </div>
         </div>
         <div class="panel">
           <ul class="queue-list"></ul>

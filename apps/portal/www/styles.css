@@ -184,6 +184,12 @@ body {
   margin-left: auto;
 }
 
+.head-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);

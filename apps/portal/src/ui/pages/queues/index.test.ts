@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { QueueSummaryResponse } from '../../../shared/types.js'
 import './index.js'
@@ -36,6 +36,10 @@ describe('queues-page', () => {
     document.body.innerHTML = ''
     el = document.createElement('queues-page')
     document.body.appendChild(el)
+  })
+
+  afterEach(() => {
+    document.body.innerHTML = ''
   })
 
   it('renders the page shell with head and panel', () => {
@@ -84,5 +88,107 @@ describe('queues-page', () => {
     })
     document.body.appendChild(document.createElement('queues-page'))
     expect(received.fired).toBe(true)
+  })
+
+  it('renders two kick buttons in the head-actions', () => {
+    const details = el.querySelector<HTMLButtonElement>('[data-action="kick-details"]')
+    const rank = el.querySelector<HTMLButtonElement>('[data-action="kick-rank"]')
+    expect(details?.textContent).toBe('Run fetch-details')
+    expect(rank?.textContent).toBe('Run rank')
+  })
+
+  it('dispatches queues-page:kick with flagged on Run fetch-details click', () => {
+    let detail: { event: string } | undefined
+    const handler = (e: Event) => {
+      detail = (e as CustomEvent).detail
+    }
+    document.addEventListener('queues-page:kick', handler)
+
+    el.querySelector<HTMLButtonElement>('[data-action="kick-details"]')?.click()
+    expect(detail).toEqual({ event: 'flagged' })
+
+    document.removeEventListener('queues-page:kick', handler)
+  })
+
+  it('dispatches queues-page:kick with descriptions-ready on Run rank click', () => {
+    let detail: { event: string } | undefined
+    const handler = (e: Event) => {
+      detail = (e as CustomEvent).detail
+    }
+    document.addEventListener('queues-page:kick', handler)
+
+    el.querySelector<HTMLButtonElement>('[data-action="kick-rank"]')?.click()
+    expect(detail).toEqual({ event: 'descriptions-ready' })
+
+    document.removeEventListener('queues-page:kick', handler)
+  })
+
+  it('disables the details button and sets aria-busy via setKickBusy', () => {
+    el.setKickBusy('flagged', true)
+    const btn = el.querySelector<HTMLButtonElement>('[data-action="kick-details"]')
+    expect(btn?.disabled).toBe(true)
+    expect(btn?.getAttribute('aria-busy')).toBe('true')
+  })
+
+  it('disables the rank button and sets aria-busy via setKickBusy', () => {
+    el.setKickBusy('descriptions-ready', true)
+    const btn = el.querySelector<HTMLButtonElement>('[data-action="kick-rank"]')
+    expect(btn?.disabled).toBe(true)
+    expect(btn?.getAttribute('aria-busy')).toBe('true')
+  })
+
+  it('re-enables the button via setKickBusy false', () => {
+    el.setKickBusy('flagged', true)
+    el.setKickBusy('flagged', false)
+    const btn = el.querySelector<HTMLButtonElement>('[data-action="kick-details"]')
+    expect(btn?.disabled).toBe(false)
+    expect(btn?.getAttribute('aria-busy')).toBe('false')
+  })
+
+  describe('auto-refresh interval', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('dispatches queues-page:tick every 5 seconds', () => {
+      vi.useFakeTimers()
+      document.body.innerHTML = ''
+      const fresh = document.createElement('queues-page')
+      document.body.appendChild(fresh)
+
+      let ticks = 0
+      const handler = () => {
+        ticks++
+      }
+      document.addEventListener('queues-page:tick', handler)
+
+      vi.advanceTimersByTime(5000)
+      expect(ticks).toBe(1)
+
+      vi.advanceTimersByTime(5000)
+      expect(ticks).toBe(2)
+
+      document.removeEventListener('queues-page:tick', handler)
+      document.body.innerHTML = ''
+    })
+
+    it('stops the interval on disconnect', () => {
+      vi.useFakeTimers()
+      document.body.innerHTML = ''
+      const fresh = document.createElement('queues-page')
+      document.body.appendChild(fresh)
+
+      let ticks = 0
+      const handler = () => {
+        ticks++
+      }
+      document.addEventListener('queues-page:tick', handler)
+
+      document.body.removeChild(fresh)
+      vi.advanceTimersByTime(10000)
+      expect(ticks).toBe(0)
+
+      document.removeEventListener('queues-page:tick', handler)
+    })
   })
 })
