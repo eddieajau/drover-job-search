@@ -7,6 +7,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { _resetFactsMediatorForTesting, initFactsMediator } from './facts-mediator.js'
 import './pages/facts/index.js'
+import type { FactEditPage } from './pages/facts/fact-edit-page.js'
+import './pages/facts/fact-edit-page.js'
 import type { FactsPage } from './pages/facts/index.js'
 
 const factsData = [
@@ -40,11 +42,26 @@ function mockFetch(routes: Record<string, unknown>): void {
   )
 }
 
+function mockFetchWithMethods(routes: Record<string, { ok: boolean; data?: unknown }>): void {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => {
+      for (const [pattern, handler] of Object.entries(routes)) {
+        if (url.includes(pattern)) {
+          return { ok: handler.ok, json: async () => handler.data }
+        }
+      }
+      return { ok: false, status: 404 }
+    })
+  )
+}
+
 describe('facts-mediator', () => {
   afterEach(() => {
     _resetFactsMediatorForTesting()
     vi.restoreAllMocks()
     document.body.innerHTML = ''
+    window.location.hash = ''
   })
 
   it('fetches facts when facts-page becomes ready and pushes them in', async () => {
@@ -102,5 +119,117 @@ describe('facts-mediator', () => {
     const calls = vi.mocked(fetch).mock.calls
     const filterCall = calls.find(([url]) => String(url).includes('active=1'))
     expect(filterCall).toBeDefined()
+  })
+
+  it('fetches a fact by id when fact-edit-page:ready fires with an id in the hash', async () => {
+    mockFetch({ '/api/facts?id=5': factsData[0] })
+    window.location.hash = '#facts/edit?id=5'
+    initFactsMediator()
+    const page = document.createElement('fact-edit-page') as FactEditPage
+    document.body.appendChild(page)
+
+    window.dispatchEvent(new CustomEvent('fact-edit-page:ready'))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/facts?id=5')
+  })
+
+  it('leaves the form blank when fact-edit-page:ready fires without an id', async () => {
+    mockFetch({})
+    window.location.hash = '#facts/edit'
+    initFactsMediator()
+    const page = document.createElement('fact-edit-page') as FactEditPage
+    document.body.appendChild(page)
+
+    window.dispatchEvent(new CustomEvent('fact-edit-page:ready'))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it('POSTs a new fact on fact-edit-page:save when id is absent', async () => {
+    mockFetchWithMethods({ '/api/facts': { ok: true } })
+    initFactsMediator()
+    const page = document.createElement('fact-edit-page') as FactEditPage
+    document.body.appendChild(page)
+
+    window.dispatchEvent(
+      new CustomEvent('fact-edit-page:save', {
+        detail: {
+          label: 'TypeScript',
+          category: 'skill',
+          detail: '',
+          evidenceType: '',
+          confidence: 'stated',
+          startedAt: '',
+          endedAt: '',
+          period: '',
+          active: true,
+        },
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const calls = vi.mocked(fetch).mock.calls
+    const postCall = calls.find(([, init]) => (init as RequestInit)?.method === 'POST')
+    expect(postCall).toBeDefined()
+    expect(String(postCall![0])).toBe('/api/facts')
+  })
+
+  it('PATCHes an existing fact on fact-edit-page:save when id is present', async () => {
+    mockFetchWithMethods({ '/api/facts/5': { ok: true } })
+    initFactsMediator()
+    const page = document.createElement('fact-edit-page') as FactEditPage
+    document.body.appendChild(page)
+
+    window.dispatchEvent(
+      new CustomEvent('fact-edit-page:save', {
+        detail: {
+          id: 5,
+          label: 'TypeScript',
+          category: 'skill',
+          detail: '',
+          evidenceType: '',
+          confidence: 'stated',
+          startedAt: '',
+          endedAt: '',
+          period: '',
+          active: true,
+        },
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const calls = vi.mocked(fetch).mock.calls
+    const patchCall = calls.find(([, init]) => (init as RequestInit)?.method === 'PATCH')
+    expect(patchCall).toBeDefined()
+    expect(String(patchCall![0])).toBe('/api/facts/5')
+  })
+
+  it('stays on the form when the save fetch fails', async () => {
+    mockFetchWithMethods({ '/api/facts': { ok: false } })
+    initFactsMediator()
+    document.createElement('fact-edit-page')
+    document.body.appendChild(document.createElement('fact-edit-page'))
+
+    const originalHash = window.location.hash
+    window.dispatchEvent(
+      new CustomEvent('fact-edit-page:save', {
+        detail: {
+          label: 'TypeScript',
+          category: 'skill',
+          detail: '',
+          evidenceType: '',
+          confidence: 'stated',
+          startedAt: '',
+          endedAt: '',
+          period: '',
+          active: true,
+        },
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(window.location.hash).toBe(originalHash)
   })
 })

@@ -966,7 +966,8 @@ job-card:focus-visible {
   white-space: nowrap;
 }
 
-.query-edit-page .page {
+.query-edit-page .page,
+.fact-edit-page .page {
   max-width: 640px;
   padding-top: 24px;
 }
@@ -986,7 +987,8 @@ job-card:focus-visible {
   color: var(--accent);
 }
 
-.query-edit-page h1 {
+.query-edit-page h1,
+.fact-edit-page h1 {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -1050,6 +1052,11 @@ job-card:focus-visible {
 
 .input::placeholder {
   color: var(--muted);
+}
+
+textarea.input {
+  resize: vertical;
+  min-height: 80px;
 }
 
 .field-grid {

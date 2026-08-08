@@ -13,6 +13,7 @@ import '../pages/queries/query-edit-page.js'
 import '../pages/signals/index.js'
 import '../pages/queues/index.js'
 import '../pages/facts/index.js'
+import '../pages/facts/fact-edit-page.js'
 
 type PageTag =
   | 'jobs-page'

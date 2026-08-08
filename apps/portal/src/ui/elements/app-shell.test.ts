@@ -132,6 +132,21 @@ describe('app-shell', () => {
     expect(el.querySelector('query-edit-page')).not.toBeNull()
   })
 
+  it('mounts fact-edit-page for the facts edit hash', () => {
+    window.location.hash = '#facts/edit'
+    const el = createShell()
+    expect(el.querySelector('fact-edit-page')).not.toBeNull()
+    expect(el.querySelector('jobs-page')).toBeNull()
+    expect(el.querySelector('[data-view="facts"]')?.getAttribute('aria-current')).toBe('page')
+  })
+
+  it('mounts fact-edit-page for the facts edit hash with an id', () => {
+    window.location.hash = '#facts/edit?id=5'
+    const el = createShell()
+    expect(el.querySelector('fact-edit-page')).not.toBeNull()
+    expect(el.querySelector('[data-view="facts"]')?.getAttribute('aria-current')).toBe('page')
+  })
+
   it('falls back to jobs for unknown hashes', () => {
     window.location.hash = '#bogus'
     const el = createShell()
