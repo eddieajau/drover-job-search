@@ -110,12 +110,12 @@ describe('job-meta-panel', () => {
   it('dispatches job-meta:flag when the flag button is clicked', () => {
     const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
     el.showJob(j, [], false)
-    let receivedId = ''
+    let received: { jobId: number; providerJobId: string } | undefined
     el.addEventListener('job-meta:flag', event => {
-      receivedId = (event as CustomEvent<{ providerJobId: string }>).detail.providerJobId
+      received = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
     })
     el.querySelector<HTMLButtonElement>('[data-action="flag"]')?.click()
-    expect(receivedId).toBe('4445084022')
+    expect(received).toEqual({ jobId: 1, providerJobId: '4445084022' })
   })
 
   it('renders negative signal scores with neg class', () => {

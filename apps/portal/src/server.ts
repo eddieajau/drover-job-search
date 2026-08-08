@@ -13,6 +13,7 @@ import fastifyStatic from '@fastify/static'
 import { type DB } from 'db'
 import { config } from 'dotenv'
 import fastify from 'fastify'
+import { createQueueService, type QueueService } from 'workers'
 
 import { createDatabase } from './api/database.js'
 import type { BusEvents } from './bus.js'
@@ -23,6 +24,7 @@ declare module 'fastify' {
   interface FastifyInstance {
     db: DB
     bus: EventEmitter<BusEvents>
+    queues: QueueService
   }
 }
 
@@ -43,6 +45,12 @@ app.decorate('db', db)
 
 const bus = new EventEmitter<BusEvents>()
 app.decorate('bus', bus)
+
+const queues = createQueueService({
+  db,
+  onEnqueue: (jobId, _stage) => bus.emit('flagged', { jobId }),
+})
+app.decorate('queues', queues)
 
 const stopDetailsWorker = startDetailsWorker(app.bus, db, app.log)
 app.addHook('onClose', () => stopDetailsWorker())

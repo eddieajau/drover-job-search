@@ -11,7 +11,7 @@ import './ai-eval-box.js'
 export interface JobMetaPanelEventMap {
   'job-meta:status': CustomEvent<{ jobId: number; status: string }>
   'job-meta:open': CustomEvent<{ url: string }>
-  'job-meta:flag': CustomEvent<{ providerJobId: string }>
+  'job-meta:flag': CustomEvent<{ jobId: number; providerJobId: string }>
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -109,12 +109,13 @@ export class JobMetaPanel extends HTMLElement {
         return
       }
       const providerJobId = button.dataset.jobId ?? ''
-      if (providerJobId) {
+      const jobId = this.#job?.id
+      if (providerJobId && jobId) {
         this.dispatchEvent(
           new CustomEvent('job-meta:flag', {
             bubbles: true,
             composed: true,
-            detail: { providerJobId },
+            detail: { jobId, providerJobId },
           })
         )
       }

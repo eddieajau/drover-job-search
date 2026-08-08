@@ -10,7 +10,8 @@
     "verify": "oxfmt check . && oxlint . && vitest run"
   },
   "dependencies": {
-    "db": "^0.1.0"
+    "db": "^0.1.0",
+    "workers": "^0.1.0"
   },
   "devDependencies": {
     "@fastify/sensible": "^6.0.4",

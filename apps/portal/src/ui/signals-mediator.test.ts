@@ -26,17 +26,15 @@ describe('signals-mediator flag wiring', () => {
     document.body.innerHTML = ''
   })
 
-  it('posts to the analysis queue when job-card:flag fires', async () => {
+  it('posts to the new flag URL when job-card:flag fires', async () => {
     mockFetch(true)
     initSignalsMediator()
 
     window.dispatchEvent(new CustomEvent('job-card:flag', { detail: { jobId: 1, providerJobId: 'job-1' } }))
     await new Promise(resolve => setTimeout(resolve, 0))
 
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/analysis-queue', {
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/jobs/1/flag', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ providerJobId: 'job-1' }),
     })
   })
 

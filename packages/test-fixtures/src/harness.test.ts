@@ -55,6 +55,10 @@ describe('build', () => {
     expect(app.bus).toBeDefined()
   })
 
+  it('decorates fastify.queues with a QueueService', () => {
+    expect(app.queues).toBeDefined()
+  })
+
   it('registers the route under an optional prefix so route params reach the handler', async () => {
     const prefixed = await build(paramRoute, { db, prefix: '/jobs/:id' })
     const response = await prefixed.inject({ method: 'GET', url: '/jobs/42' })

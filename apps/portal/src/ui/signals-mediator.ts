@@ -115,13 +115,9 @@ async function handleJobSelect(event: Event): Promise<void> {
 }
 
 async function handleFlag(event: Event): Promise<void> {
-  const { providerJobId } = (event as CustomEvent<{ providerJobId: string }>).detail
+  const { jobId, providerJobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
   try {
-    const response = await fetch('/api/analysis-queue', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ providerJobId }),
-    })
+    const response = await fetch(`/api/jobs/${jobId}/flag`, { method: 'POST' })
     if (!response.ok) {
       return
     }
