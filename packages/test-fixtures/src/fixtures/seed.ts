@@ -1,10 +1,12 @@
 import {
   createDb,
+  facts,
   jobSignals,
   jobs,
   queries,
   signalRules,
   type DB,
+  type Fact,
   type Job,
   type JobSignal,
   type Query,
@@ -49,6 +51,18 @@ export interface SeedQuery {
   enabled?: boolean
 }
 
+export interface SeedFact {
+  category: string
+  label: string
+  detail?: string | null
+  evidenceType?: string | null
+  startedAt?: string | null
+  endedAt?: string | null
+  period?: string | null
+  confidence?: string
+  active?: boolean
+}
+
 export interface SeedDatabaseOptions {
   signals?: boolean
 }
@@ -71,6 +85,10 @@ export function seedSignal(db: DB, input: SeedSignal): JobSignal {
 
 export function seedQuery(db: DB, input: SeedQuery): Query {
   return db.insert(queries).values(input).returning().get()
+}
+
+export function seedFact(db: DB, input: SeedFact): Fact {
+  return db.insert(facts).values(input).returning().get()
 }
 
 export function seedDatabase(db: DB, opts: SeedDatabaseOptions = {}): DB {

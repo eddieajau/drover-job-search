@@ -111,3 +111,5 @@ export interface QueueSummaryResponse {
   total: number
   recent: QueueSummaryRow[]
 }
+
+export type { FactResponse } from '../api/serializers.js'

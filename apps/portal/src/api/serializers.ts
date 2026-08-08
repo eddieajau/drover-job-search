@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import type { AnalysisQueue, Job as JobRow, JobSignal, Query, SignalRule } from 'db'
+import type { AnalysisQueue, Fact, Job as JobRow, JobSignal, Query, SignalRule } from 'db'
 import { marked } from 'marked'
 import sanitizeHtml from 'sanitize-html'
 
@@ -147,5 +147,24 @@ export interface QueueResponse {
 }
 
 export function toQueueJson(row: AnalysisQueue): QueueResponse {
+  return { ...row }
+}
+
+export interface FactResponse {
+  id: number
+  category: string
+  label: string
+  detail: string | null
+  evidenceType: string | null
+  startedAt: string | null
+  endedAt: string | null
+  period: string | null
+  confidence: string
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export function toFactJson(row: Fact): FactResponse {
   return { ...row }
 }
