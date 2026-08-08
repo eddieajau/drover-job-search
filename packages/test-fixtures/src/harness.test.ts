@@ -51,6 +51,10 @@ describe('build', () => {
     expect(response.json()).toEqual({ jobs: 2 })
   })
 
+  it('decorates fastify.bus with an EventEmitter', () => {
+    expect(app.bus).toBeDefined()
+  })
+
   it('registers the route under an optional prefix so route params reach the handler', async () => {
     const prefixed = await build(paramRoute, { db, prefix: '/jobs/:id' })
     const response = await prefixed.inject({ method: 'GET', url: '/jobs/42' })

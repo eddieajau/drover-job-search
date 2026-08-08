@@ -3,6 +3,7 @@
  * @license   MIT
  */
 
+import { EventEmitter } from 'node:events'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -14,10 +15,12 @@ import { config } from 'dotenv'
 import fastify from 'fastify'
 
 import { createDatabase } from './api/database.js'
+import type { BusEvents } from './bus.js'
 
 declare module 'fastify' {
   interface FastifyInstance {
     db: DB
+    bus: EventEmitter<BusEvents>
   }
 }
 
@@ -35,6 +38,9 @@ await app.register(sensible)
 
 const db = createDatabase()
 app.decorate('db', db)
+
+const bus = new EventEmitter<BusEvents>()
+app.decorate('bus', bus)
 
 await app.register(fastifyStatic, {
   root: resolve(__dirname, '../www'),

@@ -39,6 +39,7 @@ const postAnalysisQueue: FastifyPluginAsync = async app => {
     if (!row) {
       return reply.internalServerError('Failed to reload queue row')
     }
+    app.bus.emit('flagged', { jobId: row.jobId })
     return toQueueJson(row)
   })
 }

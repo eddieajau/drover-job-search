@@ -51,6 +51,23 @@ describe('POST /api/analysis-queue', () => {
     expect(body.errorMessage).toBeNull()
   })
 
+  it('emits flagged with the job id after a successful insert', async () => {
+    const job = seedJob(db, JOB1)
+    expect(app.bus).toBeDefined()
+    let received: { jobId: number } | undefined
+    app.bus.on('flagged', payload => {
+      received = payload
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { providerJobId: JOB1.providerJobId },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(received).toEqual({ jobId: job.id })
+  })
+
   it('resets stage and clears error_message on conflict', async () => {
     const job = seedJob(db, JOB1)
     db.insert(analysisQueue).values({ jobId: job.id, stage: 'rank', errorMessage: 'previous failure' }).run()

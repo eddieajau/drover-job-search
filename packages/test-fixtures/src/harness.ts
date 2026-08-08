@@ -1,12 +1,18 @@
+import { EventEmitter } from 'node:events'
+
 import Sensible from '@fastify/sensible'
 import { type DB } from 'db'
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import Fastify from 'fastify'
 import { vi } from 'vitest'
 
+type BusEventName = 'flagged' | 'descriptions-ready'
+type BusEvents = Record<BusEventName, [payload: { jobId: number }]>
+
 declare module 'fastify' {
   interface FastifyInstance {
     db: DB
+    bus: EventEmitter<BusEvents>
   }
 }
 
@@ -14,6 +20,7 @@ export async function build(route: FastifyPluginAsync, options: { db: DB; prefix
   const app = Fastify({ logger: false })
   await app.register(Sensible)
   app.decorate('db', options.db)
+  app.decorate('bus', new EventEmitter<BusEvents>())
   if (options.prefix === undefined) {
     await app.register(route)
   } else {
