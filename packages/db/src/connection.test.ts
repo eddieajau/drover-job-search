@@ -221,7 +221,7 @@ describe('createDb', () => {
     db.$client.close()
   })
 
-  it('defaults analysis_queue stage to fetch_job_details and accepts inference', () => {
+  it('defaults analysis_queue stage to fetch_job_details and accepts rank', () => {
     const db = createDb(':memory:')
     db.$client
       .prepare(
@@ -237,9 +237,9 @@ describe('createDb', () => {
     expect(row.stage).toBe('fetch_job_details')
     expect(row.error_message).toBeNull()
 
-    db.$client.prepare("UPDATE analysis_queue SET stage = 'inference' WHERE id = 1").run()
+    db.$client.prepare("UPDATE analysis_queue SET stage = 'rank' WHERE id = 1").run()
     const updated = db.$client.prepare('SELECT stage FROM analysis_queue WHERE id = 1').get() as { stage: string }
-    expect(updated.stage).toBe('inference')
+    expect(updated.stage).toBe('rank')
 
     db.$client.close()
   })

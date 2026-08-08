@@ -53,7 +53,7 @@ describe('POST /api/analysis-queue', () => {
 
   it('resets stage and clears error_message on conflict', async () => {
     const job = seedJob(db, JOB1)
-    db.insert(analysisQueue).values({ jobId: job.id, stage: 'inference', errorMessage: 'previous failure' }).run()
+    db.insert(analysisQueue).values({ jobId: job.id, stage: 'rank', errorMessage: 'previous failure' }).run()
 
     const res = await app.inject({
       method: 'POST',

@@ -179,7 +179,7 @@ export const analysisQueue = sqliteTable(
   },
   table => [
     uniqueIndex('uq_analysis_queue_job_id').on(table.jobId),
-    check('check_queue_stage', sql`${table.stage} IN ('fetch_jobs_details', 'inference')`),
+    check('check_queue_stage', sql`${table.stage} IN ('fetch_job_details', 'rank')`),
   ]
 )
 
@@ -296,6 +296,6 @@ CREATE TABLE IF NOT EXISTS analysis_queue (
     queued_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     completed_at TEXT,
     CONSTRAINT uq_analysis_queue_job_id UNIQUE (job_id),
-    CONSTRAINT check_queue_stage CHECK (stage IN ('fetch_job_details', 'inference'))
+    CONSTRAINT check_queue_stage CHECK (stage IN ('fetch_job_details', 'rank'))
 );
 `

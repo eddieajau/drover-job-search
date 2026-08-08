@@ -1,0 +1,174 @@
+/**
+ * @copyright 2026 Andrew Eddie. All rights reserved.
+ * @license   MIT
+ */
+
+import { analysisQueue, createDb, jobs, type DB } from 'db'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { drain, drainOne, type DetailFn } from './fetch-job-details.js'
+
+describe('fetch-job-details drain', () => {
+  let db: ReturnType<typeof createDb>
+
+  beforeEach(() => {
+    db = createDb(':memory:')
+  })
+
+  afterEach(() => {
+    db.$client.close()
+  })
+
+  function seedQueue(db: DB, providerJobId: string, stage: 'fetch_job_details' | 'rank' = 'fetch_job_details') {
+    db.insert(jobs)
+      .values({
+        provider: 'linkedin',
+        providerJobId,
+        title: 'Test Job',
+        companyName: 'Acme',
+        url: `https://example.com/${providerJobId}`,
+        location: 'Remote',
+      })
+      .run()
+    const job = db
+      .select()
+      .from(jobs)
+      .all()
+      .find(j => j.providerJobId === providerJobId)!
+    db.insert(analysisQueue).values({ jobId: job.id, stage }).run()
+    const queue = db
+      .select()
+      .from(analysisQueue)
+      .all()
+      .find(q => q.jobId === job.id)!
+    return { jobId: job.id, queueId: queue.id }
+  }
+
+  it('writes markdown and advances the row to rank', async () => {
+    seedQueue(db, '123456')
+    const onProgress = vi.fn()
+
+    const result = await drain(db, {
+      detailFn: async () => ({ description: '<h2>The Team</h2><ul><li>a</li><li>b</li></ul>' }),
+      onProgress,
+    })
+
+    expect(result).toEqual({ processed: 1, failed: 0 })
+    const job = db.select().from(jobs).get()!
+    expect(job.description).toBe('## The Team\n\n-   a\n-   b')
+
+    const queue = db.select().from(analysisQueue).get()!
+    expect(queue.stage).toBe('rank')
+    expect(queue.completedAt).toBeNull()
+    expect(onProgress).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the row pending when detail returns null', async () => {
+    seedQueue(db, '123456')
+    const onError = vi.fn()
+
+    const result = await drain(db, { detailFn: async () => null, onError })
+
+    expect(result).toEqual({ processed: 0, failed: 1 })
+    const job = db.select().from(jobs).get()!
+    expect(job.description).toBeNull()
+
+    const queue = db.select().from(analysisQueue).get()!
+    expect(queue.stage).toBe('fetch_job_details')
+    expect(queue.completedAt).toBeNull()
+    expect(queue.errorMessage).toBe('no description')
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError.mock.calls[0][1]).toBeNull()
+  })
+
+  it('keeps the row pending when detail throws', async () => {
+    seedQueue(db, '123456')
+    const onError = vi.fn()
+    const error = new Error('network error')
+
+    const result = await drain(db, {
+      detailFn: async () => {
+        throw error
+      },
+      onError,
+    })
+
+    expect(result).toEqual({ processed: 0, failed: 1 })
+    const job = db.select().from(jobs).get()!
+    expect(job.description).toBeNull()
+
+    const queue = db.select().from(analysisQueue).get()!
+    expect(queue.stage).toBe('fetch_job_details')
+    expect(queue.completedAt).toBeNull()
+    expect(queue.errorMessage).toBe('network error')
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError.mock.calls[0][1]).toBe(error)
+  })
+
+  it('respects the limit', async () => {
+    for (const id of ['111111', '222222', '333333']) {
+      seedQueue(db, id)
+    }
+
+    const calls: string[] = []
+    const detailFn: DetailFn = async opts => {
+      calls.push(opts.id)
+      return { description: 'desc' }
+    }
+
+    const result = await drain(db, { detailFn, limit: 2 })
+
+    expect(result).toEqual({ processed: 2, failed: 0 })
+    expect(calls).toHaveLength(2)
+
+    const pending = db
+      .select()
+      .from(analysisQueue)
+      .all()
+      .filter(q => q.stage === 'fetch_job_details')
+    expect(pending).toHaveLength(1)
+  })
+
+  it('does not pick up rows already at stage rank', async () => {
+    seedQueue(db, '123456', 'rank')
+    const detailFn = vi.fn<DetailFn>(async () => ({ description: 'desc' }))
+
+    const result = await drain(db, { detailFn })
+
+    expect(result).toEqual({ processed: 0, failed: 0 })
+    expect(detailFn).not.toHaveBeenCalled()
+  })
+
+  it('drainOne writes a single row by queue id', async () => {
+    const { queueId } = seedQueue(db, '123456')
+    const detailFn = vi.fn<DetailFn>(async () => ({ description: 'desc' }))
+
+    const outcome = await drainOne(db, queueId, { detailFn })
+
+    expect(outcome).toBe('written')
+    expect(detailFn).toHaveBeenCalledWith({ id: '123456' })
+    const queue = db.select().from(analysisQueue).get()!
+    expect(queue.stage).toBe('rank')
+  })
+
+  it('drainOne fails a row when detail throws', async () => {
+    const { queueId } = seedQueue(db, '123456')
+
+    const outcome = await drainOne(db, queueId, {
+      detailFn: async () => {
+        throw new Error('network error')
+      },
+    })
+
+    expect(outcome).toBe('failed')
+    const queue = db.select().from(analysisQueue).get()!
+    expect(queue.errorMessage).toBe('network error')
+    expect(queue.stage).toBe('fetch_job_details')
+  })
+
+  it('drainOne returns failed for an unknown queue id', async () => {
+    const outcome = await drainOne(db, 999, { detailFn: async () => ({ description: 'desc' }) })
+
+    expect(outcome).toBe('failed')
+  })
+})
