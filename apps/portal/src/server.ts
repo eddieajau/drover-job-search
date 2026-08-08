@@ -17,6 +17,7 @@ import fastify from 'fastify'
 import { createDatabase } from './api/database.js'
 import type { BusEvents } from './bus.js'
 import { startDetailsWorker } from './workers/details-worker.js'
+import { startRankWorker } from './workers/rank-worker.js'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -46,6 +47,10 @@ app.decorate('bus', bus)
 const stopDetailsWorker = startDetailsWorker(app.bus, db, app.log)
 app.addHook('onClose', () => stopDetailsWorker())
 bus.emit('flagged', { jobId: 0 })
+
+const stopRankWorker = startRankWorker(app.bus, db, app.log)
+app.addHook('onClose', () => stopRankWorker())
+bus.emit('descriptions-ready', { jobId: 0 })
 
 await app.register(fastifyStatic, {
   root: resolve(__dirname, '../www'),
