@@ -6,7 +6,7 @@
 import { analysisQueue, createDb, jobs, type DB } from 'db'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { drain, drainOne, type DetailFn } from './fetch-job-details.js'
+import { drain, drainOne, type DetailFn } from './fetchJobDetails.js'
 
 describe('fetch-job-details drain', () => {
   let db: ReturnType<typeof createDb>

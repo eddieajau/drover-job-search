@@ -6,10 +6,10 @@
 import { type DB } from 'db'
 import type { FastifyBaseLogger } from 'fastify'
 
+import { createOllamaClient } from './clients/ollama.js'
 import type { DetailsWorker } from './details-worker.js'
-import { createOllamaClient } from './ollama.js'
-import * as rankJobDetails from './rank-job-details.js'
-import { createWorkerLoop } from './worker-loop.js'
+import { createWorkerLoop } from './loop.js'
+import * as rankJobDetails from './topics/rankJobDetails.js'
 
 export function startRankWorker(opts: {
   db: DB

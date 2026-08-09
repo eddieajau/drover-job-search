@@ -6,8 +6,8 @@
 import { type DB } from 'db'
 import type { FastifyBaseLogger } from 'fastify'
 
-import * as fetchJobDetails from './fetch-job-details.js'
-import { createWorkerLoop } from './worker-loop.js'
+import { createWorkerLoop } from './loop.js'
+import * as fetchJobDetails from './topics/fetchJobDetails.js'
 
 export interface DetailsWorker {
   kick(): void

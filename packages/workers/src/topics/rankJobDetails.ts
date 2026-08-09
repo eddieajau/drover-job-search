@@ -6,10 +6,10 @@
 import { analysisQueue, jobSignals, jobs, type DB } from 'db'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import type { OllamaClient } from './ollama.js'
+import type { OllamaClient } from '../clients/ollama.js'
+import { sanitise } from '../lib/sanitise.js'
+import { complete, selectPending, type PendingRow } from '../queue.js'
 import { buildPrompt } from './prompt.js'
-import { complete, selectPending, type PendingRow } from './queue.js'
-import { sanitise } from './sanitise.js'
 
 // Skips mark the queue row done rather than leaving it pending. A missing
 // description and invalid LLM output are deterministic — retrying won't help,
@@ -17,7 +17,7 @@ import { sanitise } from './sanitise.js'
 // marks failures done too (via fail()), so both drains keep the portal worker
 // loop from spinning; retrying failed rows is deferred to a later iteration.
 
-export { createOllamaClient } from './ollama.js'
+export { createOllamaClient } from '../clients/ollama.js'
 
 const GATE_NAMES = ['eligibility', 'language', 'location'] as const
 const DIMENSION_NAMES = ['technical', 'experience', 'behavioral', 'career'] as const

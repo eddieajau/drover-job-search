@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createWorkerLoop } from './worker-loop.js'
+import { createWorkerLoop } from './loop.js'
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0))
 

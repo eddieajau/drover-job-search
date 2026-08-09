@@ -6,7 +6,7 @@
 import { createDb } from 'db'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { WorkerLoopOptions } from './worker-loop.js'
+import type { WorkerLoopOptions } from './loop.js'
 
 const { kickFn, stopFn, captured } = vi.hoisted(() => ({
   kickFn: vi.fn(),
@@ -14,19 +14,19 @@ const { kickFn, stopFn, captured } = vi.hoisted(() => ({
   captured: { opts: undefined as WorkerLoopOptions | undefined },
 }))
 
-vi.mock('./worker-loop.js', () => ({
+vi.mock('./loop.js', () => ({
   createWorkerLoop: vi.fn((opts: WorkerLoopOptions) => {
     captured.opts = opts
     return { kick: kickFn, stop: stopFn }
   }),
 }))
 
-vi.mock('./fetch-job-details.js', () => ({
+vi.mock('./topics/fetchJobDetails.js', () => ({
   drain: vi.fn(() => Promise.resolve({ processed: 0, failed: 0 })),
 }))
 
 import { startDetailsWorker } from './details-worker.js'
-import * as fetchJobDetails from './fetch-job-details.js'
+import * as fetchJobDetails from './topics/fetchJobDetails.js'
 
 describe('startDetailsWorker', () => {
   const detailFn = vi.fn()

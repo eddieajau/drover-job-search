@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { toMarkdown } from './to-markdown.js'
+import { toMarkdown } from './markdown.js'
 
 describe('toMarkdown', () => {
   it('converts inline and block structure to markdown', () => {

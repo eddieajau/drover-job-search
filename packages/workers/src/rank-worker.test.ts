@@ -6,7 +6,7 @@
 import { createDb } from 'db'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { WorkerLoopOptions } from './worker-loop.js'
+import type { WorkerLoopOptions } from './loop.js'
 
 const { kickFn, stopFn, captured } = vi.hoisted(() => ({
   kickFn: vi.fn(),
@@ -14,7 +14,7 @@ const { kickFn, stopFn, captured } = vi.hoisted(() => ({
   captured: { opts: undefined as WorkerLoopOptions | undefined },
 }))
 
-vi.mock('./worker-loop.js', () => ({
+vi.mock('./loop.js', () => ({
   createWorkerLoop: vi.fn((opts: WorkerLoopOptions) => {
     captured.opts = opts
     return { kick: kickFn, stop: stopFn }
@@ -22,17 +22,17 @@ vi.mock('./worker-loop.js', () => ({
 }))
 
 const mockClient = { generate: vi.fn() }
-vi.mock('./ollama.js', () => ({
+vi.mock('./clients/ollama.js', () => ({
   createOllamaClient: vi.fn(() => mockClient),
 }))
 
-vi.mock('./rank-job-details.js', () => ({
+vi.mock('./topics/rankJobDetails.js', () => ({
   drain: vi.fn(() => Promise.resolve({ written: 0, skipped: 0 })),
 }))
 
-import { createOllamaClient } from './ollama.js'
-import * as rankJobDetails from './rank-job-details.js'
+import { createOllamaClient } from './clients/ollama.js'
 import { startRankWorker } from './rank-worker.js'
+import * as rankJobDetails from './topics/rankJobDetails.js'
 
 describe('startRankWorker', () => {
   const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }

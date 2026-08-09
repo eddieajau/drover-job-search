@@ -3,13 +3,13 @@
  * @license   MIT
  */
 
-export * as fetchJobDetails from './fetch-job-details.js'
-export * as rankJobDetails from './rank-job-details.js'
-export * as ollama from './ollama.js'
-export { createWorkerLoop } from './worker-loop.js'
-export type { WorkerLoop, WorkerLoopOptions } from './worker-loop.js'
-export { toMarkdown } from './to-markdown.js'
-export { sanitise } from './sanitise.js'
+export * as fetchJobDetails from './topics/fetchJobDetails.js'
+export * as rankJobDetails from './topics/rankJobDetails.js'
+export * as ollama from './clients/ollama.js'
+export { createWorkerLoop } from './loop.js'
+export type { WorkerLoop, WorkerLoopOptions } from './loop.js'
+export { toMarkdown } from './lib/markdown.js'
+export { sanitise } from './lib/sanitise.js'
 export type { AnalysisTopic, PendingRow } from './queue.js'
 export { createQueueService } from './queue-service.js'
 export type { QueueService } from './queue-service.js'

@@ -6,8 +6,8 @@
 import { analysisQueue, jobs, type DB } from 'db'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
-import { advanceTo, fail, selectPending, type PendingRow } from './queue.js'
-import { toMarkdown } from './to-markdown.js'
+import { toMarkdown } from '../lib/markdown.js'
+import { advanceTo, fail, selectPending, type PendingRow } from '../queue.js'
 
 export type DetailFn = (opts: { id: string }) => Promise<{ description: string | null } | null>
 

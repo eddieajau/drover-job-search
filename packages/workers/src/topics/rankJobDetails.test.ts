@@ -6,9 +6,9 @@
 import { analysisQueue, createDb, jobSignals, jobs, type DB } from 'db'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { OllamaClient } from './ollama.js'
-import { advanceTo } from './queue.js'
-import { drain, drainOne } from './rank-job-details.js'
+import type { OllamaClient } from '../clients/ollama.js'
+import { advanceTo } from '../queue.js'
+import { drain, drainOne } from './rankJobDetails.js'
 
 describe('rank-job-details drain', () => {
   let db: ReturnType<typeof createDb>
