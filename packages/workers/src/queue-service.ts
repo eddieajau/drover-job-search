@@ -5,7 +5,7 @@
 
 import { analysisQueue, type DB } from 'db'
 
-import type { AnalysisStage } from './queue.js'
+import type { AnalysisTopic } from './queue.js'
 
 export interface QueueService {
   fetchJobDetails(jobId: number): void
@@ -13,18 +13,18 @@ export interface QueueService {
 
 export function createQueueService(opts: {
   db: DB
-  onEnqueue?: (jobId: number, stage: AnalysisStage) => void
+  onEnqueue?: (jobId: number, topic: AnalysisTopic) => void
 }): QueueService {
-  function enqueue(jobId: number, stage: AnalysisStage): void {
+  function enqueue(jobId: number, topic: AnalysisTopic): void {
     opts.db
       .insert(analysisQueue)
-      .values({ jobId, stage, completedAt: null })
+      .values({ jobId, topic, completedAt: null })
       .onConflictDoUpdate({
         target: analysisQueue.jobId,
-        set: { completedAt: null, stage, errorMessage: null },
+        set: { completedAt: null, topic, errorMessage: null },
       })
       .run()
-    opts.onEnqueue?.(jobId, stage)
+    opts.onEnqueue?.(jobId, topic)
   }
 
   return {

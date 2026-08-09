@@ -48,7 +48,7 @@ describe('POST /api/jobs/:jobId/flag', () => {
 
     const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()
     expect(row).toBeDefined()
-    expect(row?.stage).toBe('fetch_job_details')
+    expect(row?.topic).toBe('fetch_job_details')
     expect(row?.completedAt).toBeNull()
   })
 
@@ -66,13 +66,13 @@ describe('POST /api/jobs/:jobId/flag', () => {
 
   it('resets stage and clears errorMessage on re-flag (upsert path)', async () => {
     const job = seedJob(db, JOB1)
-    db.insert(analysisQueue).values({ jobId: job.id, stage: 'rank', errorMessage: 'previous failure' }).run()
+    db.insert(analysisQueue).values({ jobId: job.id, topic: 'rank', errorMessage: 'previous failure' }).run()
 
     const res = await app.inject({ method: 'POST', url: `/${job.id}/flag` })
     expect(res.statusCode).toBe(202)
 
     const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()
-    expect(row?.stage).toBe('fetch_job_details')
+    expect(row?.topic).toBe('fetch_job_details')
     expect(row?.errorMessage).toBeNull()
   })
 })

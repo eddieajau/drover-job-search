@@ -19,7 +19,7 @@ describe('fetch-job-details drain', () => {
     db.$client.close()
   })
 
-  function seedQueue(db: DB, providerJobId: string, stage: 'fetch_job_details' | 'rank' = 'fetch_job_details') {
+  function seedQueue(db: DB, providerJobId: string, topic: 'fetch_job_details' | 'rank' = 'fetch_job_details') {
     db.insert(jobs)
       .values({
         provider: 'linkedin',
@@ -35,7 +35,7 @@ describe('fetch-job-details drain', () => {
       .from(jobs)
       .all()
       .find(j => j.providerJobId === providerJobId)!
-    db.insert(analysisQueue).values({ jobId: job.id, stage }).run()
+    db.insert(analysisQueue).values({ jobId: job.id, topic }).run()
     const queue = db
       .select()
       .from(analysisQueue)
@@ -58,7 +58,7 @@ describe('fetch-job-details drain', () => {
     expect(job.description).toBe('## The Team\n\n-   a\n-   b')
 
     const queue = db.select().from(analysisQueue).get()!
-    expect(queue.stage).toBe('rank')
+    expect(queue.topic).toBe('rank')
     expect(queue.completedAt).toBeNull()
     expect(onProgress).toHaveBeenCalledTimes(1)
   })
@@ -74,7 +74,7 @@ describe('fetch-job-details drain', () => {
     expect(job.description).toBeNull()
 
     const queue = db.select().from(analysisQueue).get()!
-    expect(queue.stage).toBe('fetch_job_details')
+    expect(queue.topic).toBe('fetch_job_details')
     expect(queue.completedAt).not.toBeNull()
     expect(queue.errorMessage).toBe('no description')
     expect(onError).toHaveBeenCalledTimes(1)
@@ -98,7 +98,7 @@ describe('fetch-job-details drain', () => {
     expect(job.description).toBeNull()
 
     const queue = db.select().from(analysisQueue).get()!
-    expect(queue.stage).toBe('fetch_job_details')
+    expect(queue.topic).toBe('fetch_job_details')
     expect(queue.completedAt).not.toBeNull()
     expect(queue.errorMessage).toBe('network error')
     expect(onError).toHaveBeenCalledTimes(1)
@@ -137,11 +137,11 @@ describe('fetch-job-details drain', () => {
       .select()
       .from(analysisQueue)
       .all()
-      .filter(q => q.stage === 'fetch_job_details')
+      .filter(q => q.topic === 'fetch_job_details')
     expect(pending).toHaveLength(1)
   })
 
-  it('does not pick up rows already at stage rank', async () => {
+  it('does not pick up rows already at topic rank', async () => {
     seedQueue(db, '123456', 'rank')
     const detailFn = vi.fn<DetailFn>(async () => ({ description: 'desc' }))
 
@@ -160,7 +160,7 @@ describe('fetch-job-details drain', () => {
     expect(outcome).toBe('written')
     expect(detailFn).toHaveBeenCalledWith({ id: '123456' })
     const queue = db.select().from(analysisQueue).get()!
-    expect(queue.stage).toBe('rank')
+    expect(queue.topic).toBe('rank')
   })
 
   it('drainOne fails a row when detail throws', async () => {
@@ -175,7 +175,7 @@ describe('fetch-job-details drain', () => {
     expect(outcome).toBe('failed')
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.errorMessage).toBe('network error')
-    expect(queue.stage).toBe('fetch_job_details')
+    expect(queue.topic).toBe('fetch_job_details')
     expect(queue.completedAt).not.toBeNull()
   })
 

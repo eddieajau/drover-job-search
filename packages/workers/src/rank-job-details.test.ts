@@ -25,7 +25,7 @@ describe('rank-job-details drain', () => {
     db: DB,
     providerJobId: string,
     description: string | null = 'A great job',
-    stage: 'fetch_job_details' | 'rank' = 'rank'
+    topic: 'fetch_job_details' | 'rank' = 'rank'
   ) {
     db.insert(jobs)
       .values({
@@ -43,7 +43,7 @@ describe('rank-job-details drain', () => {
       .from(jobs)
       .all()
       .find(j => j.providerJobId === providerJobId)!
-    db.insert(analysisQueue).values({ jobId: job.id, stage }).run()
+    db.insert(analysisQueue).values({ jobId: job.id, topic }).run()
     const queue = db
       .select()
       .from(analysisQueue)
@@ -327,7 +327,7 @@ describe('rank-job-details drain', () => {
     expect(pending).toHaveLength(1)
   })
 
-  it('does not pick up rows still at stage fetch_job_details', async () => {
+  it('does not pick up rows still at topic fetch_job_details', async () => {
     seedQueue(db, '123456', 'A great job', 'fetch_job_details')
     const generate = vi.fn(async () => documentedResponse)
 

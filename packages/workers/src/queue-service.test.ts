@@ -21,27 +21,27 @@ describe('createQueueService', () => {
     db.$client.close()
   })
 
-  it('inserts a row at stage fetch_job_details with null completedAt and errorMessage', () => {
+  it('inserts a row at topic fetch_job_details with null completedAt and errorMessage', () => {
     const job = seedJob(db, JOB1)
     const svc = createQueueService({ db })
 
     svc.fetchJobDetails(job.id)
 
     const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()!
-    expect(row.stage).toBe('fetch_job_details')
+    expect(row.topic).toBe('fetch_job_details')
     expect(row.completedAt).toBeNull()
     expect(row.errorMessage).toBeNull()
   })
 
-  it('resets stage and clears errorMessage on conflict', () => {
+  it('resets topic and clears errorMessage on conflict', () => {
     const job = seedJob(db, JOB1)
-    db.insert(analysisQueue).values({ jobId: job.id, stage: 'rank', errorMessage: 'previous failure' }).run()
+    db.insert(analysisQueue).values({ jobId: job.id, topic: 'rank', errorMessage: 'previous failure' }).run()
     const svc = createQueueService({ db })
 
     svc.fetchJobDetails(job.id)
 
     const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()!
-    expect(row.stage).toBe('fetch_job_details')
+    expect(row.topic).toBe('fetch_job_details')
     expect(row.errorMessage).toBeNull()
     expect(row.completedAt).toBeNull()
   })
@@ -59,7 +59,7 @@ describe('createQueueService', () => {
 
   it('calls onEnqueue on the conflict path too', () => {
     const job = seedJob(db, JOB1)
-    db.insert(analysisQueue).values({ jobId: job.id, stage: 'rank', errorMessage: 'previous failure' }).run()
+    db.insert(analysisQueue).values({ jobId: job.id, topic: 'rank', errorMessage: 'previous failure' }).run()
     const onEnqueue = vi.fn()
     const svc = createQueueService({ db, onEnqueue })
 

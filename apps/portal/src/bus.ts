@@ -1,4 +1,4 @@
-import type { AnalysisStage } from 'workers'
+import type { AnalysisTopic } from 'workers'
 
 export type BusEventName = 'kick'
-export type BusEvents = Record<BusEventName, [payload: { stage: AnalysisStage }]>
+export type BusEvents = Record<BusEventName, [payload: { stage: AnalysisTopic }]>

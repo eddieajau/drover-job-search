@@ -38,9 +38,9 @@ describe('GET /api/analysis-queue/summary', () => {
     const jobA = seedJob(db, JOB1)
     const jobB = seedJob(db, JOB2)
     const jobC = seedJob(db, { ...JOB1, providerJobId: 'job-3' })
-    db.insert(analysisQueue).values({ jobId: jobA.id, stage: 'fetch_job_details' }).run()
-    db.insert(analysisQueue).values({ jobId: jobB.id, stage: 'rank' }).run()
-    db.insert(analysisQueue).values({ jobId: jobC.id, stage: 'rank', completedAt: '2026-08-08T00:00:00Z' }).run()
+    db.insert(analysisQueue).values({ jobId: jobA.id, topic: 'fetch_job_details' }).run()
+    db.insert(analysisQueue).values({ jobId: jobB.id, topic: 'rank' }).run()
+    db.insert(analysisQueue).values({ jobId: jobC.id, topic: 'rank', completedAt: '2026-08-08T00:00:00Z' }).run()
 
     const res = await app.inject({ method: 'GET', url: '/summary' })
     expect(res.statusCode).toBe(200)
@@ -54,7 +54,7 @@ describe('GET /api/analysis-queue/summary', () => {
   it('limits recent to 20 rows ordered by id descending', async () => {
     for (let n = 1; n <= 25; n++) {
       const job = seedJob(db, { ...JOB1, providerJobId: `job-${n}`, title: `Job ${n}` })
-      db.insert(analysisQueue).values({ jobId: job.id, stage: 'fetch_job_details' }).run()
+      db.insert(analysisQueue).values({ jobId: job.id, topic: 'fetch_job_details' }).run()
     }
 
     const res = await app.inject({ method: 'GET', url: '/summary' })
@@ -69,8 +69,8 @@ describe('GET /api/analysis-queue/summary', () => {
   it('joins job title and providerJobId into each recent row', async () => {
     const jobA = seedJob(db, JOB1)
     const jobB = seedJob(db, JOB2)
-    db.insert(analysisQueue).values({ jobId: jobA.id, stage: 'fetch_job_details' }).run()
-    db.insert(analysisQueue).values({ jobId: jobB.id, stage: 'rank', completedAt: '2026-08-08T00:00:00Z' }).run()
+    db.insert(analysisQueue).values({ jobId: jobA.id, topic: 'fetch_job_details' }).run()
+    db.insert(analysisQueue).values({ jobId: jobB.id, topic: 'rank', completedAt: '2026-08-08T00:00:00Z' }).run()
 
     const res = await app.inject({ method: 'GET', url: '/summary' })
     expect(res.statusCode).toBe(200)

@@ -170,7 +170,7 @@ export const analysisQueue = sqliteTable(
     jobId: integer('job_id')
       .notNull()
       .references(() => jobs.id, { onDelete: 'cascade' }),
-    stage: text('stage').notNull(),
+    topic: text('topic').notNull(),
     errorMessage: text('error_message'),
     queuedAt: text('queued_at')
       .notNull()
@@ -179,7 +179,7 @@ export const analysisQueue = sqliteTable(
   },
   table => [
     uniqueIndex('uq_analysis_queue_job_id').on(table.jobId),
-    check('check_queue_stage', sql`${table.stage} IN ('fetch_job_details', 'rank')`),
+    check('check_queue_topic', sql`${table.topic} IN ('fetch_job_details', 'rank')`),
   ]
 )
 
@@ -328,12 +328,12 @@ CREATE INDEX IF NOT EXISTS idx_job_signals_rule_id ON job_signals(rule_id);
 CREATE TABLE IF NOT EXISTS analysis_queue (
     id INTEGER PRIMARY KEY,
     job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-    stage TEXT NOT NULL,
+    topic TEXT NOT NULL,
     error_message TEXT,
     queued_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     completed_at TEXT,
     CONSTRAINT uq_analysis_queue_job_id UNIQUE (job_id),
-    CONSTRAINT check_queue_stage CHECK (stage IN ('fetch_job_details', 'rank'))
+    CONSTRAINT check_queue_topic CHECK (topic IN ('fetch_job_details', 'rank'))
 );
 
 CREATE TABLE IF NOT EXISTS facts (

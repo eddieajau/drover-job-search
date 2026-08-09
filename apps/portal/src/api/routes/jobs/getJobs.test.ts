@@ -148,7 +148,7 @@ describe('GET /api/jobs queued join', () => {
   it('marks a job queued when an analysis_queue row exists', async () => {
     const jobA = seedJob(db, JOB1)
     seedJob(db, JOB2)
-    db.insert(analysisQueue).values({ jobId: jobA.id, stage: 'fetch_job_details' }).run()
+    db.insert(analysisQueue).values({ jobId: jobA.id, topic: 'fetch_job_details' }).run()
 
     const res = await app.inject({ method: 'GET', url: '/' })
     const results = res.json().results as Array<{ providerJobId: string; queued: boolean }>

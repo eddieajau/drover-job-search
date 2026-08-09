@@ -140,7 +140,7 @@ export function toJobJson(row: JobRow, summary?: SignalSummary, queued = false):
 export interface QueueResponse {
   id: number
   jobId: number
-  stage: string
+  topic: string
   errorMessage: string | null
   queuedAt: string
   completedAt: string | null

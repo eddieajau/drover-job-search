@@ -6,7 +6,7 @@
 import { analysisQueue, jobs, type DB } from 'db'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
-export type AnalysisStage = 'fetch_job_details' | 'rank'
+export type AnalysisTopic = 'fetch_job_details' | 'rank'
 
 export interface PendingRow {
   queueId: number
@@ -15,7 +15,7 @@ export interface PendingRow {
   title: string
 }
 
-export function selectPending(db: DB, stage: AnalysisStage, limit?: number): PendingRow[] {
+export function selectPending(db: DB, topic: AnalysisTopic, limit?: number): PendingRow[] {
   const query = db
     .select({
       queueId: analysisQueue.id,
@@ -25,16 +25,16 @@ export function selectPending(db: DB, stage: AnalysisStage, limit?: number): Pen
     })
     .from(analysisQueue)
     .innerJoin(jobs, eq(analysisQueue.jobId, jobs.id))
-    .where(and(eq(analysisQueue.stage, stage), isNull(analysisQueue.completedAt)))
+    .where(and(eq(analysisQueue.topic, topic), isNull(analysisQueue.completedAt)))
     .orderBy(analysisQueue.id)
 
   if (limit !== undefined) return query.limit(limit).all()
   return query.all()
 }
 
-export function advanceTo(db: DB, queueId: number, stage: AnalysisStage): void {
+export function advanceTo(db: DB, queueId: number, topic: AnalysisTopic): void {
   db.update(analysisQueue)
-    .set({ stage, completedAt: null, errorMessage: null })
+    .set({ topic, completedAt: null, errorMessage: null })
     .where(eq(analysisQueue.id, queueId))
     .run()
 }

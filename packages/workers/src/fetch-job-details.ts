@@ -50,7 +50,7 @@ function selectPendingRow(db: DB, queueId: number): PendingRow | null {
       .where(
         and(
           eq(analysisQueue.id, queueId),
-          eq(analysisQueue.stage, 'fetch_job_details'),
+          eq(analysisQueue.topic, 'fetch_job_details'),
           isNull(analysisQueue.completedAt)
         )
       )

@@ -146,7 +146,7 @@ function selectPendingRow(db: DB, queueId: number): PendingRow | null {
       })
       .from(analysisQueue)
       .innerJoin(jobs, eq(analysisQueue.jobId, jobs.id))
-      .where(and(eq(analysisQueue.id, queueId), eq(analysisQueue.stage, 'rank'), isNull(analysisQueue.completedAt)))
+      .where(and(eq(analysisQueue.id, queueId), eq(analysisQueue.topic, 'rank'), isNull(analysisQueue.completedAt)))
       .get() ?? null
   )
 }

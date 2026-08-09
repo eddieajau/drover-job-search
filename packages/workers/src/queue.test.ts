@@ -36,16 +36,16 @@ describe('queue helpers', () => {
       .from(jobs)
       .all()
       .find(j => j.providerJobId === providerJobId)!
-    db.insert(analysisQueue).values({ jobId: job.id, stage: 'fetch_job_details' }).run()
+    db.insert(analysisQueue).values({ jobId: job.id, topic: 'fetch_job_details' }).run()
     return job.id
   }
 
   describe('selectPending', () => {
-    it('selects rows for the requested stage with completed_at null', () => {
+    it('selects rows for the requested topic with completed_at null', () => {
       const a = seedJob(db, 'a')
       const b = seedJob(db, 'b')
       const c = seedJob(db, 'c')
-      db.update(analysisQueue).set({ stage: 'rank' }).where(eq(analysisQueue.jobId, c)).run()
+      db.update(analysisQueue).set({ topic: 'rank' }).where(eq(analysisQueue.jobId, c)).run()
       db.update(analysisQueue).set({ completedAt: '2026-01-01' }).where(eq(analysisQueue.jobId, a)).run()
 
       const rows = selectPending(db, 'fetch_job_details')
@@ -80,7 +80,7 @@ describe('queue helpers', () => {
   })
 
   describe('advanceTo', () => {
-    it('sets the next stage and re-arms completed_at and error_message', () => {
+    it('sets the next topic and re-arms completed_at and error_message', () => {
       const jobId = seedJob(db, 'a')
       db.update(analysisQueue).set({ errorMessage: 'previous failure' }).where(eq(analysisQueue.jobId, jobId)).run()
 
@@ -88,7 +88,7 @@ describe('queue helpers', () => {
       advanceTo(db, row.id, 'rank')
 
       const updated = db.select().from(analysisQueue).get()!
-      expect(updated.stage).toBe('rank')
+      expect(updated.topic).toBe('rank')
       expect(updated.completedAt).toBeNull()
       expect(updated.errorMessage).toBeNull()
     })
@@ -109,7 +109,7 @@ describe('queue helpers', () => {
   })
 
   describe('fail', () => {
-    it('records error_message, stamps completed_at, and leaves stage untouched', () => {
+    it('records error_message, stamps completed_at, and leaves topic untouched', () => {
       seedJob(db, 'a')
 
       const row = db.select().from(analysisQueue).get()!
@@ -118,7 +118,7 @@ describe('queue helpers', () => {
       const updated = db.select().from(analysisQueue).get()!
       expect(updated.errorMessage).toBe('no description')
       expect(updated.completedAt).not.toBeNull()
-      expect(updated.stage).toBe('fetch_job_details')
+      expect(updated.topic).toBe('fetch_job_details')
     })
 
     it('removes the row from the pending set', () => {
