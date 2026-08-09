@@ -8,9 +8,9 @@ import { eq } from 'drizzle-orm'
 import { createTestDb, JOB1, seedJob } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createQueueService } from './queue-service.js'
+import { createPublisher } from './publisher.js'
 
-describe('createQueueService', () => {
+describe('createPublisher', () => {
   let db: DB
 
   beforeEach(() => {
@@ -21,11 +21,11 @@ describe('createQueueService', () => {
     db.$client.close()
   })
 
-  it('inserts a row at topic fetch_job_details with null completedAt and errorMessage', () => {
+  it('publishes a row at the requested topic with null completedAt and errorMessage', () => {
     const job = seedJob(db, JOB1)
-    const svc = createQueueService({ db })
+    const publisher = createPublisher({ db })
 
-    svc.fetchJobDetails(job.id)
+    publisher.publish(job.id, 'fetch_job_details')
 
     const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()!
     expect(row.topic).toBe('fetch_job_details')
@@ -33,12 +33,12 @@ describe('createQueueService', () => {
     expect(row.errorMessage).toBeNull()
   })
 
-  it('resets topic and clears errorMessage on conflict', () => {
+  it('is idempotent on conflict: resets topic and clears errorMessage', () => {
     const job = seedJob(db, JOB1)
     db.insert(analysisQueue).values({ jobId: job.id, topic: 'rank', errorMessage: 'previous failure' }).run()
-    const svc = createQueueService({ db })
+    const publisher = createPublisher({ db })
 
-    svc.fetchJobDetails(job.id)
+    publisher.publish(job.id, 'fetch_job_details')
 
     const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()!
     expect(row.topic).toBe('fetch_job_details')
@@ -46,12 +46,22 @@ describe('createQueueService', () => {
     expect(row.completedAt).toBeNull()
   })
 
-  it('calls onEnqueue with (jobId, fetch_job_details) after insert', () => {
+  it('publishes to any topic, including rank', () => {
+    const job = seedJob(db, JOB1)
+    const publisher = createPublisher({ db })
+
+    publisher.publish(job.id, 'rank')
+
+    const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()!
+    expect(row.topic).toBe('rank')
+  })
+
+  it('calls onEnqueue with (jobId, topic) after insert', () => {
     const job = seedJob(db, JOB1)
     const onEnqueue = vi.fn()
-    const svc = createQueueService({ db, onEnqueue })
+    const publisher = createPublisher({ db, onEnqueue })
 
-    svc.fetchJobDetails(job.id)
+    publisher.publish(job.id, 'fetch_job_details')
 
     expect(onEnqueue).toHaveBeenCalledOnce()
     expect(onEnqueue).toHaveBeenCalledWith(job.id, 'fetch_job_details')
@@ -61,9 +71,9 @@ describe('createQueueService', () => {
     const job = seedJob(db, JOB1)
     db.insert(analysisQueue).values({ jobId: job.id, topic: 'rank', errorMessage: 'previous failure' }).run()
     const onEnqueue = vi.fn()
-    const svc = createQueueService({ db, onEnqueue })
+    const publisher = createPublisher({ db, onEnqueue })
 
-    svc.fetchJobDetails(job.id)
+    publisher.publish(job.id, 'fetch_job_details')
 
     expect(onEnqueue).toHaveBeenCalledOnce()
     expect(onEnqueue).toHaveBeenCalledWith(job.id, 'fetch_job_details')
@@ -71,8 +81,8 @@ describe('createQueueService', () => {
 
   it('does not throw when onEnqueue is omitted', () => {
     const job = seedJob(db, JOB1)
-    const svc = createQueueService({ db })
+    const publisher = createPublisher({ db })
 
-    expect(() => svc.fetchJobDetails(job.id)).not.toThrow()
+    expect(() => publisher.publish(job.id, 'rank')).not.toThrow()
   })
 })

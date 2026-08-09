@@ -17,7 +17,7 @@ const postJobFlag: FastifyPluginAsync = async app => {
     if (!job) {
       return reply.notFound(`Job ${jobId} not found`)
     }
-    app.queues.fetchJobDetails(jobId)
+    app.publisher.publish(jobId, 'fetch_job_details')
     return reply.code(202).send()
   })
 }

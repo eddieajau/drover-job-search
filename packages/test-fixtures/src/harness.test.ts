@@ -55,8 +55,8 @@ describe('build', () => {
     expect(app.bus).toBeDefined()
   })
 
-  it('decorates fastify.queues with a QueueService', () => {
-    expect(app.queues).toBeDefined()
+  it('decorates fastify.publisher with a Publisher', () => {
+    expect(app.publisher).toBeDefined()
   })
 
   it('registers the route under an optional prefix so route params reach the handler', async () => {

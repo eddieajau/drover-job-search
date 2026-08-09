@@ -7,14 +7,14 @@ import { analysisQueue, type DB } from 'db'
 
 import type { AnalysisTopic } from './queue.js'
 
-export interface QueueService {
-  fetchJobDetails(jobId: number): void
+export interface Publisher {
+  publish(jobId: number, topic: AnalysisTopic): void
 }
 
-export function createQueueService(opts: {
+export function createPublisher(opts: {
   db: DB
   onEnqueue?: (jobId: number, topic: AnalysisTopic) => void
-}): QueueService {
+}): Publisher {
   function enqueue(jobId: number, topic: AnalysisTopic): void {
     opts.db
       .insert(analysisQueue)
@@ -27,7 +27,5 @@ export function createQueueService(opts: {
     opts.onEnqueue?.(jobId, topic)
   }
 
-  return {
-    fetchJobDetails: (jobId: number) => enqueue(jobId, 'fetch_job_details'),
-  }
+  return { publish: (jobId: number, topic: AnalysisTopic) => enqueue(jobId, topic) }
 }

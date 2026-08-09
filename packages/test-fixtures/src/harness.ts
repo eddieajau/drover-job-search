@@ -5,7 +5,7 @@ import { type DB } from 'db'
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import Fastify from 'fastify'
 import { vi } from 'vitest'
-import { createQueueService, type QueueService } from 'workers'
+import { createPublisher, type Publisher } from 'workers'
 
 type BusEventName = 'kick'
 type BusEvents = Record<BusEventName, [payload: { topic: 'fetch_job_details' | 'rank' }]>
@@ -14,7 +14,7 @@ declare module 'fastify' {
   interface FastifyInstance {
     db: DB
     bus: EventEmitter<BusEvents>
-    queues: QueueService
+    publisher: Publisher
   }
 }
 
@@ -25,8 +25,8 @@ export async function build(route: FastifyPluginAsync, options: { db: DB; prefix
   const bus = new EventEmitter<BusEvents>()
   app.decorate('bus', bus)
   app.decorate(
-    'queues',
-    createQueueService({ db: options.db, onEnqueue: (_jobId, topic) => bus.emit('kick', { topic }) })
+    'publisher',
+    createPublisher({ db: options.db, onEnqueue: (_jobId, topic) => bus.emit('kick', { topic }) })
   )
   if (options.prefix === undefined) {
     await app.register(route)

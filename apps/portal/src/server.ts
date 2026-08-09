@@ -14,7 +14,7 @@ import { type DB } from 'db'
 import { config } from 'dotenv'
 import fastify from 'fastify'
 import { detail } from 'provider-linkedin'
-import { createQueueService, startDetailsWorker, startRankWorker, type QueueService } from 'workers'
+import { createPublisher, startDetailsWorker, startRankWorker, type Publisher } from 'workers'
 
 import { createDatabase } from './api/database.js'
 import type { BusEvents } from './bus.js'
@@ -23,7 +23,7 @@ declare module 'fastify' {
   interface FastifyInstance {
     db: DB
     bus: EventEmitter<BusEvents>
-    queues: QueueService
+    queues: Publisher
   }
 }
 
@@ -45,11 +45,11 @@ app.decorate('db', db)
 const bus = new EventEmitter<BusEvents>()
 app.decorate('bus', bus)
 
-const queues = createQueueService({
+const publisher = createPublisher({
   db,
   onEnqueue: (_jobId, topic) => bus.emit('kick', { topic }),
 })
-app.decorate('queues', queues)
+app.decorate('publisher', publisher)
 
 const details = startDetailsWorker({
   db,
