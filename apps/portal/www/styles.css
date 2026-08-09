@@ -416,6 +416,22 @@ job-list {
   background: var(--surface-2);
 }
 
+.btn-danger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--red);
+}
+
+.btn-danger:hover {
+  background: var(--red-soft);
+  border-color: transparent;
+}
+
+.btn-sm {
+  padding: 3px 9px;
+  font-size: 12px;
+}
+
 .priority-badge {
   display: inline-flex;
   align-items: center;
@@ -1342,4 +1358,178 @@ job-meta-panel {
 
 .signal-score.neg {
   color: var(--red);
+}
+
+/* Signal rules */
+
+.signals-page .page {
+  max-width: 1000px;
+}
+
+.signals-page .page-head {
+  margin-bottom: 4px;
+}
+
+.page-sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.dot-dealbreaker {
+  background: var(--red);
+}
+
+.dot-skill {
+  background: var(--green);
+}
+
+.dot-company {
+  background: var(--blue);
+}
+
+.rule-grid {
+  display: grid;
+  grid-template-columns: 44px 1.1fr 0.95fr 0.95fr 1.4fr 110px;
+  gap: 10px;
+  align-items: center;
+}
+
+.draft {
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 10px 16px;
+  margin-bottom: 12px;
+}
+
+.draft .input,
+.draft .select {
+  background: var(--field);
+  border-color: var(--border);
+}
+
+.draft-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.rules-header {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.rule-row {
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+}
+
+.rule-row:hover {
+  background: var(--surface-2);
+}
+
+.t-dealbreaker {
+  border-left-color: var(--red);
+}
+
+.t-skill_match {
+  border-left-color: var(--green);
+}
+
+.t-company_match {
+  border-left-color: var(--blue);
+}
+
+.rule-row .input,
+.rule-row .select {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+  font: 13px var(--font);
+  width: 100%;
+  min-width: 0;
+}
+
+.rule-row .input:hover,
+.rule-row .select:hover {
+  border-color: var(--border);
+}
+
+.rule-row .input:focus,
+.rule-row .select:focus {
+  outline: none;
+  background: var(--field);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.rule-row .input::placeholder {
+  color: var(--muted);
+}
+
+.rule-pattern {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.rule-row.is-editing {
+  background: var(--surface-2);
+}
+
+.rule-row.is-editing .input,
+.rule-row.is-editing .select {
+  background: var(--field);
+  border-color: var(--border);
+}
+
+.rule-row.is-disabled .input,
+.rule-row.is-disabled .select {
+  color: var(--muted);
+}
+
+.rule-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 860px) {
+  .rule-grid {
+    grid-template-columns: 40px 1fr 1fr 110px;
+  }
+  .rule-pattern,
+  .col-pattern {
+    display: none;
+  }
 }

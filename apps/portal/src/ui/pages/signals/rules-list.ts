@@ -5,6 +5,7 @@
 
 import type { RuleCategory, SignalRule, SignalType } from '../../../shared/types.js'
 import { escapeHtml as esc } from '../../escape.js'
+import '../../elements/toggle-switch.js'
 
 export interface RuleDraft {
   id?: number
@@ -23,6 +24,7 @@ export interface RulesListEventMap {
 
 const CATEGORIES: RuleCategory[] = ['regex_title', 'regex_company', 'regex_description']
 const SIGNAL_TYPES: SignalType[] = ['dealbreaker', 'skill_match', 'company_match']
+const ACCENT_CLASSES = SIGNAL_TYPES.map(type => `t-${type}`)
 
 export class RulesList extends HTMLElement {
   #rules: RuleDraft[] = []
@@ -49,12 +51,19 @@ export class RulesList extends HTMLElement {
     this.render()
   }
 
+  focusDraft(): void {
+    this.querySelector<HTMLInputElement>('#rule-draft .rule-name')?.focus()
+  }
+
   setupEventListeners(): void {
     this.cleanup()
     this.#abort = new AbortController()
     const opts = { signal: this.#abort.signal }
     this.addEventListener('click', this.#onClick, opts)
     this.addEventListener('change', this.#onChange, opts)
+    this.addEventListener('toggle-switch:change', this.#onToggle, opts)
+    this.addEventListener('focusin', this.#onFocusIn, opts)
+    this.addEventListener('focusout', this.#onFocusOut, opts)
   }
 
   cleanup(): void {
@@ -74,51 +83,73 @@ export class RulesList extends HTMLElement {
       case 'trash-row':
         this.#onTrashRow(btn)
         break
-      case 'add-row':
-        this.#onAddRow()
+      case 'save-draft':
+        this.#onSaveDraft()
+        break
+      case 'cancel-draft':
+        this.#onCancelDraft()
         break
     }
   }
 
   #onChange = (event: Event): void => {
-    const input = event.target as HTMLInputElement
-    if (input.dataset.action !== 'toggle-enabled') {
+    const target = event.target as HTMLSelectElement
+    if (!target.classList.contains('rule-signal-type')) {
       return
     }
-    const id = Number(input.dataset.id)
+    const row = target.closest<HTMLElement>('.rule-row')
+    if (!row) {
+      return
+    }
+    row.classList.remove(...ACCENT_CLASSES)
+    row.classList.add(`t-${target.value}`)
+  }
+
+  #onToggle = (event: Event): void => {
+    const { checked } = (event as CustomEvent<{ checked: boolean }>).detail
+    const row = (event.target as HTMLElement).closest<HTMLElement>('.rule-row')
+    if (!row?.dataset.id) {
+      return
+    }
+    const id = Number(row.dataset.id)
     const rule = this.#rules.find(r => r.id === id)
     if (!rule) {
       return
     }
-    rule.enabled = input.checked
+    rule.enabled = checked
+    row.classList.toggle('is-disabled', !checked)
     this.dispatchEvent(
       new CustomEvent('rules-list:toggle', {
         bubbles: true,
         composed: true,
-        detail: { id, enabled: input.checked, rules: this.#snapshot() },
+        detail: { id, enabled: checked, rules: this.#snapshot() },
       })
     )
   }
 
+  #onFocusIn = (event: Event): void => {
+    ;(event.target as HTMLElement).closest<HTMLElement>('.rule-row')?.classList.add('is-editing')
+  }
+
+  #onFocusOut = (event: Event): void => {
+    ;(event.target as HTMLElement).closest<HTMLElement>('.rule-row')?.classList.remove('is-editing')
+  }
+
   #onSaveRow(btn: HTMLButtonElement): void {
     const row = btn.closest<HTMLElement>('.rule-row')
-    if (!row) {
+    if (!row?.dataset.id) {
       return
     }
-    const id = row.dataset.id ? Number(row.dataset.id) : undefined
+    const id = Number(row.dataset.id)
     const draft = this.#readRow(row)
     if (!draft) {
       return
     }
-    if (id !== undefined) {
-      const idx = this.#rules.findIndex(r => r.id === id)
-      if (idx >= 0) {
-        this.#rules[idx] = { ...draft, id }
-      }
-    } else {
-      this.#rules.push(draft)
-      row.remove()
+    const idx = this.#rules.findIndex(r => r.id === id)
+    if (idx >= 0) {
+      this.#rules[idx] = { ...draft, id, enabled: this.#rules[idx].enabled }
     }
+    this.render()
     this.dispatchEvent(
       new CustomEvent('rules-list:save', {
         bubbles: true,
@@ -130,12 +161,12 @@ export class RulesList extends HTMLElement {
 
   #onTrashRow(btn: HTMLButtonElement): void {
     const row = btn.closest<HTMLElement>('.rule-row')
-    if (!row) {
+    if (!row?.dataset.id) {
       return
     }
     const id = Number(row.dataset.id)
     this.#rules = this.#rules.filter(r => r.id !== id)
-    row.remove()
+    this.render()
     this.dispatchEvent(
       new CustomEvent('rules-list:trash', {
         bubbles: true,
@@ -145,16 +176,32 @@ export class RulesList extends HTMLElement {
     )
   }
 
-  #onAddRow(): void {
-    const container = this.querySelector('.rules-rows')
-    if (!container) {
+  #onSaveDraft(): void {
+    const draftRow = this.querySelector<HTMLElement>('#rule-draft')
+    if (!draftRow) {
       return
     }
-    const existing = container.querySelector('.rule-row-new')
-    if (existing) {
+    const draft = this.#readRow(draftRow)
+    if (!draft) {
       return
     }
-    container.insertAdjacentHTML('beforeend', this.#newRowTemplate())
+    this.#rules.push(draft)
+    this.render()
+    this.dispatchEvent(
+      new CustomEvent('rules-list:save', {
+        bubbles: true,
+        composed: true,
+        detail: { rules: this.#snapshot() },
+      })
+    )
+  }
+
+  #onCancelDraft(): void {
+    const draftRow = this.querySelector<HTMLElement>('#rule-draft')
+    if (!draftRow) {
+      return
+    }
+    this.#clearRowInputs(draftRow)
   }
 
   #readRow(row: HTMLElement): RuleDraft | null {
@@ -166,6 +213,17 @@ export class RulesList extends HTMLElement {
       return null
     }
     return { ruleName: name, ruleCategory: category, signalType, pattern, enabled: true }
+  }
+
+  #clearRowInputs(row: HTMLElement): void {
+    const name = row.querySelector<HTMLInputElement>('.rule-name')
+    const pattern = row.querySelector<HTMLInputElement>('.rule-pattern')
+    if (name) {
+      name.value = ''
+    }
+    if (pattern) {
+      pattern.value = ''
+    }
   }
 
   #snapshot(): RuleDraft[] {
@@ -184,67 +242,59 @@ export class RulesList extends HTMLElement {
     return this.#options(SIGNAL_TYPES, selected)
   }
 
-  #newRowTemplate(): string {
+  #draftTemplate(): string {
     return `
-      <div class="rule-row rule-row-new">
-        <label class="rule-field">Name
-          <input type="text" class="rule-name" />
-        </label>
-        <label class="rule-field">Category
-          <select class="rule-category">${this.#categoryOptions('regex_title')}</select>
-        </label>
-        <label class="rule-field">Signal Type
-          <select class="rule-signal-type">${this.#signalTypeOptions('skill_match')}</select>
-        </label>
-        <label class="rule-field">Pattern
-          <input type="text" class="rule-pattern" />
-        </label>
-        <button type="button" class="btn" data-action="save-row">Save</button>
+      <div class="draft rule-grid" id="rule-draft">
+        <span></span>
+        <input class="input rule-name" type="text" placeholder="Rule name" aria-label="Rule name" />
+        <select class="select rule-category" aria-label="Category">${this.#categoryOptions('regex_title')}</select>
+        <select class="select rule-signal-type" aria-label="Signal type">${this.#signalTypeOptions('skill_match')}</select>
+        <input class="input rule-pattern" type="text" placeholder="regex pattern" aria-label="Pattern" />
+        <div class="draft-actions">
+          <button type="button" class="btn btn-primary btn-sm" data-action="save-draft">Save rule</button>
+          <button type="button" class="btn btn-sm" data-action="cancel-draft">Cancel</button>
+        </div>
+      </div>
+    `
+  }
+
+  #rowTemplate(r: RuleDraft): string {
+    const disabledClass = r.enabled ? '' : ' is-disabled'
+    return `
+      <div class="rule-row t-${r.signalType} rule-grid${disabledClass}" data-id="${r.id}">
+        <toggle-switch ${r.enabled ? 'checked' : ''} label="Enable rule: ${esc(r.ruleName)}"></toggle-switch>
+        <input class="input rule-name" type="text" value="${esc(r.ruleName)}" aria-label="Rule name" />
+        <select class="select rule-category" aria-label="Category">${this.#categoryOptions(r.ruleCategory)}</select>
+        <select class="select rule-signal-type" aria-label="Signal type">${this.#signalTypeOptions(r.signalType)}</select>
+        <input class="input rule-pattern" type="text" value="${esc(r.pattern)}" aria-label="Pattern" />
+        <div class="rule-actions">
+          <button type="button" class="btn btn-sm" data-action="save-row">Save</button>
+          <button type="button" class="btn btn-sm btn-danger" data-action="trash-row">Delete</button>
+        </div>
       </div>
     `
   }
 
   render(): void {
-    if (this.#rules.length === 0) {
-      this.innerHTML = `
-        <p class="empty-state">No signal rules yet.</p>
-        <div class="rules-rows">
-          ${this.#newRowTemplate()}
-        </div>
-        <button type="button" class="btn" data-action="add-row">Add rule</button>
-      `
-      return
-    }
+    const enabled = this.#rules.filter(r => r.enabled).length
+    const empty = this.#rules.length === 0 ? '<p class="empty-state">No signal rules yet.</p>' : ''
+    const rows = this.#rules.map(r => this.#rowTemplate(r)).join('')
 
     this.innerHTML = `
-      <div class="rules-rows">
-        ${this.#rules
-          .map(
-            r => `
-          <div class="rule-row" data-id="${r.id}">
-            <label class="rule-field">Name
-              <input type="text" class="rule-name" value="${esc(r.ruleName)}" />
-            </label>
-            <label class="rule-field">Category
-              <select class="rule-category">${this.#categoryOptions(r.ruleCategory)}</select>
-            </label>
-            <label class="rule-field">Signal Type
-              <select class="rule-signal-type">${this.#signalTypeOptions(r.signalType)}</select>
-            </label>
-            <label class="rule-field">Pattern
-              <input type="text" class="rule-pattern" value="${esc(r.pattern)}" />
-            </label>
-            <label class="rule-enabled">
-              <input type="checkbox" data-action="toggle-enabled" data-id="${r.id}" ${r.enabled ? 'checked' : ''} />
-              <span>${r.enabled ? 'Enabled' : 'Disabled'}</span>
-            </label>
-            <button type="button" class="btn" data-action="save-row">Save</button>
-            <button type="button" class="btn danger" data-action="trash-row">Trash</button>
-          </div>`
-          )
-          .join('')}
+      ${this.#draftTemplate()}
+      <div class="panel">
+        <div class="rules-header rule-grid">
+          <span></span>
+          <span>Name</span>
+          <span>Category</span>
+          <span>Signal type</span>
+          <span class="col-pattern">Pattern</span>
+          <span></span>
+        </div>
+        ${empty}
+        ${rows}
+        <div class="panel-foot">${this.#rules.length} rules · ${enabled} enabled</div>
       </div>
-      <button type="button" class="btn" data-action="add-row">Add rule</button>
     `
   }
 }
