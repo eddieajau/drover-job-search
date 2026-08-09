@@ -7,8 +7,8 @@
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
-    "test": "vitest run",
-    "verify": "oxfmt check . && oxlint . && vitest run"
+    "test": "vitest run --reporter=dot",
+    "verify": "oxfmt check . && oxlint . && vitest run --reporter=dot"
   },
   "dependencies": {
     "db": "^0.1.0",

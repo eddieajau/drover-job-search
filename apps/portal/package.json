@@ -13,7 +13,7 @@
     "dev:server": "tsx watch src/server.ts | pino-pretty",
     "dev:browser": "esbuild src/main.ts --bundle --format=esm --outfile=www/js/main.js --tsconfig=tsconfig.browser.json --watch",
     "start": "node dist/server.js",
-    "test": "vitest run",
+    "test": "vitest run --reporter=dot",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.browser.json --noEmit",
     "verify": "oxfmt check . && oxlint . && npm run typecheck && npm test"
   },
