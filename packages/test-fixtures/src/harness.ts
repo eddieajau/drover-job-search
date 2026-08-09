@@ -8,7 +8,7 @@ import { vi } from 'vitest'
 import { createQueueService, type QueueService } from 'workers'
 
 type BusEventName = 'kick'
-type BusEvents = Record<BusEventName, [payload: { stage: 'fetch_job_details' | 'rank' }]>
+type BusEvents = Record<BusEventName, [payload: { topic: 'fetch_job_details' | 'rank' }]>
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -26,7 +26,7 @@ export async function build(route: FastifyPluginAsync, options: { db: DB; prefix
   app.decorate('bus', bus)
   app.decorate(
     'queues',
-    createQueueService({ db: options.db, onEnqueue: (_jobId, stage) => bus.emit('kick', { stage }) })
+    createQueueService({ db: options.db, onEnqueue: (_jobId, topic) => bus.emit('kick', { topic }) })
   )
   if (options.prefix === undefined) {
     await app.register(route)

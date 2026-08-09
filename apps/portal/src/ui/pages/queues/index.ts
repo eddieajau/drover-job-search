@@ -9,7 +9,7 @@ import { relativeAge } from '../jobs/posted-age.js'
 
 export interface QueuesPageEventMap {
   'queues-page:ready': CustomEvent<void>
-  'queues-page:kick': CustomEvent<{ stage: 'fetch_job_details' | 'rank' }>
+  'queues-page:kick': CustomEvent<{ topic: 'fetch_job_details' | 'rank' }>
   'queues-page:tick': CustomEvent<void>
 }
 
@@ -44,8 +44,8 @@ export class QueuesPage extends HTMLElement {
     this.#renderRows()
   }
 
-  setKickBusy(stage: 'fetch_job_details' | 'rank', busy: boolean): void {
-    const action = stage === 'fetch_job_details' ? 'kick-details' : 'kick-rank'
+  setKickBusy(topic: 'fetch_job_details' | 'rank', busy: boolean): void {
+    const action = topic === 'fetch_job_details' ? 'kick-details' : 'kick-rank'
     const btn = this.querySelector<HTMLButtonElement>(`[data-action="${action}"]`)
     if (!btn) return
     btn.disabled = busy
@@ -77,11 +77,11 @@ export class QueuesPage extends HTMLElement {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-action]')
     const action = target?.dataset.action
     if (!action || !(action in KICK_ACTIONS)) return
-    const stage = KICK_ACTIONS[action]
+    const topic = KICK_ACTIONS[action]
     this.dispatchEvent(
       new CustomEvent<QueuesPageEventMap['queues-page:kick'] extends CustomEvent<infer D> ? D : never>(
         'queues-page:kick',
-        { bubbles: true, composed: true, detail: { stage } }
+        { bubbles: true, composed: true, detail: { topic } }
       )
     )
   }
@@ -127,7 +127,7 @@ export class QueuesPage extends HTMLElement {
 
 function rowTemplate(row: QueueSummaryRow): string {
   const doneClass = row.completedAt ? ' is-done' : ''
-  const badgeClass = row.stage === 'rank' ? 'badge stage-rank' : 'badge'
+  const badgeClass = row.topic === 'rank' ? 'badge topic-rank' : 'badge'
   const doneTick = row.completedAt ? '<span class="queue-done">done ✓</span>' : ''
   return `
     <li class="queue-row${doneClass}">
@@ -135,7 +135,7 @@ function rowTemplate(row: QueueSummaryRow): string {
         <span class="queue-title">${esc(row.title)}</span>
         <span class="queue-company">${esc(row.companyName)}</span>
       </div>
-      <span class="${badgeClass}">${esc(row.stage)}</span>
+      <span class="${badgeClass}">${esc(row.topic)}</span>
       <span class="queue-age">${esc(relativeAge(row.queuedAt))}</span>
       ${doneTick}
     </li>

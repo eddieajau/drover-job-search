@@ -52,19 +52,19 @@ describe('POST /api/jobs/:jobId/flag', () => {
     expect(row?.completedAt).toBeNull()
   })
 
-  it('emits kick with stage fetch_job_details on the bus after a successful flag', async () => {
+  it('emits kick with topic fetch_job_details on the bus after a successful flag', async () => {
     const job = seedJob(db, JOB1)
-    let received: { stage: string } | undefined
+    let received: { topic: string } | undefined
     app.bus.on('kick', payload => {
       received = payload
     })
 
     const res = await app.inject({ method: 'POST', url: `/${job.id}/flag` })
     expect(res.statusCode).toBe(202)
-    expect(received).toEqual({ stage: 'fetch_job_details' })
+    expect(received).toEqual({ topic: 'fetch_job_details' })
   })
 
-  it('resets stage and clears errorMessage on re-flag (upsert path)', async () => {
+  it('resets topic and clears errorMessage on re-flag (upsert path)', async () => {
     const job = seedJob(db, JOB1)
     db.insert(analysisQueue).values({ jobId: job.id, topic: 'rank', errorMessage: 'previous failure' }).run()
 

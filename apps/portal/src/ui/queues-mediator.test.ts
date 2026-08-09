@@ -20,7 +20,7 @@ const summary = {
       title: 'Staff Engineer',
       companyName: 'Acme',
       providerJobId: 'job-1',
-      stage: 'fetch_job_details',
+      topic: 'fetch_job_details',
       queuedAt: '2026-08-08 09:00:00',
       completedAt: null,
     },
@@ -73,39 +73,39 @@ describe('queues-mediator', () => {
     expect(page.querySelector('.queue-empty')).not.toBeNull()
   })
 
-  it('POSTs /api/bus with stage fetch_job_details on queues-page:kick then refreshes the summary', async () => {
+  it('POSTs /api/bus with topic fetch_job_details on queues-page:kick then refreshes the summary', async () => {
     mockFetch({ '/api/analysis-queue/summary': summary, '/api/bus': { ok: true } })
     initQueuesMediator()
     const page = document.createElement('queues-page') as QueuesPage
     document.body.appendChild(page)
     await new Promise(resolve => setTimeout(resolve, 0))
 
-    window.dispatchEvent(new CustomEvent('queues-page:kick', { detail: { stage: 'fetch_job_details' } }))
+    window.dispatchEvent(new CustomEvent('queues-page:kick', { detail: { topic: 'fetch_job_details' } }))
     await new Promise(resolve => setTimeout(resolve, 0))
 
     const calls = vi.mocked(fetch).mock.calls
     const busCall = calls.find(([url, init]) => url === '/api/bus' && init?.method === 'POST')
     expect(busCall).toBeDefined()
-    expect(JSON.parse(String(busCall?.[1]?.body))).toEqual({ stage: 'fetch_job_details' })
+    expect(JSON.parse(String(busCall?.[1]?.body))).toEqual({ topic: 'fetch_job_details' })
 
     const summaryCalls = calls.filter(([url]) => url === '/api/analysis-queue/summary')
     expect(summaryCalls.length).toBe(2)
   })
 
-  it('POSTs /api/bus with stage rank on queues-page:kick for rank', async () => {
+  it('POSTs /api/bus with topic rank on queues-page:kick for rank', async () => {
     mockFetch({ '/api/analysis-queue/summary': summary, '/api/bus': { ok: true } })
     initQueuesMediator()
     const page = document.createElement('queues-page') as QueuesPage
     document.body.appendChild(page)
     await new Promise(resolve => setTimeout(resolve, 0))
 
-    window.dispatchEvent(new CustomEvent('queues-page:kick', { detail: { stage: 'rank' } }))
+    window.dispatchEvent(new CustomEvent('queues-page:kick', { detail: { topic: 'rank' } }))
     await new Promise(resolve => setTimeout(resolve, 0))
 
     const calls = vi.mocked(fetch).mock.calls
     const busCall = calls.find(([url, init]) => url === '/api/bus' && init?.method === 'POST')
     expect(busCall).toBeDefined()
-    expect(JSON.parse(String(busCall?.[1]?.body))).toEqual({ stage: 'rank' })
+    expect(JSON.parse(String(busCall?.[1]?.body))).toEqual({ topic: 'rank' })
   })
 
   it('sets the button busy during the POST and re-enables after', async () => {
@@ -129,7 +129,7 @@ describe('queues-mediator', () => {
     document.body.appendChild(page)
     await new Promise(resolve => setTimeout(resolve, 0))
 
-    window.dispatchEvent(new CustomEvent('queues-page:kick', { detail: { stage: 'fetch_job_details' } }))
+    window.dispatchEvent(new CustomEvent('queues-page:kick', { detail: { topic: 'fetch_job_details' } }))
     await new Promise(resolve => setTimeout(resolve, 0))
 
     const btn = page.querySelector<HTMLButtonElement>('[data-action="kick-details"]')

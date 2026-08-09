@@ -100,7 +100,7 @@ export interface QueueSummaryRow {
   title: string
   companyName: string
   providerJobId: string
-  stage: 'fetch_job_details' | 'rank'
+  topic: 'fetch_job_details' | 'rank'
   queuedAt: string
   completedAt: string | null
 }

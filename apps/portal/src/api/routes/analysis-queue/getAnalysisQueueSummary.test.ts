@@ -34,7 +34,7 @@ describe('GET /api/analysis-queue/summary', () => {
     })
   })
 
-  it('counts pending and done rows across stages', async () => {
+  it('counts pending and done rows across topics', async () => {
     const jobA = seedJob(db, JOB1)
     const jobB = seedJob(db, JOB2)
     const jobC = seedJob(db, { ...JOB1, providerJobId: 'job-3' })
@@ -83,7 +83,7 @@ describe('GET /api/analysis-queue/summary', () => {
         title: expect.any(String),
         companyName: expect.any(String),
         providerJobId: expect.any(String),
-        stage: expect.stringMatching(/^(fetch_job_details|rank)$/),
+        topic: expect.stringMatching(/^(fetch_job_details|rank)$/),
         queuedAt: expect.any(String),
       })
       expect(typeof row.completedAt === 'string' || row.completedAt === null).toBe(true)

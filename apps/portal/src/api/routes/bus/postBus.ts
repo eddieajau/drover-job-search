@@ -7,13 +7,13 @@ import type { FastifyPluginAsync } from 'fastify'
 
 const postBus: FastifyPluginAsync = async app => {
   app.post('/', async (req, reply) => {
-    const stage = (req.body as { stage?: string } | undefined)?.stage
-    if (stage !== 'fetch_job_details' && stage !== 'rank') {
-      return reply.badRequest('Invalid body: stage must be "fetch_job_details" or "rank"')
+    const topic = (req.body as { topic?: string } | undefined)?.topic
+    if (topic !== 'fetch_job_details' && topic !== 'rank') {
+      return reply.badRequest('Invalid body: topic must be "fetch_job_details" or "rank"')
     }
-    app.bus.emit('kick', { stage })
-    app.log.info({ stage }, 'manual kick')
-    return { ok: true, stage }
+    app.bus.emit('kick', { topic })
+    app.log.info({ topic }, 'manual kick')
+    return { ok: true, topic }
   })
 }
 

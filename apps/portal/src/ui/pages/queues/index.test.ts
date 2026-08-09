@@ -21,7 +21,7 @@ function summary(): QueueSummaryResponse {
         title: 'Staff Engineer',
         companyName: 'Acme',
         providerJobId: 'job-1',
-        stage: 'fetch_job_details',
+        topic: 'fetch_job_details',
         queuedAt: '2026-08-08 09:00:00',
         completedAt: null,
       },
@@ -65,7 +65,7 @@ describe('queues-page', () => {
           title: 'Platform Engineer',
           companyName: 'Beta',
           providerJobId: 'job-2',
-          stage: 'rank',
+          topic: 'rank',
           queuedAt: '2026-08-08 08:00:00',
           completedAt: '2026-08-08 09:30:00',
         },
@@ -74,6 +74,27 @@ describe('queues-page', () => {
     const row = el.querySelector<HTMLElement>('.queue-row')
     expect(row?.classList.contains('is-done')).toBe(true)
     expect(el.querySelector('.queue-done')).not.toBeNull()
+  })
+
+  it('renders the topic-rank badge class for rank rows', () => {
+    el.setSummary({
+      ...summary(),
+      recent: [
+        {
+          id: 2,
+          jobId: 11,
+          title: 'Platform Engineer',
+          companyName: 'Beta',
+          providerJobId: 'job-2',
+          topic: 'rank',
+          queuedAt: '2026-08-08 08:00:00',
+          completedAt: null,
+        },
+      ],
+    })
+    const badge = el.querySelector<HTMLElement>('.queue-row .badge')
+    expect(badge?.classList.contains('topic-rank')).toBe(true)
+    expect(badge?.textContent).toBe('rank')
   })
 
   it('renders an empty state when there are no recent rows', () => {
@@ -97,28 +118,28 @@ describe('queues-page', () => {
     expect(rank?.textContent).toBe('Run rank')
   })
 
-  it('dispatches queues-page:kick with stage fetch_job_details on Run fetch-details click', () => {
-    let detail: { stage: string } | undefined
+  it('dispatches queues-page:kick with topic fetch_job_details on Run fetch-details click', () => {
+    let detail: { topic: string } | undefined
     const handler = (e: Event) => {
       detail = (e as CustomEvent).detail
     }
     document.addEventListener('queues-page:kick', handler)
 
     el.querySelector<HTMLButtonElement>('[data-action="kick-details"]')?.click()
-    expect(detail).toEqual({ stage: 'fetch_job_details' })
+    expect(detail).toEqual({ topic: 'fetch_job_details' })
 
     document.removeEventListener('queues-page:kick', handler)
   })
 
-  it('dispatches queues-page:kick with stage rank on Run rank click', () => {
-    let detail: { stage: string } | undefined
+  it('dispatches queues-page:kick with topic rank on Run rank click', () => {
+    let detail: { topic: string } | undefined
     const handler = (e: Event) => {
       detail = (e as CustomEvent).detail
     }
     document.addEventListener('queues-page:kick', handler)
 
     el.querySelector<HTMLButtonElement>('[data-action="kick-rank"]')?.click()
-    expect(detail).toEqual({ stage: 'rank' })
+    expect(detail).toEqual({ topic: 'rank' })
 
     document.removeEventListener('queues-page:kick', handler)
   })

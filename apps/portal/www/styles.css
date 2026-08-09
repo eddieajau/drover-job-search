@@ -957,7 +957,7 @@ job-card:focus-visible {
   white-space: nowrap;
 }
 
-.badge.stage-rank {
+.badge.topic-rank {
   background: var(--accent-soft);
   color: var(--accent);
   border-color: transparent;

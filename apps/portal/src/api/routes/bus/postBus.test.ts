@@ -23,34 +23,34 @@ describe('POST /api/bus', () => {
     db.$client.close()
   })
 
-  it('emits kick with stage fetch_job_details', async () => {
-    let received: { stage: string } | undefined
+  it('emits kick with topic fetch_job_details', async () => {
+    let received: { topic: string } | undefined
     app.bus.on('kick', payload => {
       received = payload
     })
 
-    const res = await app.inject({ method: 'POST', url: '/', payload: { stage: 'fetch_job_details' } })
+    const res = await app.inject({ method: 'POST', url: '/', payload: { topic: 'fetch_job_details' } })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ ok: true, stage: 'fetch_job_details' })
-    expect(received).toEqual({ stage: 'fetch_job_details' })
+    expect(res.json()).toEqual({ ok: true, topic: 'fetch_job_details' })
+    expect(received).toEqual({ topic: 'fetch_job_details' })
   })
 
-  it('emits kick with stage rank', async () => {
-    let received: { stage: string } | undefined
+  it('emits kick with topic rank', async () => {
+    let received: { topic: string } | undefined
     app.bus.on('kick', payload => {
       received = payload
     })
 
-    const res = await app.inject({ method: 'POST', url: '/', payload: { stage: 'rank' } })
+    const res = await app.inject({ method: 'POST', url: '/', payload: { topic: 'rank' } })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ ok: true, stage: 'rank' })
-    expect(received).toEqual({ stage: 'rank' })
+    expect(res.json()).toEqual({ ok: true, topic: 'rank' })
+    expect(received).toEqual({ topic: 'rank' })
   })
 
-  it('rejects an unknown stage', async () => {
-    const res = await app.inject({ method: 'POST', url: '/', payload: { stage: 'nonsense' } })
+  it('rejects an unknown topic', async () => {
+    const res = await app.inject({ method: 'POST', url: '/', payload: { topic: 'nonsense' } })
     expect(res.statusCode).toBe(400)
-    expect(res.json().message).toBe('Invalid body: stage must be "fetch_job_details" or "rank"')
+    expect(res.json().message).toBe('Invalid body: topic must be "fetch_job_details" or "rank"')
   })
 
   it('rejects a legacy event-based body', async () => {
@@ -58,7 +58,13 @@ describe('POST /api/bus', () => {
     expect(res.statusCode).toBe(400)
   })
 
-  it('rejects a request without a stage', async () => {
+  it('rejects a legacy stage body', async () => {
+    const res = await app.inject({ method: 'POST', url: '/', payload: { stage: 'fetch_job_details' } })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().message).toBe('Invalid body: topic must be "fetch_job_details" or "rank"')
+  })
+
+  it('rejects a request without a topic', async () => {
     const res = await app.inject({ method: 'POST', url: '/', payload: {} })
     expect(res.statusCode).toBe(400)
   })

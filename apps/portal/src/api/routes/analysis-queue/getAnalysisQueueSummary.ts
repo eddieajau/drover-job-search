@@ -11,13 +11,13 @@ import type { QueueSummaryResponse, QueueSummaryRow } from '../../serializers.js
 
 const getAnalysisQueueSummary: FastifyPluginAsync = async app => {
   app.get('/summary', async _req => {
-    const stageRows = app.db
-      .select({ stage: analysisQueue.topic, completed: analysisQueue.completedAt })
+    const topicRows = app.db
+      .select({ topic: analysisQueue.topic, completed: analysisQueue.completedAt })
       .from(analysisQueue)
       .all()
-    const pendingGetDetails = stageRows.filter(r => r.stage === 'fetch_job_details' && !r.completed).length
-    const pendingRank = stageRows.filter(r => r.stage === 'rank' && !r.completed).length
-    const done = stageRows.filter(r => r.completed).length
+    const pendingGetDetails = topicRows.filter(r => r.topic === 'fetch_job_details' && !r.completed).length
+    const pendingRank = topicRows.filter(r => r.topic === 'rank' && !r.completed).length
+    const done = topicRows.filter(r => r.completed).length
 
     const recent = app.db
       .select({
@@ -26,7 +26,7 @@ const getAnalysisQueueSummary: FastifyPluginAsync = async app => {
         title: jobs.title,
         companyName: jobs.companyName,
         providerJobId: jobs.providerJobId,
-        stage: analysisQueue.topic,
+        topic: analysisQueue.topic,
         queuedAt: analysisQueue.queuedAt,
         completedAt: analysisQueue.completedAt,
       })
@@ -39,7 +39,7 @@ const getAnalysisQueueSummary: FastifyPluginAsync = async app => {
     const summary: QueueSummaryResponse = {
       pending: { fetch_job_details: pendingGetDetails, rank: pendingRank },
       done,
-      total: stageRows.length,
+      total: topicRows.length,
       recent: recent as QueueSummaryRow[],
     }
     return summary
