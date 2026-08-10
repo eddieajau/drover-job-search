@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 import { chunkResume } from './chunk-resume.js'
 
 // Minimal, anonymised resume fixture. No real personal data — venues, dates and
-// project descriptions are fabricated; it only needs the shapes the chunker parses.
+// project descriptions are fabricated; it only needs the shapes the slicer parses.
 const RESUME_V1 = `## Summary
 
 Head chef with many years across catering and hospitality projects.
@@ -103,11 +103,11 @@ Hyrocks.
 `
 
 describe('chunkResume', () => {
-  it('splits the resume fixture into six typed sections', () => {
+  it('slices the resume fixture into six typed sections', () => {
     const chunked = chunkResume(RESUME_V1)
 
     expect(chunked.sections).toHaveLength(6)
-    expect(chunked.sections.map(s => s.heading)).toEqual([
+    expect(chunked.sections.map(s => s.title)).toEqual([
       'Summary',
       'Signature Dishes & Kitchen Systems Built',
       'Skills & Competencies Matrix',
@@ -115,103 +115,95 @@ describe('chunkResume', () => {
       'Education',
       'Hobbies',
     ])
-    expect(chunked.sections.map(s => s.type)).toEqual(['summary', 'projects', 'other', 'other', 'education', 'hobbies'])
+    expect(chunked.sections.map(s => s.category)).toEqual([
+      'summary',
+      'projects',
+      'skills',
+      'experience',
+      'education',
+      'hobbies',
+    ])
     expect(chunked.sections[0].body).toContain('Skilled in menu engineering')
     expect(chunked.sections[0].body).not.toContain('## ')
   })
 
-  it('classifies common heading variants by keyword', () => {
+  it('categorises common heading variants by keyword', () => {
     const chunked = chunkResume(
       '## Professional Summary\nbody\n\n## Selected Projects\nbody\n\n## Academic Background\nbody\n\n## Interests\nbody'
     )
 
-    expect(chunked.sections.map(s => s.type)).toEqual(['summary', 'projects', 'education', 'hobbies'])
+    expect(chunked.sections.map(s => s.category)).toEqual(['summary', 'projects', 'education', 'hobbies'])
   })
 
-  it('parses the skills matrix with typed cells', () => {
-    const matrix = chunkResume(RESUME_V1).skillsMatrix
+  it('categorises Agentic Systems headings as projects', () => {
+    const chunked = chunkResume('## Production AI / Agentic Systems\n\n### Project One\n\nbuilt a thing')
 
-    expect(matrix).toHaveLength(6)
-    for (const row of matrix) {
-      expect(typeof row.ranking).toBe('number')
-      expect(typeof row.years).toBe('number')
-    }
-    expect(matrix).toContainEqual({
-      technology: 'Menu Engineering',
-      ranking: 5,
-      years: 9,
-      versions: 'Seasonal, Tasting',
-    })
-    expect(matrix).toContainEqual({
-      technology: 'Kitchen Safety Systems',
-      ranking: 4,
-      years: 15,
-      versions: 'HACCP',
-    })
-    expect(matrix).toContainEqual({ technology: 'Team Leadership', ranking: 4, years: 13, versions: null })
+    expect(chunked.sections[0].category).toBe('projects')
+    expect(chunked.sections[0].children).toHaveLength(1)
   })
 
-  it('parses all 8 Work History roles with dates and companies', () => {
-    const roles = chunkResume(RESUME_V1).roles
-
-    expect(roles).toHaveLength(8)
-    expect(roles).toContainEqual({
-      title: 'Head Chef',
-      company: null,
-      startedAt: '2022-09',
-      endedAt: '2024-11',
-    })
-    expect(roles).toContainEqual({
-      title: 'Sous Chef',
-      company: null,
-      startedAt: '2021-03',
-      endedAt: '2022-08',
-    })
-    expect(roles).toContainEqual({
-      title: 'Line Cook',
-      company: 'Crimson Fork**',
-      startedAt: '2016-05',
-      endedAt: '2018-05',
-    })
-    expect(roles).toContainEqual({
-      title: 'Executive Chef,',
-      company: 'Indigo Spoon',
-      startedAt: '2008-06',
-      endedAt: '2011-03',
-    })
-    expect(roles).toContainEqual({
-      title: 'Pastry Chef',
-      company: 'Copper Pot',
-      startedAt: '2011-04',
-      endedAt: '2016-04',
-    })
-  })
-
-  it('keeps the three project chunks under the projects section', () => {
-    const projects = chunkResume(RESUME_V1).sections.find(s => s.type === 'projects')
+  it('collects ### children under their section, dropping leading prose', () => {
+    const chunked = chunkResume(RESUME_V1)
+    const projects = chunked.sections.find(s => s.category === 'projects')
 
     expect(projects).toBeDefined()
-    expect(projects!.body).toContain('### **Colour-Coded Recipe Pipeline + Inventory Automation**')
-    expect(projects!.body).toContain('### **Local-First Recipe Archive**')
-    expect(projects!.body).toContain('### **Kitchen Efficiency Intelligence Platform**')
-    expect(projects!.body).toContain('- **Built** a `/plan → /prep` workflow')
-    expect(projects!.body).toContain('_Personal project (Mar 2026)_')
+    expect(projects!.children.map(c => c.title)).toEqual([
+      '**Colour-Coded Recipe Pipeline + Inventory Automation**',
+      '**Local-First Recipe Archive**',
+      '**Kitchen Efficiency Intelligence Platform**',
+    ])
+    expect(projects!.children[0].body).toContain('turns menu concepts into deliverable dishes')
+    expect(projects!.children[2].body).toContain('_Personal project (Mar 2026)_')
+    expect(projects!.body).toContain('Anonymised projects')
+    for (const child of projects!.children) {
+      expect(child.body).not.toContain('Anonymised projects')
+    }
   })
 
-  it('returns empty arrays for empty or non-markdown input', () => {
-    expect(chunkResume('')).toEqual({ sections: [], skillsMatrix: [], roles: [] })
-    expect(chunkResume('plain text with no headings\n\njust some prose')).toEqual({
-      sections: [],
-      skillsMatrix: [],
-      roles: [],
-    })
+  it('collects work history roles as experience section children', () => {
+    const chunked = chunkResume(RESUME_V1)
+    const experience = chunked.sections.find(s => s.category === 'experience')
+
+    expect(experience!.children.map(c => c.title)).toEqual([
+      'Head Chef',
+      'Sous Chef',
+      'Kitchen Manager',
+      'Chef de Partie at Amber Table',
+      'Line Cook at Crimson Fork**',
+      'Pastry Chef at Copper Pot',
+      'Executive Chef, at Indigo Spoon',
+      'Catering Consultant at Saffron Kitchen',
+    ])
   })
 
-  it('returns empty skills and roles when their sections are absent', () => {
-    const chunked = chunkResume('## Summary\nHello\n\n## Education\nBSc')
+  it('leaves children empty for sections without ### headings', () => {
+    const chunked = chunkResume(RESUME_V1)
 
-    expect(chunked.sections).toHaveLength(2)
-    expect(chunked.skillsMatrix).toEqual([])
-    expect(chunked.roles).toEqual([])
+    expect(chunked.sections.find(s => s.category === 'summary')!.children).toEqual([])
+    expect(chunked.sections.find(s => s.category === 'education')!.children).toEqual([])
+    expect(chunked.sections.find(s => s.category === 'hobbies')!.children).toEqual([])
+  })
+
+  it('returns an empty result for an empty or whitespace-only resume', () => {
+    expect(chunkResume('')).toEqual({ sections: [] })
+    expect(chunkResume('  \n\t ')).toEqual({ sections: [] })
+  })
+
+  it('wraps a headingless resume in a single other section with one child', () => {
+    const chunked = chunkResume('plain text with no headings\n\njust some prose')
+
+    expect(chunked.sections).toHaveLength(1)
+    expect(chunked.sections[0].category).toBe('other')
+    expect(chunked.sections[0].children).toHaveLength(1)
+    expect(chunked.sections[0].body).toContain('plain text with no headings')
+    expect(chunked.sections[0].children[0].body).toContain('just some prose')
+  })
+
+  it('keeps Professional Summary as summary and unknown headings as other', () => {
+    const chunked = chunkResume(
+      '## Professional Summary\nbody\n\n## Work Experience\nbody\n\n## Technical Skills\nbody\n\n## Random Stuff\nbody'
+    )
+
+    expect(chunked.sections.map(s => s.category)).toEqual(['summary', 'experience', 'skills', 'other'])
   })
 })

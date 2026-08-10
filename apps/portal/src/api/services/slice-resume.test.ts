@@ -6,14 +6,7 @@
 import { type Fact } from 'db'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  mapRoleSkeletonToFact,
-  mapSkillRowToFact,
-  mapToInsert,
-  mergeFacts,
-  parseSliceResponse,
-  sliceResume,
-} from './slice-resume.js'
+import { mapToInsert, mergeFacts, parseSliceResponse, sliceResume } from './slice-resume.js'
 
 describe('parseSliceResponse', () => {
   it('returns facts from a valid response', () => {
@@ -103,9 +96,10 @@ function mockClient(respond: () => unknown) {
   }
 }
 
-// Exercising every pass type: summary, 2 projects, 2 roles, education, one
-// free `other` section, plus the deterministic skills matrix and role
-// skeletons. Hobbies produces no pass.
+// Exercising every pass type in document order: summary, 2 project children,
+// skills, 2 experience children, education, one free `other` section. Hobbies
+// produces no pass. No content is parsed deterministically — every fact comes
+// from an LLM pass.
 const MULTI_SECTION_RESUME = `## Summary
 
 Senior engineer with 15+ years building distributed systems.
@@ -157,36 +151,24 @@ Organised a local meetup and mentored junior engineers.
 Cycling and photography.`
 
 describe('sliceResume', () => {
-  it('produces deterministic skill and role facts with zero generate calls and one per LLM pass', async () => {
+  it('runs one LLM pass per slice with no deterministic fact seeding', async () => {
     const client = mockClient(() => ({ facts: [] }))
 
     const result = await sliceResume(MULTI_SECTION_RESUME, client as never, mockLog as never)
 
-    // 1 summary + 2 projects + 2 roles + 1 education + 1 other = 7 LLM passes.
-    expect(client.generate).toHaveBeenCalledTimes(7)
+    // 1 summary + 2 projects + 1 skills + 2 roles + 1 education + 1 other = 8 LLM passes.
+    expect(client.generate).toHaveBeenCalledTimes(8)
 
-    const skillFacts = result.filter(f => f.category === 'skill')
-    expect(skillFacts).toHaveLength(2)
-    expect(skillFacts[0]).toMatchObject({ label: 'TypeScript', period: '10 years' })
-    expect(skillFacts[0].detail).toContain('Ranking: 5/5')
-    expect(skillFacts[0].detail).toContain('Versions: 4.x')
-    expect(skillFacts[1]).toMatchObject({ label: 'Python', period: '1 years' })
-
-    const roleFacts = result.filter(f => f.category === 'role')
-    expect(roleFacts).toHaveLength(2)
-    expect(roleFacts[0]).toMatchObject({ label: 'Lead Engineer at Acme', startedAt: '2020-01', endedAt: '2023-12' })
-    expect(roleFacts[1]).toMatchObject({ label: 'Engineer at Beta', startedAt: '2016-03', endedAt: '2019-06' })
-
-    expect(result).toHaveLength(4)
+    expect(result).toEqual([])
   })
 
-  it('scopes each prompt to its chunk only', async () => {
+  it('scopes each prompt to its slice and category', async () => {
     const client = mockClient(() => ({ facts: [] }))
 
     await sliceResume(MULTI_SECTION_RESUME, client as never, mockLog as never)
 
     const prompts = client.generate.mock.calls.map(call => call[0] as string)
-    expect(prompts).toHaveLength(7)
+    expect(prompts).toHaveLength(8)
 
     const summaryPrompt = prompts[0]
     expect(summaryPrompt).toContain('Senior engineer with 15+ years')
@@ -198,28 +180,33 @@ describe('sliceResume', () => {
     const projectOnePrompt = prompts[1]
     expect(projectOnePrompt).toContain('Project One')
     expect(projectOnePrompt).toContain('THIS PASS TARGETS THESE CATEGORIES ONLY: precedent_story.')
-    expect(projectOnePrompt).not.toContain('THIS PASS TARGETS THESE CATEGORIES ONLY: precedent_story, gap.')
+    expect(projectOnePrompt).not.toContain('THIS PASS TARGETS THESE CATEGORIES ONLY: precedent_story, gap')
     expect(projectOnePrompt).not.toContain('Project Two')
 
     const projectTwoPrompt = prompts[2]
     expect(projectTwoPrompt).toContain('Project Two')
     expect(projectTwoPrompt).not.toContain('Project One')
 
-    const roleOnePrompt = prompts[3]
+    const skillsPrompt = prompts[3]
+    expect(skillsPrompt).toContain('TypeScript')
+    expect(skillsPrompt).toContain('THIS PASS TARGETS THESE CATEGORIES ONLY: skill.')
+    expect(skillsPrompt).not.toContain('Lead Engineer at Acme')
+
+    const roleOnePrompt = prompts[4]
     expect(roleOnePrompt).toContain('Lead Engineer at Acme')
-    expect(roleOnePrompt).toContain('THIS PASS TARGETS THESE CATEGORIES ONLY: precedent_story, gap.')
+    expect(roleOnePrompt).toContain('THIS PASS TARGETS THESE CATEGORIES ONLY: precedent_story, gap, role.')
     expect(roleOnePrompt).not.toContain('Engineer at Beta')
 
-    const roleTwoPrompt = prompts[4]
+    const roleTwoPrompt = prompts[5]
     expect(roleTwoPrompt).toContain('Engineer at Beta')
     expect(roleTwoPrompt).not.toContain('Lead Engineer at Acme')
 
-    const educationPrompt = prompts[5]
+    const educationPrompt = prompts[6]
     expect(educationPrompt).toContain('Bachelor of Science')
     expect(educationPrompt).toContain('THIS PASS TARGETS THESE CATEGORIES ONLY: credential.')
     expect(educationPrompt).not.toContain('Organised a local meetup')
 
-    const otherPrompt = prompts[6]
+    const otherPrompt = prompts[7]
     expect(otherPrompt).toContain('Organised a local meetup')
     expect(otherPrompt).not.toContain('Bachelor of Science')
     expect(otherPrompt).not.toContain('THIS PASS TARGETS')
@@ -231,7 +218,7 @@ describe('sliceResume', () => {
     }
   })
 
-  it('aggregates deterministic facts first, then LLM passes in stable order', async () => {
+  it('runs passes in stable document order and returns facts in pass order', async () => {
     let call = 0
     const client = mockClient(() => ({
       facts: [{ label: `LLM-${call++}`, category: 'precedent_story', detail: 'traceable achievement' }],
@@ -239,19 +226,37 @@ describe('sliceResume', () => {
 
     const result = await sliceResume(MULTI_SECTION_RESUME, client as never, mockLog as never)
 
-    expect(result.map(f => f.label)).toEqual([
-      'TypeScript',
-      'Python',
-      'Lead Engineer at Acme',
-      'Engineer at Beta',
-      'LLM-0',
-      'LLM-1',
-      'LLM-2',
-      'LLM-3',
-      'LLM-4',
-      'LLM-5',
-      'LLM-6',
-    ])
+    expect(result.map(f => f.label)).toEqual(['LLM-0', 'LLM-1', 'LLM-2', 'LLM-3', 'LLM-4', 'LLM-5', 'LLM-6', 'LLM-7'])
+  })
+
+  it('extracts role facts from the LLM within experience passes', async () => {
+    const client = mockClient(() => ({
+      facts: [
+        {
+          label: 'Lead Engineer at Acme',
+          category: 'role',
+          started_at: '2020-01',
+          ended_at: '2023-12',
+          confidence: 'stated',
+        },
+      ],
+    }))
+
+    const result = await sliceResume(
+      '## Work History\n\n### Lead Engineer at Acme\n\nJanuary 2020 - December 2023\n\n- Rebuilt the ingestion pipeline.',
+      client as never,
+      mockLog as never
+    )
+
+    expect(result).toContainEqual(
+      expect.objectContaining({
+        label: 'Lead Engineer at Acme',
+        category: 'role',
+        startedAt: '2020-01',
+        endedAt: '2023-12',
+        confidence: 'stated',
+      })
+    )
   })
 
   it('gives a free `other` section one pass rather than dropping it', async () => {
@@ -262,13 +267,13 @@ describe('sliceResume', () => {
     const result = await sliceResume(MULTI_SECTION_RESUME, client as never, mockLog as never)
 
     const prompts = client.generate.mock.calls.map(call => call[0] as string)
-    expect(prompts).toHaveLength(7)
-    expect(prompts[6]).toContain('Organised a local meetup')
+    expect(prompts).toHaveLength(8)
+    expect(prompts[7]).toContain('Organised a local meetup')
 
     expect(result).toContainEqual(expect.objectContaining({ label: 'Meetup Organiser', category: 'precedent_story' }))
   })
 
-  it('handles plain text resume with a single whole-document fallback pass', async () => {
+  it('wraps a headingless resume in one whole-document pass', async () => {
     const client = mockClient(() => ({ facts: [{ label: 'TypeScript', category: 'skill' }] }))
 
     const result = await sliceResume('I have 5 years of TypeScript experience.', client as never, mockLog as never)
@@ -430,95 +435,5 @@ describe('mergeFacts', () => {
     const result = mergeFacts([], proposed)
 
     expect(result.inserts).toHaveLength(1)
-  })
-})
-
-describe('mapSkillRowToFact', () => {
-  it('maps a full matrix row into one skill fact with a source note', () => {
-    const fact = mapSkillRowToFact(
-      { technology: 'TypeScript', ranking: 5, years: 10, versions: '4.x' },
-      'Skills & Competencies Matrix'
-    )
-
-    expect(fact).toEqual({
-      category: 'skill',
-      label: 'TypeScript',
-      detail: 'Ranking: 5/5; Versions: 4.x [source: Skills & Competencies Matrix]',
-      evidenceType: null,
-      startedAt: null,
-      endedAt: null,
-      period: '10 years',
-      confidence: 'stated',
-      active: true,
-    })
-  })
-
-  it('handles a row with null years and versions', () => {
-    const fact = mapSkillRowToFact(
-      { technology: 'Docker', ranking: null, years: null, versions: null },
-      'Skills & Competencies Matrix'
-    )
-
-    expect(fact).toEqual({
-      category: 'skill',
-      label: 'Docker',
-      detail: '[source: Skills & Competencies Matrix]',
-      evidenceType: null,
-      startedAt: null,
-      endedAt: null,
-      period: null,
-      confidence: 'stated',
-      active: true,
-    })
-  })
-})
-
-describe('mapRoleSkeletonToFact', () => {
-  it('maps a skeleton with a company into a role fact with a source note', () => {
-    const fact = mapRoleSkeletonToFact(
-      {
-        title: 'Lead Developer',
-        company: 'Zapid Hire',
-        startedAt: '2021-06',
-        endedAt: '2023-10',
-      },
-      'Work History'
-    )
-
-    expect(fact).toEqual({
-      category: 'role',
-      label: 'Lead Developer at Zapid Hire',
-      detail: '[source: Work History]',
-      evidenceType: null,
-      startedAt: '2021-06',
-      endedAt: '2023-10',
-      period: null,
-      confidence: 'stated',
-      active: true,
-    })
-  })
-
-  it('maps a skeleton without a company into a role fact', () => {
-    const fact = mapRoleSkeletonToFact(
-      {
-        title: 'Principal Software Engineer',
-        company: null,
-        startedAt: null,
-        endedAt: null,
-      },
-      'Work History'
-    )
-
-    expect(fact).toEqual({
-      category: 'role',
-      label: 'Principal Software Engineer',
-      detail: '[source: Work History]',
-      evidenceType: null,
-      startedAt: null,
-      endedAt: null,
-      period: null,
-      confidence: 'stated',
-      active: true,
-    })
   })
 })

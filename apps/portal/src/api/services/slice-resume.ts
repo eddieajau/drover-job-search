@@ -7,13 +7,7 @@ import { facts, type Fact } from 'db'
 import type { FastifyBaseLogger } from 'fastify'
 import { sanitise, type ollama } from 'workers'
 
-import {
-  chunkResume,
-  SKILLS_MATRIX_HEADING,
-  WORK_HISTORY_HEADING,
-  type RoleSkeleton,
-  type SkillMatrixRow,
-} from './chunk-resume.js'
+import { chunkResume, type ResumeSection } from './chunk-resume.js'
 
 type OllamaClient = ollama.OllamaClient
 
@@ -156,71 +150,9 @@ export function mapToInsert(raw: SliceResponseFact, log: FastifyBaseLogger, sour
   return insert
 }
 
-export function mapSkillRowToFact(row: SkillMatrixRow, source: string): FactInsert {
-  const detailParts: string[] = []
-  if (row.ranking !== null) {
-    detailParts.push(`Ranking: ${row.ranking}/5`)
-  }
-  if (row.versions !== null) {
-    detailParts.push(`Versions: ${row.versions}`)
-  }
-  return {
-    category: 'skill',
-    label: row.technology,
-    detail: appendSourceNote(detailParts.length > 0 ? detailParts.join('; ') : null, source),
-    evidenceType: null,
-    startedAt: null,
-    endedAt: null,
-    period: row.years !== null ? `${row.years} years` : null,
-    confidence: 'stated',
-    active: true,
-  }
-}
-
-export function mapRoleSkeletonToFact(skeleton: RoleSkeleton, source: string): FactInsert {
-  const label = skeleton.company ? `${skeleton.title} at ${skeleton.company}` : skeleton.title
-  return {
-    category: 'role',
-    label,
-    detail: appendSourceNote(null, source),
-    evidenceType: null,
-    startedAt: skeleton.startedAt,
-    endedAt: skeleton.endedAt,
-    period: null,
-    confidence: 'stated',
-    active: true,
-  }
-}
-
-// Splits a section body on `### ` headings. Only chunks that begin with a
-// `### ` heading are kept — leading intro prose is scene-setting and is not a
-// per-project / per-role chunk.
-function splitH3Chunks(body: string): string[] {
-  const chunks: string[] = []
-  let current: string[] = []
-  for (const line of body.split(/\r?\n/)) {
-    if (line.startsWith('### ')) {
-      if (current.length > 0 && current[0].startsWith('### ')) {
-        chunks.push(current.join('\n').trim())
-      }
-      current = [line]
-    } else {
-      current.push(line)
-    }
-  }
-  if (current.length > 0 && current[0].startsWith('### ')) {
-    chunks.push(current.join('\n').trim())
-  }
-  return chunks
-}
-
 interface SlicePass {
   prompt: string
   source: string | undefined
-}
-
-function chunkHeading(chunk: string): string {
-  return chunk.split(/\r?\n/)[0].slice(4).trim()
 }
 
 async function runPass(pass: SlicePass, client: OllamaClient, log: FastifyBaseLogger): Promise<FactInsert[]> {
@@ -242,67 +174,57 @@ async function runPass(pass: SlicePass, client: OllamaClient, log: FastifyBaseLo
   return inserts
 }
 
+function childSource(section: ResumeSection, childTitle: string): string {
+  return section.title ? `${section.title} > ${childTitle}` : childTitle
+}
+
+function addChildPasses(passes: SlicePass[], section: ResumeSection, targetCategories: readonly string[]): void {
+  for (const child of section.children) {
+    passes.push({
+      prompt: buildSlicePrompt(child.body, targetCategories),
+      source: childSource(section, child.title),
+    })
+  }
+  if (section.children.length === 0) {
+    passes.push({
+      prompt: buildSlicePrompt(section.body, targetCategories),
+      source: section.title || undefined,
+    })
+  }
+}
+
 export async function sliceResume(resume: string, client: OllamaClient, log: FastifyBaseLogger): Promise<FactInsert[]> {
   const chunked = chunkResume(resume)
 
-  const inserts: FactInsert[] = []
-  for (const row of chunked.skillsMatrix) {
-    inserts.push(mapSkillRowToFact(row, SKILLS_MATRIX_HEADING))
-  }
-  for (const skeleton of chunked.roles) {
-    inserts.push(mapRoleSkeletonToFact(skeleton, WORK_HISTORY_HEADING))
-  }
-
   const passes: SlicePass[] = []
 
-  const summary = chunked.sections.find(section => section.type === 'summary')
-  if (summary) {
-    passes.push({ prompt: buildSlicePrompt(summary.body, ['principle', 'credential']), source: summary.heading })
-  }
-
-  const projects = chunked.sections.find(section => section.type === 'projects')
-  if (projects) {
-    for (const chunk of splitH3Chunks(projects.body)) {
-      passes.push({
-        prompt: buildSlicePrompt(chunk, ['precedent_story']),
-        source: `${projects.heading} > ${chunkHeading(chunk)}`,
-      })
-    }
-  }
-
-  const workHistory = chunked.sections.find(section => section.heading === WORK_HISTORY_HEADING)
-  if (workHistory) {
-    for (const chunk of splitH3Chunks(workHistory.body)) {
-      passes.push({
-        prompt: buildSlicePrompt(chunk, ['precedent_story', 'gap']),
-        source: `${workHistory.heading} > ${chunkHeading(chunk)}`,
-      })
-    }
-  }
-
-  const education = chunked.sections.find(section => section.type === 'education')
-  if (education) {
-    passes.push({ prompt: buildSlicePrompt(education.body, ['credential']), source: education.heading })
-  }
-
   for (const section of chunked.sections) {
-    if (
-      section.type !== 'other' ||
-      section.heading === WORK_HISTORY_HEADING ||
-      section.heading === SKILLS_MATRIX_HEADING
-    ) {
-      continue
+    switch (section.category) {
+      case 'summary':
+        passes.push({ prompt: buildSlicePrompt(section.body, ['principle', 'credential']), source: section.title })
+        break
+      case 'projects':
+        addChildPasses(passes, section, ['precedent_story'])
+        break
+      case 'experience':
+        addChildPasses(passes, section, ['precedent_story', 'gap', 'role'])
+        break
+      case 'skills':
+        passes.push({ prompt: buildSlicePrompt(section.body, ['skill']), source: section.title })
+        break
+      case 'education':
+        passes.push({ prompt: buildSlicePrompt(section.body, ['credential']), source: section.title })
+        break
+      case 'other':
+        passes.push({ prompt: buildSlicePrompt(section.body), source: section.title || undefined })
+        break
+      case 'hobbies':
+        break
     }
-    passes.push({ prompt: buildSlicePrompt(section.body), source: section.heading })
-  }
-
-  // Unstructured resume (no `##` headings): one whole-document pass, all
-  // categories, matching the previous single-pass behaviour.
-  if (passes.length === 0 && chunked.sections.length === 0) {
-    passes.push({ prompt: buildSlicePrompt(resume), source: undefined })
   }
 
   const passResults = await Promise.all(passes.map(async pass => runPass(pass, client, log)))
+  const inserts: FactInsert[] = []
   for (const result of passResults) {
     inserts.push(...result)
   }
