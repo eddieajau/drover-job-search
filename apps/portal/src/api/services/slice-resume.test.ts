@@ -3,9 +3,17 @@
  * @license   MIT
  */
 
-import { describe, expect, it, vi } from 'vitest'
+import { type Fact } from 'db'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { mapRoleSkeletonToFact, mapSkillRowToFact, parseSliceResponse, sliceResume } from './slice-resume.js'
+import {
+  mapRoleSkeletonToFact,
+  mapSkillRowToFact,
+  mapToInsert,
+  mergeFacts,
+  parseSliceResponse,
+  sliceResume,
+} from './slice-resume.js'
 
 describe('parseSliceResponse', () => {
   it('returns facts from a valid response', () => {
@@ -225,7 +233,9 @@ describe('sliceResume', () => {
 
   it('aggregates deterministic facts first, then LLM passes in stable order', async () => {
     let call = 0
-    const client = mockClient(() => ({ facts: [{ label: `LLM-${call++}`, category: 'precedent_story' }] }))
+    const client = mockClient(() => ({
+      facts: [{ label: `LLM-${call++}`, category: 'precedent_story', detail: 'traceable achievement' }],
+    }))
 
     const result = await sliceResume(MULTI_SECTION_RESUME, client as never, mockLog as never)
 
@@ -245,7 +255,9 @@ describe('sliceResume', () => {
   })
 
   it('gives a free `other` section one pass rather than dropping it', async () => {
-    const client = mockClient(() => ({ facts: [{ label: 'Meetup Organiser', category: 'precedent_story' }] }))
+    const client = mockClient(() => ({
+      facts: [{ label: 'Meetup Organiser', category: 'precedent_story', detail: 'Ran a monthly local meetup' }],
+    }))
 
     const result = await sliceResume(MULTI_SECTION_RESUME, client as never, mockLog as never)
 
@@ -300,14 +312,138 @@ describe('sliceResume', () => {
   })
 })
 
+describe('mapToInsert', () => {
+  beforeEach(() => {
+    mockLog.warn.mockClear()
+  })
+
+  it('defaults confidence to inferred when the model omits it', () => {
+    const insert = mapToInsert({ label: 'TypeScript', category: 'skill' }, mockLog as never)
+
+    expect(insert).toMatchObject({ label: 'TypeScript', category: 'skill', confidence: 'inferred' })
+  })
+
+  it('keeps an explicit stated confidence', () => {
+    const insert = mapToInsert({ label: 'AWS Cert', category: 'credential', confidence: 'stated' }, mockLog as never)
+
+    expect(insert).toMatchObject({ label: 'AWS Cert', confidence: 'stated' })
+  })
+
+  it('appends the source section note to detail', () => {
+    const insert = mapToInsert(
+      { label: 'TypeScript', category: 'skill', detail: '5 years' },
+      mockLog as never,
+      'Work History > Lead Engineer'
+    )
+
+    expect(insert?.detail).toBe('5 years [source: Work History > Lead Engineer]')
+  })
+
+  it('rejects a precedent_story without detail and logs a warning', () => {
+    const insert = mapToInsert({ label: 'Shipped a pipeline', category: 'precedent_story' }, mockLog as never)
+
+    expect(insert).toBeNull()
+    expect(mockLog.warn).toHaveBeenCalled()
+  })
+
+  it('rejects a gap with an empty detail', () => {
+    const insert = mapToInsert({ label: 'No CTO role', category: 'gap', detail: '   ' }, mockLog as never)
+
+    expect(insert).toBeNull()
+  })
+
+  it('allows a skill with no detail', () => {
+    const insert = mapToInsert({ label: 'TypeScript', category: 'skill' }, mockLog as never)
+
+    expect(insert).toMatchObject({ label: 'TypeScript', category: 'skill', detail: null })
+  })
+})
+
+function existingFact(overrides: { id: number; category: string; label: string } & Partial<Fact>): Fact {
+  return {
+    id: overrides.id,
+    category: overrides.category,
+    label: overrides.label,
+    detail: overrides.detail ?? null,
+    evidenceType: overrides.evidenceType ?? null,
+    startedAt: overrides.startedAt ?? null,
+    endedAt: overrides.endedAt ?? null,
+    period: overrides.period ?? null,
+    confidence: overrides.confidence ?? 'stated',
+    active: overrides.active ?? true,
+    createdAt: overrides.createdAt ?? '2026-01-01 00:00:00',
+    updatedAt: overrides.updatedAt ?? '2026-01-01 00:00:00',
+  }
+}
+
+describe('mergeFacts', () => {
+  it('skips a duplicate with identical category + label and matching fields', () => {
+    const existing = [existingFact({ id: 1, category: 'skill', label: 'TypeScript', detail: '5 years' })]
+    const proposed = [{ category: 'skill', label: 'TypeScript', detail: '5 years' }]
+
+    const result = mergeFacts(existing, proposed)
+
+    expect(result.inserts).toEqual([])
+    expect(result.superseded).toEqual([])
+  })
+
+  it('inserts facts with no active existing match', () => {
+    const existing = [existingFact({ id: 1, category: 'role', label: 'Lead Engineer' })]
+    const proposed = [{ category: 'skill', label: 'TypeScript' }]
+
+    const result = mergeFacts(existing, proposed)
+
+    expect(result.inserts).toEqual([{ category: 'skill', label: 'TypeScript' }])
+    expect(result.superseded).toEqual([])
+  })
+
+  it('marks a conflicting match as inferred and supersedes the existing row', () => {
+    const existing = [existingFact({ id: 7, category: 'role', label: 'Tech Lead', startedAt: '2019-01' })]
+    const proposed = [
+      { category: 'role', label: 'Tech Lead', startedAt: '2020-01', endedAt: '2023-12', confidence: 'stated' },
+    ]
+
+    const result = mergeFacts(existing, proposed)
+
+    expect(result.inserts).toHaveLength(1)
+    expect(result.inserts[0]).toMatchObject({ category: 'role', label: 'Tech Lead', startedAt: '2020-01' })
+    expect(result.inserts[0].confidence).toBe('inferred')
+    expect(result.superseded).toEqual([7])
+  })
+
+  it('treats inactive existing rows as absent', () => {
+    const existing = [existingFact({ id: 1, category: 'skill', label: 'TypeScript', detail: '5 years', active: false })]
+    const proposed = [{ category: 'skill', label: 'TypeScript', detail: '5 years' }]
+
+    const result = mergeFacts(existing, proposed)
+
+    expect(result.inserts).toHaveLength(1)
+    expect(result.superseded).toEqual([])
+  })
+
+  it('dedupes within the proposed batch itself', () => {
+    const proposed = [
+      { category: 'skill', label: 'TypeScript' },
+      { category: 'skill', label: 'TypeScript' },
+    ]
+
+    const result = mergeFacts([], proposed)
+
+    expect(result.inserts).toHaveLength(1)
+  })
+})
+
 describe('mapSkillRowToFact', () => {
-  it('maps a full matrix row into one skill fact', () => {
-    const fact = mapSkillRowToFact({ technology: 'TypeScript', ranking: 5, years: 10, versions: '4.x' })
+  it('maps a full matrix row into one skill fact with a source note', () => {
+    const fact = mapSkillRowToFact(
+      { technology: 'TypeScript', ranking: 5, years: 10, versions: '4.x' },
+      'Skills & Competencies Matrix'
+    )
 
     expect(fact).toEqual({
       category: 'skill',
       label: 'TypeScript',
-      detail: 'Ranking: 5/5; Versions: 4.x',
+      detail: 'Ranking: 5/5; Versions: 4.x [source: Skills & Competencies Matrix]',
       evidenceType: null,
       startedAt: null,
       endedAt: null,
@@ -318,12 +454,15 @@ describe('mapSkillRowToFact', () => {
   })
 
   it('handles a row with null years and versions', () => {
-    const fact = mapSkillRowToFact({ technology: 'Docker', ranking: null, years: null, versions: null })
+    const fact = mapSkillRowToFact(
+      { technology: 'Docker', ranking: null, years: null, versions: null },
+      'Skills & Competencies Matrix'
+    )
 
     expect(fact).toEqual({
       category: 'skill',
       label: 'Docker',
-      detail: null,
+      detail: '[source: Skills & Competencies Matrix]',
       evidenceType: null,
       startedAt: null,
       endedAt: null,
@@ -335,18 +474,21 @@ describe('mapSkillRowToFact', () => {
 })
 
 describe('mapRoleSkeletonToFact', () => {
-  it('maps a skeleton with a company into a role fact', () => {
-    const fact = mapRoleSkeletonToFact({
-      title: 'Lead Developer',
-      company: 'Zapid Hire',
-      startedAt: '2021-06',
-      endedAt: '2023-10',
-    })
+  it('maps a skeleton with a company into a role fact with a source note', () => {
+    const fact = mapRoleSkeletonToFact(
+      {
+        title: 'Lead Developer',
+        company: 'Zapid Hire',
+        startedAt: '2021-06',
+        endedAt: '2023-10',
+      },
+      'Work History'
+    )
 
     expect(fact).toEqual({
       category: 'role',
       label: 'Lead Developer at Zapid Hire',
-      detail: null,
+      detail: '[source: Work History]',
       evidenceType: null,
       startedAt: '2021-06',
       endedAt: '2023-10',
@@ -357,17 +499,20 @@ describe('mapRoleSkeletonToFact', () => {
   })
 
   it('maps a skeleton without a company into a role fact', () => {
-    const fact = mapRoleSkeletonToFact({
-      title: 'Principal Software Engineer',
-      company: null,
-      startedAt: null,
-      endedAt: null,
-    })
+    const fact = mapRoleSkeletonToFact(
+      {
+        title: 'Principal Software Engineer',
+        company: null,
+        startedAt: null,
+        endedAt: null,
+      },
+      'Work History'
+    )
 
     expect(fact).toEqual({
       category: 'role',
       label: 'Principal Software Engineer',
-      detail: null,
+      detail: '[source: Work History]',
       evidenceType: null,
       startedAt: null,
       endedAt: null,

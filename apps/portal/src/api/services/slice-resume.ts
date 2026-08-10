@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { facts } from 'db'
+import { facts, type Fact } from 'db'
 import type { FastifyBaseLogger } from 'fastify'
 import { sanitise, type ollama } from 'workers'
 
@@ -105,21 +105,35 @@ ${cleanChunk}
 </resume_data>`
 }
 
-function mapToInsert(raw: SliceResponseFact, log: FastifyBaseLogger): FactInsert | null {
+export function appendSourceNote(detail: string | null, source: string | undefined): string | null {
+  if (!source) {
+    return detail
+  }
+  const note = `[source: ${source}]`
+  return detail ? `${detail} ${note}` : note
+}
+
+export function mapToInsert(raw: SliceResponseFact, log: FastifyBaseLogger, source?: string): FactInsert | null {
   if (!VALID_CATEGORIES.includes(raw.category as ValidCategory)) {
     log.warn({ category: raw.category, label: raw.label }, 'unknown category from LLM, skipping')
+    return null
+  }
+
+  const detail = typeof raw.detail === 'string' ? raw.detail : null
+  if ((raw.category === 'precedent_story' || raw.category === 'gap') && (detail === null || detail.trim() === '')) {
+    log.warn({ category: raw.category, label: raw.label }, 'precedent_story/gap requires a traceable detail, skipping')
     return null
   }
 
   const insert: FactInsert = {
     category: raw.category as ValidCategory,
     label: raw.label,
-    detail: typeof raw.detail === 'string' ? raw.detail : null,
+    detail: appendSourceNote(detail, source),
     evidenceType: null,
     startedAt: typeof raw.started_at === 'string' ? raw.started_at : null,
     endedAt: typeof raw.ended_at === 'string' ? raw.ended_at : null,
     period: typeof raw.period === 'string' ? raw.period : null,
-    confidence: 'stated',
+    confidence: 'inferred',
     active: true,
   }
 
@@ -135,14 +149,14 @@ function mapToInsert(raw: SliceResponseFact, log: FastifyBaseLogger): FactInsert
     if (VALID_CONFIDENCES.includes(raw.confidence as ValidConfidence)) {
       insert.confidence = raw.confidence as ValidConfidence
     } else {
-      log.warn({ confidence: raw.confidence, label: raw.label }, 'unknown confidence, defaulting to stated')
+      log.warn({ confidence: raw.confidence, label: raw.label }, 'unknown confidence, defaulting to inferred')
     }
   }
 
   return insert
 }
 
-export function mapSkillRowToFact(row: SkillMatrixRow): FactInsert {
+export function mapSkillRowToFact(row: SkillMatrixRow, source: string): FactInsert {
   const detailParts: string[] = []
   if (row.ranking !== null) {
     detailParts.push(`Ranking: ${row.ranking}/5`)
@@ -153,7 +167,7 @@ export function mapSkillRowToFact(row: SkillMatrixRow): FactInsert {
   return {
     category: 'skill',
     label: row.technology,
-    detail: detailParts.length > 0 ? detailParts.join('; ') : null,
+    detail: appendSourceNote(detailParts.length > 0 ? detailParts.join('; ') : null, source),
     evidenceType: null,
     startedAt: null,
     endedAt: null,
@@ -163,12 +177,12 @@ export function mapSkillRowToFact(row: SkillMatrixRow): FactInsert {
   }
 }
 
-export function mapRoleSkeletonToFact(skeleton: RoleSkeleton): FactInsert {
+export function mapRoleSkeletonToFact(skeleton: RoleSkeleton, source: string): FactInsert {
   const label = skeleton.company ? `${skeleton.title} at ${skeleton.company}` : skeleton.title
   return {
     category: 'role',
     label,
-    detail: null,
+    detail: appendSourceNote(null, source),
     evidenceType: null,
     startedAt: skeleton.startedAt,
     endedAt: skeleton.endedAt,
@@ -200,8 +214,17 @@ function splitH3Chunks(body: string): string[] {
   return chunks
 }
 
-async function runPass(prompt: string, client: OllamaClient, log: FastifyBaseLogger): Promise<FactInsert[]> {
-  const raw = await client.generate(prompt)
+interface SlicePass {
+  prompt: string
+  source: string | undefined
+}
+
+function chunkHeading(chunk: string): string {
+  return chunk.split(/\r?\n/)[0].slice(4).trim()
+}
+
+async function runPass(pass: SlicePass, client: OllamaClient, log: FastifyBaseLogger): Promise<FactInsert[]> {
+  const raw = await client.generate(pass.prompt)
   const parsed = parseSliceResponse(raw)
 
   if (!parsed) {
@@ -210,7 +233,7 @@ async function runPass(prompt: string, client: OllamaClient, log: FastifyBaseLog
 
   const inserts: FactInsert[] = []
   for (const item of parsed) {
-    const mapped = mapToInsert(item, log)
+    const mapped = mapToInsert(item, log, pass.source)
     if (mapped) {
       inserts.push(mapped)
     }
@@ -224,36 +247,42 @@ export async function sliceResume(resume: string, client: OllamaClient, log: Fas
 
   const inserts: FactInsert[] = []
   for (const row of chunked.skillsMatrix) {
-    inserts.push(mapSkillRowToFact(row))
+    inserts.push(mapSkillRowToFact(row, SKILLS_MATRIX_HEADING))
   }
   for (const skeleton of chunked.roles) {
-    inserts.push(mapRoleSkeletonToFact(skeleton))
+    inserts.push(mapRoleSkeletonToFact(skeleton, WORK_HISTORY_HEADING))
   }
 
-  const passes: string[] = []
+  const passes: SlicePass[] = []
 
   const summary = chunked.sections.find(section => section.type === 'summary')
   if (summary) {
-    passes.push(buildSlicePrompt(summary.body, ['principle', 'credential']))
+    passes.push({ prompt: buildSlicePrompt(summary.body, ['principle', 'credential']), source: summary.heading })
   }
 
   const projects = chunked.sections.find(section => section.type === 'projects')
   if (projects) {
     for (const chunk of splitH3Chunks(projects.body)) {
-      passes.push(buildSlicePrompt(chunk, ['precedent_story']))
+      passes.push({
+        prompt: buildSlicePrompt(chunk, ['precedent_story']),
+        source: `${projects.heading} > ${chunkHeading(chunk)}`,
+      })
     }
   }
 
   const workHistory = chunked.sections.find(section => section.heading === WORK_HISTORY_HEADING)
   if (workHistory) {
     for (const chunk of splitH3Chunks(workHistory.body)) {
-      passes.push(buildSlicePrompt(chunk, ['precedent_story', 'gap']))
+      passes.push({
+        prompt: buildSlicePrompt(chunk, ['precedent_story', 'gap']),
+        source: `${workHistory.heading} > ${chunkHeading(chunk)}`,
+      })
     }
   }
 
   const education = chunked.sections.find(section => section.type === 'education')
   if (education) {
-    passes.push(buildSlicePrompt(education.body, ['credential']))
+    passes.push({ prompt: buildSlicePrompt(education.body, ['credential']), source: education.heading })
   }
 
   for (const section of chunked.sections) {
@@ -264,19 +293,77 @@ export async function sliceResume(resume: string, client: OllamaClient, log: Fas
     ) {
       continue
     }
-    passes.push(buildSlicePrompt(section.body))
+    passes.push({ prompt: buildSlicePrompt(section.body), source: section.heading })
   }
 
   // Unstructured resume (no `##` headings): one whole-document pass, all
   // categories, matching the previous single-pass behaviour.
   if (passes.length === 0 && chunked.sections.length === 0) {
-    passes.push(buildSlicePrompt(resume))
+    passes.push({ prompt: buildSlicePrompt(resume), source: undefined })
   }
 
-  const passResults = await Promise.all(passes.map(async prompt => runPass(prompt, client, log)))
+  const passResults = await Promise.all(passes.map(async pass => runPass(pass, client, log)))
   for (const result of passResults) {
     inserts.push(...result)
   }
 
   return inserts
+}
+
+interface MergeResult {
+  inserts: FactInsert[]
+  superseded: number[]
+}
+
+function factKey(category: string, label: string): string {
+  return `${category}\u0000${label}`
+}
+
+function sameOrBothAbsent(a: string | null | undefined, b: string | null | undefined): boolean {
+  return (a ?? '') === (b ?? '')
+}
+
+// Merges proposed extractions against existing facts instead of blind
+// inserting. Active rows matching on category + label are compared on
+// detail/startedAt/endedAt: identical → duplicate (skip), different →
+// conflict (proposed becomes `inferred`, existing is superseded). Inactive
+// rows are treated as absent. Superseded rows are deactivated, never deleted.
+export function mergeFacts(existing: Fact[], proposed: FactInsert[]): MergeResult {
+  const activeByKey = new Map<string, Fact>()
+  for (const fact of existing) {
+    if (!fact.active) {
+      continue
+    }
+    activeByKey.set(factKey(fact.category, fact.label), fact)
+  }
+
+  const inserts: FactInsert[] = []
+  const superseded: number[] = []
+  const seen = new Set<string>()
+
+  for (const insert of proposed) {
+    const key = factKey(insert.category, insert.label)
+    if (seen.has(key)) {
+      continue
+    }
+    seen.add(key)
+
+    const existingFact = activeByKey.get(key)
+    if (!existingFact) {
+      inserts.push(insert)
+      continue
+    }
+
+    const sameDetail = sameOrBothAbsent(existingFact.detail, insert.detail)
+    const sameStart = sameOrBothAbsent(existingFact.startedAt, insert.startedAt)
+    const sameEnd = sameOrBothAbsent(existingFact.endedAt, insert.endedAt)
+    if (sameDetail && sameStart && sameEnd) {
+      continue
+    }
+
+    inserts.push({ ...insert, confidence: 'inferred' })
+    superseded.push(existingFact.id)
+  }
+
+  return { inserts, superseded }
 }
