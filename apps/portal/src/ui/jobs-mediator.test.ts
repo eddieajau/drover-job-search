@@ -142,7 +142,7 @@ describe('jobs-mediator', () => {
     expect(cards.length).toBe(3)
     const badges = document.querySelectorAll('job-card .score')
     expect(badges.length).toBe(3)
-    expect(badges[0].textContent).toBe('+75')
+    expect(badges[0].textContent).toBe('75')
   })
 
   it('weights dimension sub-scores to the documented scale, not a naive sum', async () => {
@@ -161,7 +161,7 @@ describe('jobs-mediator', () => {
     await new Promise(resolve => setTimeout(resolve, 50))
 
     const badge = document.querySelector('job-card .score')
-    expect(badge?.textContent).toBe('+50')
+    expect(badge?.textContent).toBe('50')
   })
 
   it('ranks by weighted dimensions so heavier dimensions dominate', async () => {

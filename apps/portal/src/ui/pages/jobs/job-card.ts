@@ -181,11 +181,7 @@ export class JobCard extends HTMLElement {
 
   render(): void {
     const scoreBand = this.#gated ? 'score-low' : (this.#score ?? 0) >= 50 ? 'score-high' : 'score-mid'
-    const scoreLabel = this.#gated
-      ? 'auto-skip'
-      : this.#score !== undefined
-        ? `${this.#score >= 0 ? '+' : ''}${this.#score}`
-        : ''
+    const scoreLabel = this.#gated ? 'auto-skip' : this.#score !== undefined ? `${this.#score}` : ''
 
     const hasScore = this.#gated || this.#score !== undefined
     const scoreHtml = hasScore ? `<span class="score ${scoreBand}">${esc(scoreLabel)}</span>` : ''

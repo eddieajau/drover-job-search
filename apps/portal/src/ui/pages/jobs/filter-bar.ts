@@ -83,6 +83,7 @@ export class FilterBar extends HTMLElement {
   render(): void {
     this.classList.add('filters')
     this.innerHTML = `
+      <input type="text" id="filter-search" placeholder="Search titles..." />
       <select id="filter-priority" aria-label="Filter by priority">
         <option value="">All priorities</option>
         <option value="1">P1 — Principal/Staff</option>
@@ -102,7 +103,6 @@ export class FilterBar extends HTMLElement {
         <option value="neutral">Neutral</option>
         <option value="auto-skip">Auto-skip</option>
       </select>
-      <input type="text" id="filter-search" placeholder="Search titles..." />
     `
   }
 }

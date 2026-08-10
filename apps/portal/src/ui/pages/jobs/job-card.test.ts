@@ -44,7 +44,7 @@ describe('job-card', () => {
 
     const score = card.querySelector('.score')
     expect(score?.classList.contains('score-high')).toBe(true)
-    expect(score?.textContent).toBe('+85')
+    expect(score?.textContent).toBe('85')
   })
 
   it('renders auto-skip for gated jobs', () => {
@@ -112,12 +112,12 @@ describe('job-card', () => {
 
     let score = card.querySelector('.score')
     expect(score?.classList.contains('score-mid')).toBe(true)
-    expect(score?.textContent).toBe('+20')
+    expect(score?.textContent).toBe('20')
 
     card.setAttribute('score', '85')
     score = card.querySelector('.score')
     expect(score?.classList.contains('score-high')).toBe(true)
-    expect(score?.textContent).toBe('+85')
+    expect(score?.textContent).toBe('85')
   })
 
   it('renders mid-score for scores below threshold', () => {
@@ -133,7 +133,22 @@ describe('job-card', () => {
 
     const score = card.querySelector('.score')
     expect(score?.classList.contains('score-mid')).toBe(true)
-    expect(score?.textContent).toBe('+30')
+    expect(score?.textContent).toBe('30')
+  })
+
+  it('renders a non-negative score without a plus prefix', () => {
+    const card = createCard({
+      'job-id': '6',
+      'provider-job-id': 'job-6',
+      title: 'Engineer',
+      company: 'Zeta',
+      location: 'Hobart',
+      posted: '6d',
+      score: '12',
+    })
+
+    const score = card.querySelector('.score')
+    expect(score?.textContent).toBe('12')
   })
 
   it('renders negative scores with minus sign', () => {

@@ -49,6 +49,14 @@ describe('filter-bar', () => {
     expect(el.querySelector<HTMLSelectElement>('#filter-score')?.value).toBe('hot')
   })
 
+  it('renders the search input above the three filter selects', () => {
+    const elementChildren = Array.from(el.childNodes).filter(
+      (node): node is Element => node.nodeType === Node.ELEMENT_NODE
+    )
+    const ids = elementChildren.map(node => node.id)
+    expect(ids).toEqual(['filter-search', 'filter-priority', 'filter-status', 'filter-score'])
+  })
+
   it('renders the score-bucket select with expected options', () => {
     const scoreSelect = el.querySelector<HTMLSelectElement>('#filter-score')
     expect(scoreSelect).not.toBeNull()

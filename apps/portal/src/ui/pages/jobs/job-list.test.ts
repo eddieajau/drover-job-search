@@ -96,7 +96,7 @@ describe('job-list', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'new', 85)], selectedId: null })
     const score = el.querySelector('.score')
     expect(score).not.toBeNull()
-    expect(score?.textContent).toBe('+85')
+    expect(score?.textContent).toBe('85')
     expect(score?.classList.contains('score-high')).toBe(true)
   })
 
