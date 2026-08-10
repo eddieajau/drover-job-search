@@ -6,7 +6,47 @@
 import { analysisQueue, createDb, jobs, type DB } from 'db'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { drain, drainOne, type DetailFn } from './fetchJobDetails.js'
+import type { ConsumerOptions } from '../consumer.js'
+import { createConsumer } from '../consumer.js'
+import { createFetchJobDetailsConsumer, drain, drainOne, type DetailFn } from './fetchJobDetails.js'
+
+const { consumerKickFn, consumerStopFn, consumerCaptured } = vi.hoisted(() => ({
+  consumerKickFn: vi.fn(),
+  consumerStopFn: vi.fn(),
+  consumerCaptured: { opts: undefined as ConsumerOptions | undefined },
+}))
+
+vi.mock('../consumer.js', () => ({
+  createConsumer: vi.fn((opts: ConsumerOptions) => {
+    consumerCaptured.opts = opts
+    return { kick: consumerKickFn, stop: consumerStopFn }
+  }),
+}))
+
+function seedQueue(db: DB, providerJobId: string, topic: 'fetch_job_details' | 'rank' = 'fetch_job_details') {
+  db.insert(jobs)
+    .values({
+      provider: 'linkedin',
+      providerJobId,
+      title: 'Test Job',
+      companyName: 'Acme',
+      url: `https://example.com/${providerJobId}`,
+      location: 'Remote',
+    })
+    .run()
+  const job = db
+    .select()
+    .from(jobs)
+    .all()
+    .find(j => j.providerJobId === providerJobId)!
+  db.insert(analysisQueue).values({ jobId: job.id, topic }).run()
+  const queue = db
+    .select()
+    .from(analysisQueue)
+    .all()
+    .find(q => q.jobId === job.id)!
+  return { jobId: job.id, queueId: queue.id }
+}
 
 describe('fetch-job-details drain', () => {
   let db: ReturnType<typeof createDb>
@@ -18,31 +58,6 @@ describe('fetch-job-details drain', () => {
   afterEach(() => {
     db.$client.close()
   })
-
-  function seedQueue(db: DB, providerJobId: string, topic: 'fetch_job_details' | 'rank' = 'fetch_job_details') {
-    db.insert(jobs)
-      .values({
-        provider: 'linkedin',
-        providerJobId,
-        title: 'Test Job',
-        companyName: 'Acme',
-        url: `https://example.com/${providerJobId}`,
-        location: 'Remote',
-      })
-      .run()
-    const job = db
-      .select()
-      .from(jobs)
-      .all()
-      .find(j => j.providerJobId === providerJobId)!
-    db.insert(analysisQueue).values({ jobId: job.id, topic }).run()
-    const queue = db
-      .select()
-      .from(analysisQueue)
-      .all()
-      .find(q => q.jobId === job.id)!
-    return { jobId: job.id, queueId: queue.id }
-  }
 
   it('writes markdown and advances the row to rank', async () => {
     seedQueue(db, '123456')
@@ -183,5 +198,55 @@ describe('fetch-job-details drain', () => {
     const outcome = await drainOne(db, 999, { detailFn: async () => ({ description: 'desc' }) })
 
     expect(outcome).toBe('failed')
+  })
+})
+
+describe('createFetchJobDetailsConsumer', () => {
+  const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+
+  beforeEach(() => {
+    consumerKickFn.mockClear()
+    consumerStopFn.mockClear()
+    consumerCaptured.opts = undefined
+  })
+
+  it('returns a Consumer delegating kick/stop to createConsumer', () => {
+    const db = createDb(':memory:')
+    const consumer = createFetchJobDetailsConsumer({ db, log, detailFn: async () => null })
+
+    consumer.kick()
+    consumer.stop()
+
+    expect(consumerKickFn).toHaveBeenCalledTimes(1)
+    expect(consumerStopFn).toHaveBeenCalledTimes(1)
+    expect(createConsumer).toHaveBeenCalledWith(expect.objectContaining({ topic: 'fetch_job_details' }))
+    db.$client.close()
+  })
+
+  it('onDrained fires through the consumer onEmpty', () => {
+    const db = createDb(':memory:')
+    const onDrained = vi.fn()
+    createFetchJobDetailsConsumer({ db, log, detailFn: async () => null, onDrained })
+
+    consumerCaptured.opts?.onEmpty?.()
+
+    expect(onDrained).toHaveBeenCalledOnce()
+    db.$client.close()
+  })
+
+  it('drain processes pending rows through fetchJobDetails.drain', async () => {
+    const db = createDb(':memory:')
+    seedQueue(db, '123456')
+    const detailFn = vi.fn<DetailFn>(async () => ({ description: 'A description' }))
+    createFetchJobDetailsConsumer({ db, log, detailFn })
+
+    const result = await consumerCaptured.opts?.drain()
+
+    expect(result).toEqual({ total: 1 })
+    expect(detailFn).toHaveBeenCalledWith({ id: '123456' })
+    const job = db.select().from(jobs).get()!
+    expect(job.description).toBe('A description')
+    expect(log.info).toHaveBeenCalledWith({ providerJobId: '123456' }, 'description saved')
+    db.$client.close()
   })
 })

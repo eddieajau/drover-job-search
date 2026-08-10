@@ -6,9 +6,99 @@
 import { analysisQueue, createDb, jobSignals, jobs, type DB } from 'db'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createOllamaClient } from '../clients/ollama.js'
 import type { OllamaClient } from '../clients/ollama.js'
+import type { ConsumerOptions } from '../consumer.js'
+import { createConsumer } from '../consumer.js'
 import { advanceTo } from '../queue.js'
-import { drain, drainOne } from './rankJobDetails.js'
+import { createRankConsumer, drain, drainOne } from './rankJobDetails.js'
+
+const { consumerKickFn, consumerStopFn, consumerCaptured } = vi.hoisted(() => ({
+  consumerKickFn: vi.fn(),
+  consumerStopFn: vi.fn(),
+  consumerCaptured: { opts: undefined as ConsumerOptions | undefined },
+}))
+
+vi.mock('../consumer.js', () => ({
+  createConsumer: vi.fn((opts: ConsumerOptions) => {
+    consumerCaptured.opts = opts
+    return { kick: consumerKickFn, stop: consumerStopFn }
+  }),
+}))
+
+const mockOllama = { generate: vi.fn() }
+vi.mock('../clients/ollama.js', () => ({
+  createOllamaClient: vi.fn(() => mockOllama),
+}))
+
+function seedQueue(
+  db: DB,
+  providerJobId: string,
+  description: string | null = 'A great job',
+  topic: 'fetch_job_details' | 'rank' = 'rank'
+) {
+  db.insert(jobs)
+    .values({
+      provider: 'linkedin',
+      providerJobId,
+      title: 'Test Job',
+      companyName: 'Acme',
+      url: `https://example.com/${providerJobId}`,
+      location: 'Remote',
+      description,
+    })
+    .run()
+  const job = db
+    .select()
+    .from(jobs)
+    .all()
+    .find(j => j.providerJobId === providerJobId)!
+  db.insert(analysisQueue).values({ jobId: job.id, topic }).run()
+  const queue = db
+    .select()
+    .from(analysisQueue)
+    .all()
+    .find(q => q.jobId === job.id)!
+  return { jobId: job.id, queueId: queue.id }
+}
+
+const documentedResponse = JSON.stringify({
+  gates: [
+    { name: 'eligibility', passed: true, score: 0, reason: 'Australian citizen with full working rights.' },
+    { name: 'language', passed: true, score: 0, reason: 'English required and sufficient.' },
+    { name: 'location', passed: false, score: -100, reason: 'Role requires relocation to Sydney.' },
+  ],
+  dimensions: [
+    {
+      name: 'technical',
+      signal_type: 'skill_match',
+      score: 75,
+      matched_keywords: ['TypeScript', 'Node.js'],
+      reason: 'Strong technical match.',
+    },
+    {
+      name: 'experience',
+      signal_type: 'skill_match',
+      score: 62,
+      matched_keywords: ['microservices'],
+      reason: 'Deep backend experience.',
+    },
+    {
+      name: 'behavioral',
+      signal_type: 'company_match',
+      score: 50,
+      matched_keywords: ['greenfield'],
+      reason: 'Moderate culture fit.',
+    },
+    {
+      name: 'career',
+      signal_type: 'company_match',
+      score: 85,
+      matched_keywords: ['staff engineer'],
+      reason: 'Aligned career path.',
+    },
+  ],
+})
 
 describe('rank-job-details drain', () => {
   let db: ReturnType<typeof createDb>
@@ -21,78 +111,9 @@ describe('rank-job-details drain', () => {
     db.$client.close()
   })
 
-  function seedQueue(
-    db: DB,
-    providerJobId: string,
-    description: string | null = 'A great job',
-    topic: 'fetch_job_details' | 'rank' = 'rank'
-  ) {
-    db.insert(jobs)
-      .values({
-        provider: 'linkedin',
-        providerJobId,
-        title: 'Test Job',
-        companyName: 'Acme',
-        url: `https://example.com/${providerJobId}`,
-        location: 'Remote',
-        description,
-      })
-      .run()
-    const job = db
-      .select()
-      .from(jobs)
-      .all()
-      .find(j => j.providerJobId === providerJobId)!
-    db.insert(analysisQueue).values({ jobId: job.id, topic }).run()
-    const queue = db
-      .select()
-      .from(analysisQueue)
-      .all()
-      .find(q => q.jobId === job.id)!
-    return { jobId: job.id, queueId: queue.id }
-  }
-
   function mockClient(response: string): OllamaClient {
     return { generate: async () => response }
   }
-
-  const documentedResponse = JSON.stringify({
-    gates: [
-      { name: 'eligibility', passed: true, score: 0, reason: 'Australian citizen with full working rights.' },
-      { name: 'language', passed: true, score: 0, reason: 'English required and sufficient.' },
-      { name: 'location', passed: false, score: -100, reason: 'Role requires relocation to Sydney.' },
-    ],
-    dimensions: [
-      {
-        name: 'technical',
-        signal_type: 'skill_match',
-        score: 75,
-        matched_keywords: ['TypeScript', 'Node.js'],
-        reason: 'Strong technical match.',
-      },
-      {
-        name: 'experience',
-        signal_type: 'skill_match',
-        score: 62,
-        matched_keywords: ['microservices'],
-        reason: 'Deep backend experience.',
-      },
-      {
-        name: 'behavioral',
-        signal_type: 'company_match',
-        score: 50,
-        matched_keywords: ['greenfield'],
-        reason: 'Moderate culture fit.',
-      },
-      {
-        name: 'career',
-        signal_type: 'company_match',
-        score: 85,
-        matched_keywords: ['staff engineer'],
-        reason: 'Aligned career path.',
-      },
-    ],
-  })
 
   it('writes signals, completes the row and calls onProgress', async () => {
     const { jobId } = seedQueue(db, '123456')
@@ -368,5 +389,55 @@ describe('rank-job-details drain', () => {
     const outcome = await drainOne(db, 999, { client: mockClient('{}') })
 
     expect(outcome).toBe('skipped')
+  })
+})
+
+describe('createRankConsumer', () => {
+  const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+
+  beforeEach(() => {
+    consumerKickFn.mockClear()
+    consumerStopFn.mockClear()
+    consumerCaptured.opts = undefined
+    vi.mocked(createOllamaClient).mockClear()
+    mockOllama.generate.mockReset()
+  })
+
+  it('returns a Consumer delegating kick/stop to createConsumer', () => {
+    const db = createDb(':memory:')
+    const consumer = createRankConsumer({ db, log })
+
+    consumer.kick()
+    consumer.stop()
+
+    expect(consumerKickFn).toHaveBeenCalledTimes(1)
+    expect(consumerStopFn).toHaveBeenCalledTimes(1)
+    expect(createConsumer).toHaveBeenCalledWith(expect.objectContaining({ topic: 'rank' }))
+    db.$client.close()
+  })
+
+  it('builds the ollama client from the supplied base URL and model', () => {
+    const db = createDb(':memory:')
+    createRankConsumer({ db, log, ollamaBaseUrl: 'http://custom:1234', ollamaModel: 'mistral' })
+
+    expect(createOllamaClient).toHaveBeenCalledOnce()
+    expect(createOllamaClient).toHaveBeenCalledWith('http://custom:1234', 'mistral', log)
+    db.$client.close()
+  })
+
+  it('drain processes pending rows through the built ollama client', async () => {
+    const db = createDb(':memory:')
+    seedQueue(db, '123456')
+    mockOllama.generate.mockResolvedValue(documentedResponse)
+    createRankConsumer({ db, log, ollamaBaseUrl: 'http://custom:1234', ollamaModel: 'mistral' })
+
+    const result = await consumerCaptured.opts?.drain()
+
+    expect(result).toEqual({ total: 1 })
+    expect(mockOllama.generate).toHaveBeenCalledOnce()
+    const queue = db.select().from(analysisQueue).get()!
+    expect(queue.completedAt).not.toBeNull()
+    expect(log.info).toHaveBeenCalledWith({ jobId: expect.any(Number), title: 'Test Job' }, 'evaluated')
+    db.$client.close()
   })
 })

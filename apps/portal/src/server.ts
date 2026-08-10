@@ -14,7 +14,7 @@ import { type DB } from 'db'
 import { config } from 'dotenv'
 import fastify from 'fastify'
 import { detail } from 'provider-linkedin'
-import { createPublisher, startDetailsWorker, startRankWorker, type Publisher } from 'workers'
+import { createFetchJobDetailsConsumer, createPublisher, createRankConsumer, type Publisher } from 'workers'
 
 import { createDatabase } from './api/database.js'
 import type { BusEvents } from './bus.js'
@@ -51,7 +51,7 @@ const publisher = createPublisher({
 })
 app.decorate('publisher', publisher)
 
-const details = startDetailsWorker({
+const details = createFetchJobDetailsConsumer({
   db,
   log: app.log,
   detailFn: detail,
@@ -67,7 +67,7 @@ app.addHook('onClose', () => {
 })
 bus.emit('kick', { topic: 'fetch_job_details' })
 
-const rank = startRankWorker({
+const rank = createRankConsumer({
   db,
   log: app.log,
   ollamaBaseUrl: process.env.OLLAMA_BASE_URL,

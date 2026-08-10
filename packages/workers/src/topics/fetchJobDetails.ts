@@ -5,11 +5,35 @@
 
 import { analysisQueue, jobs, type DB } from 'db'
 import { and, eq, isNull, sql } from 'drizzle-orm'
+import type { FastifyBaseLogger } from 'fastify'
 
+import { createConsumer, type Consumer } from '../consumer.js'
 import { toMarkdown } from '../lib/markdown.js'
 import { advanceTo, fail, selectPending, type PendingRow } from '../queue.js'
 
 export type DetailFn = (opts: { id: string }) => Promise<{ description: string | null } | null>
+
+export function createFetchJobDetailsConsumer(opts: {
+  db: DB
+  log: Pick<FastifyBaseLogger, 'debug' | 'info' | 'warn' | 'error'>
+  onDrained?: () => void
+  detailFn: DetailFn
+}): Consumer {
+  return createConsumer({
+    topic: 'fetch_job_details',
+    drain: () =>
+      drain(opts.db, {
+        detailFn: opts.detailFn,
+        onProgress: row => opts.log.info({ providerJobId: row.providerJobId }, 'description saved'),
+        onError: (row, err) =>
+          err === null
+            ? opts.log.warn({ providerJobId: row.providerJobId }, 'no description; marked done')
+            : opts.log.error({ providerJobId: row.providerJobId, err }, 'detail fetch failed; marked done'),
+      }).then(r => ({ total: r.processed + r.failed })),
+    onEmpty: () => opts.onDrained?.(),
+    log: opts.log,
+  })
+}
 
 export interface FetchDetailsDrainOptions {
   detailFn: DetailFn
