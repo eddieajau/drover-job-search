@@ -7,7 +7,7 @@ import { analysisQueue, createDb, jobs, type DB } from 'db'
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { advanceTo, complete, fail, selectPending } from './queue.js'
+import { complete, completeAndAdvance, fail, selectPending } from './queue.js'
 
 describe('queue helpers', () => {
   let db: ReturnType<typeof createDb>
@@ -79,18 +79,26 @@ describe('queue helpers', () => {
     })
   })
 
-  describe('advanceTo', () => {
-    it('sets the next topic and re-arms completed_at and error_message', () => {
+  describe('completeAndAdvance', () => {
+    it('completes the current row and inserts a new row with the next topic', () => {
       const jobId = seedJob(db, 'a')
       db.update(analysisQueue).set({ errorMessage: 'previous failure' }).where(eq(analysisQueue.jobId, jobId)).run()
 
       const row = db.select().from(analysisQueue).get()!
-      advanceTo(db, row.id, 'rank')
+      completeAndAdvance(db, row.id, 'rank')
 
-      const updated = db.select().from(analysisQueue).get()!
-      expect(updated.topic).toBe('rank')
-      expect(updated.completedAt).toBeNull()
-      expect(updated.errorMessage).toBeNull()
+      const rows = db.select().from(analysisQueue).all()
+      expect(rows).toHaveLength(2)
+
+      const completed = rows.find(r => r.id === row.id)!
+      expect(completed.topic).toBe('fetch_job_details')
+      expect(completed.completedAt).not.toBeNull()
+      expect(completed.errorMessage).toBeNull()
+
+      const advanced = rows.find(r => r.id !== row.id)!
+      expect(advanced.topic).toBe('rank')
+      expect(advanced.completedAt).toBeNull()
+      expect(advanced.errorMessage).toBeNull()
     })
   })
 

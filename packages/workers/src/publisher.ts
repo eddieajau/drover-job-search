@@ -16,14 +16,7 @@ export function createPublisher(opts: {
   onEnqueue?: (jobId: number, topic: AnalysisTopic) => void
 }): Publisher {
   function enqueue(jobId: number, topic: AnalysisTopic): void {
-    opts.db
-      .insert(analysisQueue)
-      .values({ jobId, topic, completedAt: null })
-      .onConflictDoUpdate({
-        target: analysisQueue.jobId,
-        set: { completedAt: null, topic, errorMessage: null },
-      })
-      .run()
+    opts.db.insert(analysisQueue).values({ jobId, topic, completedAt: null }).run()
     opts.onEnqueue?.(jobId, topic)
   }
 

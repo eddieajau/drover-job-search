@@ -88,7 +88,7 @@ export const jobs = sqliteTable(
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
   table => [
-    uniqueIndex('uq_provider_job').on(table.provider, table.providerJobId),
+    index('uq_provider_job').on(table.provider, table.providerJobId),
     index('idx_jobs_provider_id').on(table.provider, table.providerJobId),
 
     // Check Constraints
@@ -178,7 +178,7 @@ export const analysisQueue = sqliteTable(
     completedAt: text('completed_at'),
   },
   table => [
-    uniqueIndex('uq_analysis_queue_job_id').on(table.jobId),
+    index('idx_analysis_queue_job_id_topic').on(table.jobId, table.topic),
     check('check_queue_topic', sql`${table.topic} IN ('fetch_job_details', 'rank')`),
   ]
 )
@@ -332,9 +332,10 @@ CREATE TABLE IF NOT EXISTS analysis_queue (
     error_message TEXT,
     queued_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     completed_at TEXT,
-    CONSTRAINT uq_analysis_queue_job_id UNIQUE (job_id),
     CONSTRAINT check_queue_topic CHECK (topic IN ('fetch_job_details', 'rank'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_analysis_queue_job_id_topic ON analysis_queue(job_id, topic);
 
 CREATE TABLE IF NOT EXISTS facts (
     id INTEGER PRIMARY KEY,

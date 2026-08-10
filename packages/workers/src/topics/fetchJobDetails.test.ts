@@ -72,9 +72,15 @@ describe('fetch-job-details drain', () => {
     const job = db.select().from(jobs).get()!
     expect(job.description).toBe('## The Team\n\n-   a\n-   b')
 
-    const queue = db.select().from(analysisQueue).get()!
-    expect(queue.topic).toBe('rank')
-    expect(queue.completedAt).toBeNull()
+    const rows = db.select().from(analysisQueue).all()
+    expect(rows).toHaveLength(2)
+
+    const fetchRow = rows.find(r => r.topic === 'fetch_job_details')!
+    expect(fetchRow.completedAt).not.toBeNull()
+
+    const rankRow = rows.find(r => r.topic === 'rank')!
+    expect(rankRow.completedAt).toBeNull()
+
     expect(onProgress).toHaveBeenCalledTimes(1)
   })
 
@@ -152,7 +158,7 @@ describe('fetch-job-details drain', () => {
       .select()
       .from(analysisQueue)
       .all()
-      .filter(q => q.topic === 'fetch_job_details')
+      .filter(q => q.topic === 'fetch_job_details' && q.completedAt === null)
     expect(pending).toHaveLength(1)
   })
 
@@ -174,8 +180,10 @@ describe('fetch-job-details drain', () => {
 
     expect(outcome).toBe('written')
     expect(detailFn).toHaveBeenCalledWith({ id: '123456' })
-    const queue = db.select().from(analysisQueue).get()!
-    expect(queue.topic).toBe('rank')
+    const rows = db.select().from(analysisQueue).all()
+    expect(rows).toHaveLength(2)
+    const rankRow = rows.find(r => r.topic === 'rank')!
+    expect(rankRow.completedAt).toBeNull()
   })
 
   it('drainOne fails a row when detail throws', async () => {

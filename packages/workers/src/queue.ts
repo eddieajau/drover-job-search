@@ -32,11 +32,17 @@ export function selectPending(db: DB, topic: AnalysisTopic, limit?: number): Pen
   return query.all()
 }
 
-export function advanceTo(db: DB, queueId: number, topic: AnalysisTopic): void {
+export function completeAndAdvance(db: DB, queueId: number, nextTopic: AnalysisTopic): void {
   db.update(analysisQueue)
-    .set({ topic, completedAt: null, errorMessage: null })
+    .set({ completedAt: sql`(CURRENT_TIMESTAMP)`, errorMessage: null })
     .where(eq(analysisQueue.id, queueId))
     .run()
+
+  const row = db.select({ jobId: analysisQueue.jobId }).from(analysisQueue).where(eq(analysisQueue.id, queueId)).get()
+
+  if (row) {
+    db.insert(analysisQueue).values({ jobId: row.jobId, topic: nextTopic, completedAt: null }).run()
+  }
 }
 
 export function complete(db: DB, queueId: number): void {

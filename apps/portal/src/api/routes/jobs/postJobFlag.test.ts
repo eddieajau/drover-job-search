@@ -64,15 +64,21 @@ describe('POST /api/jobs/:jobId/flag', () => {
     expect(received).toEqual({ topic: 'fetch_job_details' })
   })
 
-  it('resets topic and clears errorMessage on re-flag (upsert path)', async () => {
+  it('inserts a new fetch_job_details row on re-flag (does not affect existing rank row)', async () => {
     const job = seedJob(db, JOB1)
     db.insert(analysisQueue).values({ jobId: job.id, topic: 'rank', errorMessage: 'previous failure' }).run()
 
     const res = await app.inject({ method: 'POST', url: `/${job.id}/flag` })
     expect(res.statusCode).toBe(202)
 
-    const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()
-    expect(row?.topic).toBe('fetch_job_details')
-    expect(row?.errorMessage).toBeNull()
+    const rows = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).all()
+    expect(rows).toHaveLength(2)
+
+    const fetchRow = rows.find(r => r.topic === 'fetch_job_details')!
+    expect(fetchRow.errorMessage).toBeNull()
+    expect(fetchRow.completedAt).toBeNull()
+
+    const rankRow = rows.find(r => r.topic === 'rank')!
+    expect(rankRow.errorMessage).toBe('previous failure')
   })
 })

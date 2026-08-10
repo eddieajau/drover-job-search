@@ -206,7 +206,7 @@ describe('createDb', () => {
     db.$client.close()
   })
 
-  it('rejects duplicate job_id rows in analysis_queue', () => {
+  it('allows duplicate job_id rows in analysis_queue for retries', () => {
     const db = createDb(':memory:')
     db.$client
       .prepare(
@@ -216,7 +216,9 @@ describe('createDb', () => {
 
     const insert = db.$client.prepare("INSERT INTO analysis_queue (job_id, topic) VALUES (1, 'fetch_job_details')")
     insert.run()
-    expect(() => insert.run()).toThrow(/UNIQUE/)
+    insert.run()
+    const rows = db.$client.prepare('SELECT COUNT(*) as count FROM analysis_queue').get() as { count: number }
+    expect(rows.count).toBe(2)
 
     db.$client.close()
   })

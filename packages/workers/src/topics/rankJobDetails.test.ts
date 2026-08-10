@@ -4,13 +4,13 @@
  */
 
 import { analysisQueue, createDb, jobSignals, jobs, type DB } from 'db'
+import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createOllamaClient } from '../clients/ollama.js'
 import type { OllamaClient } from '../clients/ollama.js'
 import type { ConsumerOptions } from '../consumer.js'
 import { createConsumer } from '../consumer.js'
-import { advanceTo } from '../queue.js'
 import { createRankConsumer, drain, drainOne } from './rankJobDetails.js'
 
 const { consumerKickFn, consumerStopFn, consumerCaptured } = vi.hoisted(() => ({
@@ -308,7 +308,7 @@ describe('rank-job-details drain', () => {
     const { queueId } = seedQueue(db, '123456')
 
     await drain(db, { client: mockClient(documentedResponse) })
-    advanceTo(db, queueId, 'rank')
+    db.update(analysisQueue).set({ completedAt: null }).where(eq(analysisQueue.id, queueId)).run()
 
     const second = JSON.stringify({
       gates: [],
