@@ -63,8 +63,8 @@ const MONTHS: Record<string, number> = {
   dec: 12,
 }
 
-const SKILLS_MATRIX_HEADING = 'Skills & Competencies Matrix'
-const WORK_HISTORY_HEADING = 'Work History'
+export const SKILLS_MATRIX_HEADING = 'Skills & Competencies Matrix'
+export const WORK_HISTORY_HEADING = 'Work History'
 
 const DATE_RANGE_RE = /^([A-Za-z]+) (\d{4}) - ([A-Za-z]+) (\d{4})/
 const TABLE_SEPARATOR_RE = /^\s*\|[\s:|-]+\|\s*$/
