@@ -13,8 +13,23 @@ const UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
+type LogFn = (obj: unknown, msg?: string) => void
+
+/** Minimal pino-compatible logger surface used across the provider. */
+export interface SearchLogger {
+  debug: LogFn
+  info: LogFn
+  warn: LogFn
+}
+
+export const silentLogger: SearchLogger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+}
+
 /** Fetch HTML with exponential backoff on 429/5xx. Returns "" on a 404. */
-export async function htmlFetch(url: string): Promise<string> {
+export async function htmlFetch(url: string, logger: SearchLogger = silentLogger): Promise<string> {
   const maxRetries = 6
   let delay = 500
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -34,6 +49,10 @@ export async function htmlFetch(url: string): Promise<string> {
       }
       const jitter = Math.floor(Math.random() * 500)
       await new Promise(r => setTimeout(r, delay + jitter))
+      logger.warn(
+        { status: response.status, attempt: attempt + 1, backoffMs: delay + jitter, url },
+        'request throttled'
+      )
       delay = Math.min(delay * 2, 8000)
       continue
     }
@@ -62,6 +81,7 @@ export interface JobDetail extends JobCard {
   employmentType: string | null
   jobFunction: string | null
   industries: string | null
+  workplaceType: string | null
   applyUrl: string | null
 }
 
@@ -224,6 +244,7 @@ export function parseJobDetail(html: string, id: string): JobDetail {
     employmentType: criteria['employment type'] ?? null,
     jobFunction: criteria['job function'] ?? null,
     industries: criteria['industries'] ?? null,
+    workplaceType: normaliseWorkplace(criteria['workplace type'] ?? null),
     applyUrl,
   }
 }
@@ -234,19 +255,67 @@ export function jobageToTPR(days: number): string | null {
   return `r${days * 86400}`
 }
 
-/** Workplace-type flag: on-site=1, remote=2, hybrid=3. */
+/**
+ * Workplace-type flag(s) for LinkedIn's f_WT parameter.
+ * Accepts a comma-separated list of: remote, hybrid, onsite (or on-site).
+ * Returns a comma-joined string of the corresponding codes, or null if none match.
+ */
 export function workTypeFlag(mode: string | undefined): string | null {
-  switch ((mode || '').toLowerCase()) {
-    case 'remote':
-      return '2'
-    case 'hybrid':
-      return '3'
-    case 'onsite':
-    case 'on-site':
-      return '1'
-    default:
-      return null
+  if (!mode) return null
+  const map: Record<string, string> = {
+    remote: '2',
+    hybrid: '3',
+    onsite: '1',
+    'on-site': '1',
   }
+  const codes = mode
+    .split(',')
+    .map(m => map[m.trim().toLowerCase()])
+    .filter(Boolean)
+  return codes.length ? codes.join(',') : null
+}
+
+/** Normalise a workplace label (e.g. "On-site", "Remote") to a canonical token. */
+export function normaliseWorkplace(raw: string | null): WorkplaceType | null {
+  const v = (raw ?? '').trim().toLowerCase()
+  if (!v) return null
+  if (v.startsWith('remote')) return 'remote'
+  if (v.startsWith('hybrid')) return 'hybrid'
+  if (v.startsWith('on-site') || v.startsWith('onsite')) return 'onsite'
+  return null
+}
+
+export type WorkplaceType = 'onsite' | 'hybrid' | 'remote'
+
+/**
+ * Best-effort workplace classification for a job detail.
+ * The detail page's "Workplace type" criteria row is authoritative; when it is
+ * absent we fall back to scanning the description (LinkedIn does not tag every
+ * job, e.g. the iterate Technical Lead that leaks through the remote filter).
+ */
+export function classifyWorkplaceType(detail: {
+  workplaceType: string | null
+  description: string | null
+}): WorkplaceType | null {
+  if (detail.workplaceType) return detail.workplaceType as WorkplaceType
+  const text = (detail.description ?? '').toLowerCase()
+  if (text.includes('hybrid')) return 'hybrid'
+  if (text.includes('on-site') || text.includes('onsite') || text.includes('in-office') || text.includes('in office')) {
+    return 'onsite'
+  }
+  if (text.includes('remote') || text.includes('work from home') || text.includes('wfh')) return 'remote'
+  return null
+}
+
+/** True when a classified workplace type falls within the wanted comma-list. */
+export function matchesWorkType(wanted: string | undefined, actual: string | null): boolean {
+  if (!wanted) return true
+  if (!actual) return false
+  const allowed = wanted
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean)
+  return allowed.includes(actual)
 }
 
 /**

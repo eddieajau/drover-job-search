@@ -7,7 +7,7 @@ import { basename, dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createDb, crawls, jobs, queries } from 'db'
-import { desc, eq, max } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { pino } from 'pino'
 import { detail, search, selectJobage } from 'provider-linkedin'
 import { fetchJobDetails } from 'workers'
@@ -67,12 +67,7 @@ async function main() {
         .orderBy(desc(crawls.id))
         .limit(1)
         .get()
-      const fallbackAnchor = db
-        .select({ latest: max(jobs.createdAt) })
-        .from(jobs)
-        .where(eq(jobs.provider, query.provider))
-        .get()
-      const anchor = lastCrawl?.crawledAt ?? fallbackAnchor?.latest
+      const anchor = lastCrawl?.crawledAt
       const jobage = selectJobage(anchor)
       log.info({ window: jobage, anchor: anchor ?? 'none' }, 'window')
 
@@ -82,7 +77,9 @@ async function main() {
         jobage,
         workType: options.workType,
         jobType: options.jobType,
+        strictWorkType: options.strictWorkType,
         pages: 10,
+        logger: log,
       })
 
       const rows = result.results.map(card => ({

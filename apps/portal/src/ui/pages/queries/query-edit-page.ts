@@ -79,7 +79,7 @@ export class QueryEditPage extends HTMLElement {
   #onSave(): void {
     const qInput = this.querySelector<HTMLInputElement>('#edit-q-text')
     const locInput = this.querySelector<HTMLInputElement>('#edit-q-location')
-    const workSelect = this.querySelector<HTMLSelectElement>('#edit-q-work-type')
+    const workChecks = this.querySelectorAll<HTMLInputElement>('input[name="q-work-type"]:checked')
     const jobChecks = this.querySelectorAll<HTMLInputElement>('input[name="q-job-type"]:checked')
     if (!qInput) {
       return
@@ -88,6 +88,10 @@ export class QueryEditPage extends HTMLElement {
     if (!queryText) {
       return
     }
+    const workType =
+      Array.from(workChecks)
+        .map(cb => cb.value)
+        .join(',') || undefined
     this.dispatchEvent(
       new CustomEvent('query-edit-page:save', {
         bubbles: true,
@@ -97,7 +101,7 @@ export class QueryEditPage extends HTMLElement {
           queryText,
           queryOptions: {
             location: locInput?.value.trim() || undefined,
-            workType: workSelect?.value || undefined,
+            workType,
             jobType:
               Array.from(jobChecks)
                 .map(cb => cb.value)
@@ -113,14 +117,16 @@ export class QueryEditPage extends HTMLElement {
     this.classList.add('query-edit-page')
     const query = this.#query
     const editing = query != null
+    const workTypes = (query?.queryOptions?.workType ?? '').split(',').filter(Boolean)
     const jobTypes = (query?.queryOptions?.jobType ?? '').split(',').filter(Boolean)
 
-    const workOptions = ['', ...WORK_TYPES]
-      .map(
-        opt => `
-          <option value="${opt}" ${opt === (query?.queryOptions?.workType ?? '') ? 'selected' : ''}>${opt === '' ? 'Work type — any' : label(opt)}</option>`
-      )
-      .join('')
+    const workChecks = WORK_TYPES.map(
+      wt => `
+        <label class="check-pill">
+          <input type="checkbox" name="q-work-type" value="${wt}" ${workTypes.includes(wt) ? 'checked' : ''} />
+          <span>${label(wt)}</span>
+        </label>`
+    ).join('')
     const jobChecks = JOB_TYPES.map(
       jt => `
         <label class="check-pill">
@@ -145,10 +151,13 @@ export class QueryEditPage extends HTMLElement {
             <p class="hint">Leave empty to search anywhere.</p>
           </div>
           <div class="field-grid">
-            <div class="field">
-              <label class="field-label" for="edit-q-work-type">Work type</label>
-              <select class="select" id="edit-q-work-type">${workOptions}</select>
-            </div>
+            <fieldset class="field">
+              <legend class="field-label">Work type</legend>
+              <div class="pills">
+                ${workChecks}
+              </div>
+              <p class="hint">Selected types are verified against each job's listing; unmatched jobs are dropped.</p>
+            </fieldset>
             <fieldset class="field">
               <legend class="field-label">Job type</legend>
               <div class="pills">${jobChecks}</div>

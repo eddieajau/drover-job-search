@@ -63,7 +63,8 @@ describe('query-edit-page', () => {
     el.setState({ query: query() })
     expect(el.querySelector<HTMLInputElement>('#edit-q-text')?.value).toBe('Staff Engineer')
     expect(el.querySelector<HTMLInputElement>('#edit-q-location')?.value).toBe('Brisbane')
-    expect(el.querySelector<HTMLSelectElement>('#edit-q-work-type')?.value).toBe('hybrid')
+    expect(el.querySelector<HTMLInputElement>('input[name="q-work-type"][value="hybrid"]')?.checked).toBe(true)
+    expect(el.querySelector<HTMLInputElement>('input[name="q-work-type"][value="remote"]')?.checked).toBe(false)
     expect(el.querySelector<ToggleSwitch>('toggle-switch#edit-q-enabled')?.checked).toBe(true)
     expect(el.querySelector('h1')?.textContent).toBe('Edit query')
   })
@@ -84,13 +85,14 @@ describe('query-edit-page', () => {
     expect(field?.querySelector('.hint')?.textContent).toBe('Leave empty to search anywhere.')
   })
 
-  it('places the work-type select and job-type pills in the field-grid', () => {
+  it('places the work-type pills and job-type pills in the field-grid', () => {
     el.setState({ query: query() })
     const grid = el.querySelector('.field-grid')
     expect(grid).not.toBeNull()
-    expect(grid?.querySelector('.field-label')?.textContent).toBe('Work type')
-    expect(grid?.querySelector<HTMLSelectElement>('#edit-q-work-type')).not.toBeNull()
-    const jobField = grid?.querySelector<HTMLFieldSetElement>('fieldset.field')
+    const workField = grid?.querySelector<HTMLFieldSetElement>('fieldset.field')
+    expect(workField?.querySelector('.field-label')?.textContent).toBe('Work type')
+    expect(workField?.querySelectorAll('.check-pill input[name="q-work-type"]')).toHaveLength(3)
+    const jobField = grid?.querySelectorAll<HTMLFieldSetElement>('fieldset.field')[1]
     expect(jobField?.querySelector('.field-label')?.textContent).toBe('Job type')
     expect(jobField?.querySelectorAll('.check-pill input[name="q-job-type"]')).toHaveLength(3)
   })
@@ -171,5 +173,18 @@ describe('query-edit-page', () => {
     el.querySelector<HTMLInputElement>('#edit-q-text')!.value = 'Staff Engineer'
     el.querySelector<HTMLButtonElement>('#btn-save-query')?.click()
     expect(received.jobType).toBe('fulltime,contract')
+  })
+
+  it('flows checked work-type pills into a comma-joined workType', () => {
+    el.setState({})
+    el.querySelector<HTMLInputElement>('input[name="q-work-type"][value="remote"]')!.checked = true
+    el.querySelector<HTMLInputElement>('input[name="q-work-type"][value="hybrid"]')!.checked = true
+    const received = { workType: '' }
+    el.addEventListener('query-edit-page:save', event => {
+      received.workType = (event as CustomEvent).detail.queryOptions.workType
+    })
+    el.querySelector<HTMLInputElement>('#edit-q-text')!.value = 'Staff Engineer'
+    el.querySelector<HTMLButtonElement>('#btn-save-query')?.click()
+    expect(received.workType).toBe('hybrid,remote')
   })
 })

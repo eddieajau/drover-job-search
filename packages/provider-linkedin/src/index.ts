@@ -23,4 +23,15 @@
 
 export { search, selectJobage, LINKEDIN_WINDOWS, type SearchOpts, type SearchResult } from './search.js'
 export { detail, type DetailOpts } from './detail.js'
-export type { JobCard, JobDetail } from './helpers.js'
+export {
+  classifyWorkplaceType,
+  matchesWorkType,
+  normaliseWorkplace,
+  workTypeFlag,
+  jobTypeFlag,
+  silentLogger,
+  type JobCard,
+  type JobDetail,
+  type SearchLogger,
+  type WorkplaceType,
+} from './helpers.js'

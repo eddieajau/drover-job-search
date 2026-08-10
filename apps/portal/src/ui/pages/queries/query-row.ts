@@ -128,7 +128,11 @@ export class QueryRow extends HTMLElement {
   render(): void {
     const disabled = this.#enabled ? '' : ' is-disabled'
     const editHref = `#queries/edit?id=${this.#queryId}`
-    const workChip = this.#workType ? `<span class="chip">${esc(this.#tokenLabel(this.#workType))}</span>` : ''
+    const workChips = this.#workType
+      .split(',')
+      .filter(Boolean)
+      .map(value => `<span class="chip">${esc(this.#tokenLabel(value))}</span>`)
+      .join('')
     const jobChips = this.#jobType
       .split(',')
       .filter(Boolean)
@@ -142,7 +146,7 @@ export class QueryRow extends HTMLElement {
           <a class="query-text" href="${esc(editHref)}">${esc(this.#queryText)}</a>
           <div class="query-loc">${esc(this.#location)}</div>
         </div>
-        <div class="query-chips">${workChip}${jobChips}</div>
+        <div class="query-chips">${workChips}${jobChips}</div>
         <span class="query-date">Added ${esc(this.#addedDate)}</span>
         <a class="row-edit" href="${esc(editHref)}">Edit</a>
       </div>

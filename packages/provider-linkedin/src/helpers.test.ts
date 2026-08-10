@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseJobDetail } from './helpers.js'
+import { classifyWorkplaceType, matchesWorkType, normaliseWorkplace, parseJobDetail, workTypeFlag } from './helpers.js'
 
 describe('parseJobDetail', () => {
   it('preserves structural tags in the raw description HTML', () => {
@@ -38,5 +38,99 @@ describe('parseJobDetail', () => {
     const detail = parseJobDetail('<div class="topcard__title">No description here</div>', '123456')
 
     expect(detail.description).toBeNull()
+  })
+
+  it('extracts the workplace type from the criteria row', () => {
+    const html =
+      '<div class="show-more-less-html__markup"><p>Some job</p></div>' +
+      '<h3 class="description__job-criteria-subheader">Workplace type</h3>' +
+      '<span class="description__job-criteria-text">On-site</span>'
+
+    const detail = parseJobDetail(html, '123456')
+
+    expect(detail.workplaceType).toBe('onsite')
+  })
+
+  it('leaves workplace type null when no criteria row is present', () => {
+    const detail = parseJobDetail('<div class="show-more-less-html__markup"><p>Some job</p></div>', '123456')
+
+    expect(detail.workplaceType).toBeNull()
+  })
+})
+
+describe('workTypeFlag', () => {
+  it('maps a single mode to its LinkedIn code', () => {
+    expect(workTypeFlag('remote')).toBe('2')
+    expect(workTypeFlag('hybrid')).toBe('3')
+    expect(workTypeFlag('onsite')).toBe('1')
+    expect(workTypeFlag('on-site')).toBe('1')
+  })
+
+  it('maps a comma-separated list, normalising case and whitespace', () => {
+    expect(workTypeFlag('remote,hybrid')).toBe('2,3')
+    expect(workTypeFlag('On-site, REMOTE')).toBe('1,2')
+  })
+
+  it('returns null for an empty or unknown value', () => {
+    expect(workTypeFlag(undefined)).toBeNull()
+    expect(workTypeFlag('')).toBeNull()
+    expect(workTypeFlag('teleport')).toBeNull()
+  })
+})
+
+describe('normaliseWorkplace', () => {
+  it('canonicalises LinkedIn workplace labels', () => {
+    expect(normaliseWorkplace('Remote')).toBe('remote')
+    expect(normaliseWorkplace('Hybrid')).toBe('hybrid')
+    expect(normaliseWorkplace('On-site')).toBe('onsite')
+    expect(normaliseWorkplace('Onsite')).toBe('onsite')
+  })
+
+  it('returns null for empty or unrecognised labels', () => {
+    expect(normaliseWorkplace(null)).toBeNull()
+    expect(normaliseWorkplace('  ')).toBeNull()
+    expect(normaliseWorkplace('Travelling')).toBeNull()
+  })
+})
+
+describe('classifyWorkplaceType', () => {
+  it('prefers the criteria row over description heuristics', () => {
+    expect(classifyWorkplaceType({ workplaceType: 'remote', description: 'Hybrid working two days a week' })).toBe(
+      'remote'
+    )
+  })
+
+  it('falls back to description heuristics when no criteria row exists', () => {
+    expect(classifyWorkplaceType({ workplaceType: null, description: 'Hybrid working (2 days/week in office)' })).toBe(
+      'hybrid'
+    )
+    expect(
+      classifyWorkplaceType({ workplaceType: null, description: 'You will work fully remote across Australia' })
+    ).toBe('remote')
+    expect(
+      classifyWorkplaceType({ workplaceType: null, description: 'This role is based in our CBD office, on-site' })
+    ).toBe('onsite')
+  })
+
+  it('returns null when nothing can be determined', () => {
+    expect(classifyWorkplaceType({ workplaceType: null, description: 'A fine place to work' })).toBeNull()
+    expect(classifyWorkplaceType({ workplaceType: null, description: null })).toBeNull()
+  })
+})
+
+describe('matchesWorkType', () => {
+  it('accepts any workplace when no filter is wanted', () => {
+    expect(matchesWorkType(undefined, 'onsite')).toBe(true)
+    expect(matchesWorkType(undefined, null)).toBe(true)
+  })
+
+  it('matches a comma-list of allowed workplace types', () => {
+    expect(matchesWorkType('remote,hybrid', 'hybrid')).toBe(true)
+    expect(matchesWorkType('remote', 'remote')).toBe(true)
+    expect(matchesWorkType('remote', 'hybrid')).toBe(false)
+  })
+
+  it('rejects unclassified jobs when a filter is wanted', () => {
+    expect(matchesWorkType('remote', null)).toBe(false)
   })
 })

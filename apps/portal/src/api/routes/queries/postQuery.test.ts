@@ -27,12 +27,19 @@ describe('POST /api/queries', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/',
-      payload: { queryText: 'Staff Engineer', queryOptions: { location: 'Brisbane', workType: 'hybrid' } },
+      payload: {
+        queryText: 'Staff Engineer',
+        queryOptions: { location: 'Brisbane', workType: 'remote,hybrid', strictWorkType: 'remote,hybrid' },
+      },
     })
     expect(res.statusCode).toBe(201)
     expect(res.json()).toMatchObject({
       queryText: 'Staff Engineer',
-      queryOptions: { location: 'Brisbane', workType: 'hybrid' },
+      queryOptions: {
+        location: 'Brisbane',
+        workType: 'remote,hybrid',
+        strictWorkType: 'remote,hybrid',
+      },
       enabled: true,
       provider: 'linkedin',
     })

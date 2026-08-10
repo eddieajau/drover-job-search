@@ -13,6 +13,7 @@ interface QueryOptionsBody {
   location?: string
   workType?: string
   jobType?: string
+  strictWorkType?: string
 }
 
 interface QueryBody {
@@ -38,6 +39,7 @@ const bodySchema = {
         location: { type: 'string' },
         workType: { type: 'string' },
         jobType: { type: 'string' },
+        strictWorkType: { type: 'string' },
       },
     },
     enabled: { type: 'boolean' },

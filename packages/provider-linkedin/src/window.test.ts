@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { selectJobage } from './search.js'
+import { selectJobage, strictTarget } from './search.js'
 
 const DAY = 86_400_000
 
@@ -32,5 +32,25 @@ describe('selectJobage', () => {
 
   it('clamps negative age (future anchor) to the smallest bucket', () => {
     expect(selectJobage(new Date(Date.now() + 5 * DAY).toISOString())).toBe(1)
+  })
+})
+
+describe('strictTarget', () => {
+  it('defaults to the work-type facet (implicit strict)', () => {
+    expect(strictTarget('remote', undefined)).toBe('remote')
+    expect(strictTarget('remote,hybrid', undefined)).toBe('remote,hybrid')
+  })
+
+  it('prefers an explicit strict override', () => {
+    expect(strictTarget('remote', 'remote,hybrid')).toBe('remote,hybrid')
+  })
+
+  it('disables verification with "off"', () => {
+    expect(strictTarget('remote', 'off')).toBeUndefined()
+    expect(strictTarget(undefined, 'off')).toBeUndefined()
+  })
+
+  it('returns undefined when no work type is set', () => {
+    expect(strictTarget(undefined, undefined)).toBeUndefined()
   })
 })

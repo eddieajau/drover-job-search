@@ -37,6 +37,10 @@ export interface QueryOptions {
   location?: string
   workType?: string
   jobType?: string
+  /** Explicit strict target (comma-list of remote, hybrid, onsite) or 'off'.
+   * Defaults to `workType`, which is always verified from each job's listing
+   * because LinkedIn's workType facet is leaky. */
+  strictWorkType?: string
 }
 
 export interface Query {
