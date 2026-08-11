@@ -78,10 +78,10 @@ describe('job-meta-panel', () => {
 
     const signalRows = el.querySelectorAll('.signal-row')
     expect(signalRows.length).toBe(1)
-    expect(signalRows[0].querySelector('.signal-source')?.textContent).toBe('regex_title')
+    expect(signalRows[0].querySelector('.chip')?.textContent).toBe('skill_match')
+    expect(signalRows[0].querySelector('.chip')?.classList.contains('chip-skill_match')).toBe(true)
     expect(signalRows[0].querySelector('.signal-score')?.classList.contains('pos')).toBe(true)
     expect(signalRows[0].querySelector('.signal-score')?.textContent).toBe('10')
-    expect(signalRows[0].querySelector('.chip')).toBeNull()
 
     const flagBtn = el.querySelector<HTMLButtonElement>('[data-action="flag"]')
     expect(flagBtn?.disabled).toBe(false)
@@ -239,5 +239,43 @@ describe('job-meta-panel', () => {
     const j: JobWithStatus = { ...job(), _status: 'new', netScore: 61 }
     el.showJob(j, [signal({ source: 'llm_deep_eval', signalType: 'skill_match', score: 50 })], false)
     expect(el.querySelector('ai-eval-box .eval-why-lists')).toBeNull()
+  })
+
+  it('does not render eval_summary in the signals list', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 61 }
+    const sigs = [
+      signal({
+        source: 'llm_deep_eval',
+        signalType: 'eval_summary',
+        score: 0,
+        metadata: { strengths: ['a'], gaps: ['b'] },
+      }),
+      signal({ source: 'llm_deep_eval', signalType: 'skill_match', score: 35, metadata: { dimension: 'technical' } }),
+    ]
+    el.showJob(j, sigs, false)
+    const signalRows = el.querySelectorAll('.signal-row')
+    expect(signalRows.length).toBe(1)
+    expect(signalRows[0].querySelector('.chip')?.textContent).toBe('skill_match')
+  })
+
+  it('renders dimension label from metadata when present', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 61 }
+    const sigs = [
+      signal({ source: 'llm_deep_eval', signalType: 'skill_match', score: 35, metadata: { dimension: 'technical' } }),
+    ]
+    el.showJob(j, sigs, false)
+    const dimensionEl = el.querySelector('.signal-dimension')
+    expect(dimensionEl?.textContent).toBe('technical')
+  })
+
+  it('renders dealbreaker with no dimension label', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: -100 }
+    const sigs = [signal({ signalType: 'dealbreaker', score: -100 })]
+    el.showJob(j, sigs, false)
+    const signalRow = el.querySelector('.signal-row')
+    expect(signalRow?.querySelector('.chip')?.textContent).toBe('dealbreaker')
+    expect(signalRow?.querySelector('.chip')?.classList.contains('chip-dealbreaker')).toBe(true)
+    expect(signalRow?.querySelector('.signal-dimension')).toBeNull()
+    expect(signalRow?.querySelector('.signal-score')?.textContent).toBe('-100')
   })
 })

@@ -1396,37 +1396,36 @@ job-meta-panel {
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
-  border-left: 3px solid var(--border-strong);
-  border-radius: 0;
+  border-radius: 4px;
   margin-bottom: 6px;
   background: var(--field);
   font-size: 12px;
 }
 
-.signal-row.st-dealbreaker {
-  border-left-color: var(--red);
+.chip-skill_match {
+  background: var(--green-soft);
+  color: var(--green);
 }
 
-.signal-row.st-eval_summary {
-  border-left-color: var(--accent);
+.chip-company_match {
+  background: var(--blue-soft);
+  color: var(--blue);
 }
 
-.signal-row.st-skill_match {
-  border-left-color: var(--green);
+.chip-dealbreaker {
+  background: var(--red-soft);
+  color: var(--red);
 }
 
-.signal-row.st-company_match {
-  border-left-color: var(--blue);
+.chip-dimension {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
-.signal-row.st-dimension {
-  border-left-color: var(--accent);
-}
-
-.signal-source {
-  font-family: var(--mono);
+.signal-dimension {
   font-size: 11px;
   color: var(--muted);
+  text-transform: capitalize;
 }
 
 .signal-score {

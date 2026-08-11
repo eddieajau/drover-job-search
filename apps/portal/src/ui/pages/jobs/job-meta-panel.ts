@@ -191,10 +191,15 @@ export class JobMetaPanel extends HTMLElement {
     const rankDisabled = !hasDescription ? 'disabled' : ''
 
     const signalsHtml = this.#signals
+      .filter(s => s.signalType !== 'eval_summary')
       .map(s => {
         const scoreClass = s.score >= 0 ? 'pos' : 'neg'
+        const dimension = s.metadata?.dimension
+        const dimensionLabel =
+          typeof dimension === 'string' ? `<span class="signal-dimension">${esc(dimension)}</span>` : ''
         return `<div class="signal-row st-${esc(s.signalType)}">
-          <span class="signal-source">${esc(s.source)}</span>
+          <span class="chip chip-${esc(s.signalType)}">${esc(s.signalType)}</span>
+          ${dimensionLabel}
           <span class="signal-score ${scoreClass}">${s.score}</span>
         </div>`
       })
