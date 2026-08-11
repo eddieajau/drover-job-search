@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import type { JobsFilters } from '../../jobs-view.js'
+import type { JobSortKey, JobsFilters } from '../../jobs-view.js'
 
 export interface FilterBarEventMap {
   'filter-bar:change': CustomEvent<JobsFilters>
@@ -31,6 +31,7 @@ export class FilterBar extends HTMLElement {
     const status = this.querySelector<HTMLSelectElement>('#filter-status')
     const search = this.querySelector<HTMLInputElement>('#filter-search')
     const score = this.querySelector<HTMLSelectElement>('#filter-score')
+    const sort = this.querySelector<HTMLSelectElement>('#filter-sort')
     if (priority) {
       priority.value = filters.priority
     }
@@ -42,6 +43,9 @@ export class FilterBar extends HTMLElement {
     }
     if (score) {
       score.value = filters.score
+    }
+    if (sort) {
+      sort.value = filters.sort ?? 'score'
     }
   }
 
@@ -77,6 +81,7 @@ export class FilterBar extends HTMLElement {
     const status = this.querySelector<HTMLSelectElement>('#filter-status')
     const search = this.querySelector<HTMLInputElement>('#filter-search')
     const score = this.querySelector<HTMLSelectElement>('#filter-score')
+    const sort = this.querySelector<HTMLSelectElement>('#filter-sort')
     this.dispatchEvent(
       new CustomEvent('filter-bar:change', {
         bubbles: true,
@@ -86,6 +91,7 @@ export class FilterBar extends HTMLElement {
           status: status?.value ?? '',
           search: search?.value ?? '',
           score: score?.value ?? '',
+          sort: (sort?.value ?? 'score') as JobSortKey,
         },
       })
     )
@@ -115,6 +121,11 @@ export class FilterBar extends HTMLElement {
         <option value="hot">Hot</option>
         <option value="neutral">Neutral</option>
         <option value="auto-skip">Auto-skip</option>
+      </select>
+      <select id="filter-sort" aria-label="Sort jobs by">
+        <option value="score" selected>Score ↓</option>
+        <option value="posted">Posted ↓</option>
+        <option value="company">Company A→Z</option>
       </select>
     `
   }

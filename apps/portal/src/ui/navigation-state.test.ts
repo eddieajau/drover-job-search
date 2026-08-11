@@ -88,7 +88,7 @@ describe('parseHash', () => {
     expect(parseHash('#jobs?job=3&priority=1&status=applied&score=hot&q=go')).toEqual({
       view: 'jobs',
       job: 3,
-      filters: { priority: '1', status: 'applied', search: 'go', score: 'hot' },
+      filters: { priority: '1', status: 'applied', search: 'go', score: 'hot', sort: 'score' },
     })
   })
 
@@ -100,32 +100,46 @@ describe('parseHash', () => {
     expect(parseHash('#jobs?job=3&priority=1&score=hot&q=go')).toEqual({
       view: 'jobs',
       job: 3,
-      filters: { priority: '1', status: '', search: 'go', score: 'hot' },
+      filters: { priority: '1', status: '', search: 'go', score: 'hot', sort: 'score' },
     })
   })
 
   it('parses filters without a job identity', () => {
     expect(parseHash('#jobs?score=neutral')).toEqual({
       view: 'jobs',
-      filters: { priority: '', status: '', search: '', score: 'neutral' },
+      filters: { priority: '', status: '', search: '', score: 'neutral', sort: 'score' },
     })
   })
 
   it('parses relevant and all for status and score filters', () => {
     expect(parseHash('#jobs?status=all&score=relevant')).toEqual({
       view: 'jobs',
-      filters: { priority: '', status: 'all', search: '', score: 'relevant' },
+      filters: { priority: '', status: 'all', search: '', score: 'relevant', sort: 'score' },
     })
     expect(parseHash('#jobs?status=relevant&score=all')).toEqual({
       view: 'jobs',
-      filters: { priority: '', status: 'relevant', search: '', score: 'all' },
+      filters: { priority: '', status: 'relevant', search: '', score: 'all', sort: 'score' },
     })
   })
 
   it('returns empty string for absent status and score keys', () => {
     expect(parseHash('#jobs?q=go')).toEqual({
       view: 'jobs',
-      filters: { priority: '', status: '', search: 'go', score: '' },
+      filters: { priority: '', status: '', search: 'go', score: '', sort: 'score' },
+    })
+  })
+
+  it('parses sort from the query string', () => {
+    expect(parseHash('#jobs?sort=posted')).toEqual({
+      view: 'jobs',
+      filters: { priority: '', status: '', search: '', score: '', sort: 'posted' },
+    })
+  })
+
+  it('defaults sort to score when sort param is absent but other filters exist', () => {
+    expect(parseHash('#jobs?status=all')).toEqual({
+      view: 'jobs',
+      filters: { priority: '', status: 'all', search: '', score: '', sort: 'score' },
     })
   })
 })
@@ -150,7 +164,7 @@ describe('toHash', () => {
       toHash({
         view: 'jobs',
         job: 3,
-        filters: { priority: '1', status: '', search: 'go', score: 'hot' },
+        filters: { priority: '1', status: '', search: 'go', score: 'hot', sort: 'score' },
       })
     ).toBe('#jobs?job=3&priority=1&score=hot&q=go')
   })
@@ -160,7 +174,7 @@ describe('toHash', () => {
       toHash({
         view: 'jobs',
         job: 3,
-        filters: { priority: '1', status: '', search: '', score: '' },
+        filters: { priority: '1', status: '', search: '', score: '', sort: 'score' },
       })
     ).toBe('#jobs?job=3&priority=1')
   })
@@ -169,7 +183,7 @@ describe('toHash', () => {
     expect(
       toHash({
         view: 'jobs',
-        filters: { priority: '', status: 'relevant', search: '', score: 'relevant' },
+        filters: { priority: '', status: 'relevant', search: '', score: 'relevant', sort: 'score' },
       })
     ).toBe('#jobs')
   })
@@ -178,8 +192,39 @@ describe('toHash', () => {
     expect(
       toHash({
         view: 'jobs',
-        filters: { priority: '', status: 'all', search: '', score: 'all' },
+        filters: { priority: '', status: 'all', search: '', score: 'all', sort: 'score' },
       })
     ).toBe('#jobs?status=all&score=all')
+  })
+
+  it('omits sort when it is the default score', () => {
+    expect(
+      toHash({
+        view: 'jobs',
+        filters: { priority: '', status: '', search: '', score: '', sort: 'score' },
+      })
+    ).toBe('#jobs')
+  })
+
+  it('includes sort in the URL when non-default', () => {
+    expect(
+      toHash({
+        view: 'jobs',
+        filters: { priority: '', status: '', search: '', score: '', sort: 'posted' },
+      })
+    ).toBe('#jobs?sort=posted')
+  })
+
+  it('round-trips sort through parseHash and toHash', () => {
+    expect(
+      toHash({
+        view: 'jobs',
+        filters: { priority: '', status: '', search: '', score: '', sort: 'company' },
+      })
+    ).toBe('#jobs?sort=company')
+    expect(parseHash('#jobs?sort=company')).toEqual({
+      view: 'jobs',
+      filters: { priority: '', status: '', search: '', score: '', sort: 'company' },
+    })
   })
 })

@@ -744,4 +744,92 @@ describe('jobs-mediator', () => {
 
     expect(window.location.hash).toBe('#jobs')
   })
+
+  it('sorts by posted descending when sort filter is posted', async () => {
+    mockFetch({
+      '/api/jobs': jobsResponse({
+        'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+        'job-2': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+      }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    const sortSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-sort')
+    if (sortSelect) {
+      sortSelect.value = 'posted'
+    }
+    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    const cards = document.querySelectorAll('job-card')
+    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
+    expect(titles[0]).toBe('Staff Engineer')
+    expect(titles[1]).toBe('Senior Developer')
+    expect(titles[2]).toBe('Tech Lead')
+  })
+
+  it('sorts by company A-Z when sort filter is company', async () => {
+    mockFetch({
+      '/api/jobs': jobsResponse({
+        'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+        'job-2': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+      }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    const sortSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-sort')
+    if (sortSelect) {
+      sortSelect.value = 'company'
+    }
+    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    const cards = document.querySelectorAll('job-card')
+    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
+    expect(titles[0]).toBe('Staff Engineer')
+    expect(titles[1]).toBe('Senior Developer')
+    expect(titles[2]).toBe('Tech Lead')
+  })
+
+  it('writes sort to the URL when non-default', async () => {
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    const sortSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-sort')
+    if (sortSelect) {
+      sortSelect.value = 'posted'
+    }
+    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    expect(window.location.hash).toContain('sort=posted')
+  })
+
+  it('seeds sort from the URL hash on load', async () => {
+    window.location.hash = '#jobs?sort=company'
+    mockFetch({
+      '/api/jobs': jobsResponse({
+        'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+        'job-2': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+      }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    expect(filterBar?.querySelector<HTMLSelectElement>('#filter-sort')?.value).toBe('company')
+  })
 })

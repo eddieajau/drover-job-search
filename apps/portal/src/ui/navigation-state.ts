@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import type { JobsFilters } from './jobs-view.js'
+import type { JobsFilters, JobSortKey } from './jobs-view.js'
 
 export type NavigationState =
   | { view: 'jobs'; job?: number; filters?: JobsFilters }
@@ -79,10 +79,11 @@ function readFilters(params: URLSearchParams): JobsFilters | undefined {
   const status = params.get('status') ?? ''
   const search = params.get('q') ?? ''
   const score = params.get('score') ?? ''
-  if (!priority && !status && !search && !score) {
+  const sort = (params.get('sort') ?? '') as JobSortKey | ''
+  if (!priority && !status && !search && !score && !sort) {
     return undefined
   }
-  return { priority, status, search, score }
+  return { priority, status, search, score, sort: sort || 'score' }
 }
 
 export function toHash(state: NavigationState): string {
@@ -105,6 +106,9 @@ export function toHash(state: NavigationState): string {
         }
         if (filters.search) {
           params.set('q', filters.search)
+        }
+        if (filters.sort && filters.sort !== 'score') {
+          params.set('sort', filters.sort)
         }
       }
       const query = params.toString()

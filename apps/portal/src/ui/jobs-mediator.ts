@@ -4,7 +4,7 @@
  */
 
 import type { Job, JobStatus } from '../shared/types.js'
-import type { JobsFilters, JobsViewState, JobWithStatus } from './jobs-view.js'
+import type { JobsFilters, JobsViewState, JobWithStatus, JobSortKey } from './jobs-view.js'
 import type { NavigationState } from './navigation-state.js'
 import { parseHash, toHash } from './navigation-state.js'
 
@@ -31,7 +31,7 @@ let registered = false
 
 let results: Job[] = []
 let selectedId: number | null = null
-let filters: JobsFilters = { priority: '', status: 'relevant', search: '', score: 'relevant' }
+let filters: JobsFilters = { priority: '', status: 'relevant', search: '', score: 'relevant', sort: 'score' }
 let viewStatus: ViewStatus = 'idle'
 let message = ''
 let page = 1
@@ -71,7 +71,7 @@ export function _resetJobsMediatorForTesting(): void {
   registered = false
   results = []
   selectedId = null
-  filters = { priority: '', status: 'relevant', search: '', score: 'relevant' }
+  filters = { priority: '', status: 'relevant', search: '', score: 'relevant', sort: 'score' }
   viewStatus = 'idle'
   message = ''
   page = 1
@@ -240,6 +240,21 @@ function pushState(): void {
   }
 
   jobs.sort((a, b) => {
+    const sortKey: JobSortKey = filters.sort ?? 'score'
+    if (sortKey === 'posted') {
+      const byPosted = postedAtMs(b.postedAt) - postedAtMs(a.postedAt)
+      if (byPosted !== 0) {
+        return byPosted
+      }
+      return b.id - a.id
+    }
+    if (sortKey === 'company') {
+      const byCompany = (a.companyName ?? '').localeCompare(b.companyName ?? '', undefined, { sensitivity: 'base' })
+      if (byCompany !== 0) {
+        return byCompany
+      }
+      return (b.netScore ?? 0) - (a.netScore ?? 0)
+    }
     const byScore = (b.netScore ?? 0) - (a.netScore ?? 0)
     if (byScore !== 0) {
       return byScore

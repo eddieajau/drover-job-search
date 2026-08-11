@@ -7,11 +7,14 @@ import type { Job, JobStatus } from '../shared/types.js'
 
 export type JobWithStatus = Job & { _status: JobStatus['status']; netScore?: number; gated?: boolean }
 
+export type JobSortKey = 'score' | 'posted' | 'company'
+
 export interface JobsFilters {
   priority: string
   status: string
   search: string
   score: string
+  sort: JobSortKey
 }
 
 export interface JobsViewState {
