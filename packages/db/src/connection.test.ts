@@ -134,6 +134,83 @@ describe('createDb', () => {
     db.$client.close()
   })
 
+  it('creates the documents table with all columns', () => {
+    const db = createDb(':memory:')
+    const columns = db.$client.prepare('PRAGMA table_info(documents)').all() as { name: string }[]
+
+    expect(columns.map(c => c.name)).toEqual(['id', 'payload', 'created_at'])
+
+    db.$client.close()
+  })
+
+  it('creates the tasks table with all columns', () => {
+    const db = createDb(':memory:')
+    const columns = db.$client.prepare('PRAGMA table_info(tasks)').all() as { name: string }[]
+
+    expect(columns.map(c => c.name)).toEqual([
+      'id',
+      'topic',
+      'input_doc_id',
+      'result',
+      'error_message',
+      'queued_at',
+      'completed_at',
+    ])
+
+    db.$client.close()
+  })
+
+  it('accepts a documents row with a path-like id', () => {
+    const db = createDb(':memory:')
+    db.$client.prepare("INSERT INTO documents (id, payload) VALUES ('slice_resume/12/input', 'my resume text')").run()
+    const row = db.$client.prepare('SELECT id, payload FROM documents WHERE id = ?').get('slice_resume/12/input') as {
+      id: string
+      payload: string
+    }
+    expect(row).toEqual({ id: 'slice_resume/12/input', payload: 'my resume text' })
+
+    db.$client.close()
+  })
+
+  it('accepts a tasks row and defaults queued_at', () => {
+    const db = createDb(':memory:')
+    db.$client.prepare("INSERT INTO tasks (topic, input_doc_id) VALUES ('slice_resume', 'slice_resume/1/input')").run()
+    const row = db.$client
+      .prepare('SELECT topic, input_doc_id, queued_at, result, error_message FROM tasks WHERE id = 1')
+      .get() as {
+      topic: string
+      input_doc_id: string
+      queued_at: string
+      result: string | null
+      error_message: string | null
+    }
+    expect(row.topic).toBe('slice_resume')
+    expect(row.input_doc_id).toBe('slice_resume/1/input')
+    expect(row.queued_at).not.toBeNull()
+    expect(row.result).toBeNull()
+    expect(row.error_message).toBeNull()
+
+    db.$client.close()
+  })
+
+  it('rejects a tasks row with an invalid topic', () => {
+    const db = createDb(':memory:')
+
+    expect(() => db.$client.prepare("INSERT INTO tasks (topic) VALUES ('nonsense')").run()).toThrow(/CHECK/)
+
+    db.$client.close()
+  })
+
+  it('rejects a tasks row with malformed result JSON', () => {
+    const db = createDb(':memory:')
+
+    expect(() =>
+      db.$client.prepare("INSERT INTO tasks (topic, result) VALUES ('slice_resume', '{not json')").run()
+    ).toThrow(/CHECK/)
+
+    db.$client.close()
+  })
+
   it('defaults signal_type to skill_match and rejects an invalid signal_type', () => {
     const db = createDb(':memory:')
     db.$client

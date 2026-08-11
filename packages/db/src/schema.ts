@@ -219,6 +219,33 @@ export const facts = sqliteTable(
   ]
 )
 
+export const documents = sqliteTable('documents', {
+  id: text('id').primaryKey(),
+  payload: text('payload').notNull(),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+})
+
+export const tasks = sqliteTable(
+  'tasks',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    topic: text('topic').notNull(),
+    inputDocId: text('input_doc_id'),
+    result: text('result'),
+    errorMessage: text('error_message'),
+    queuedAt: text('queued_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    completedAt: text('completed_at'),
+  },
+  table => [
+    check('check_task_topic', sql`${table.topic} IN ('slice_resume')`),
+    check('check_task_result', sql`${table.result} IS NULL OR json_valid(${table.result})`),
+  ]
+)
+
 export type Query = InferSelectModel<typeof queries>
 export type Job = InferSelectModel<typeof jobs>
 export type Crawl = InferSelectModel<typeof crawls>
@@ -226,6 +253,8 @@ export type SignalRule = InferSelectModel<typeof signalRules>
 export type JobSignal = InferSelectModel<typeof jobSignals>
 export type AnalysisQueue = InferSelectModel<typeof analysisQueue>
 export type Fact = InferSelectModel<typeof facts>
+export type Document = InferSelectModel<typeof documents>
+export type Task = InferSelectModel<typeof tasks>
 
 export const TABLE_DDL = `
 CREATE TABLE IF NOT EXISTS queries (
@@ -360,4 +389,21 @@ CREATE TABLE IF NOT EXISTS facts (
 
 CREATE INDEX IF NOT EXISTS idx_facts_category ON facts(category);
 CREATE INDEX IF NOT EXISTS idx_facts_active ON facts(active);
+
+CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+);
+
+CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY,
+    topic TEXT NOT NULL,
+    input_doc_id TEXT,
+    result TEXT CHECK (result IS NULL OR json_valid(result)),
+    error_message TEXT,
+    queued_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    completed_at TEXT,
+    CONSTRAINT check_task_topic CHECK (topic IN ('slice_resume'))
+);
 `

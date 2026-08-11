@@ -4,7 +4,6 @@
  */
 
 import { createWorkerLoop, type WorkerLoopOptions } from './loop.js'
-import type { AnalysisTopic } from './queue.js'
 
 export interface Consumer {
   kick(): void
@@ -12,7 +11,7 @@ export interface Consumer {
 }
 
 export interface ConsumerOptions {
-  topic: AnalysisTopic
+  topic: string
   drain: () => Promise<{ total: number }>
   onEmpty?: () => void
   log?: WorkerLoopOptions['log']

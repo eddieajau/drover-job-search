@@ -8,7 +8,7 @@ import { vi } from 'vitest'
 import { createPublisher, type Publisher } from 'workers'
 
 type BusEventName = 'kick'
-type BusEvents = Record<BusEventName, [payload: { topic: 'fetch_job_details' | 'rank' }]>
+type BusEvents = Record<BusEventName, [payload: { topic: 'fetch_job_details' | 'rank' | 'slice_resume' }]>
 
 declare module 'fastify' {
   interface FastifyInstance {
