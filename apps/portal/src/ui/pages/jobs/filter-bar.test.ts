@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import './filter-bar.js'
 import type { FilterBar } from './filter-bar.js'
@@ -85,5 +85,80 @@ describe('filter-bar', () => {
     el.dispatchEvent(new Event('change', { bubbles: true }))
 
     expect(received.score).toBe('auto-skip')
+  })
+})
+
+describe('filter-bar debounce', () => {
+  let el: FilterBar
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    document.body.innerHTML = ''
+    el = document.createElement('filter-bar')
+    document.body.appendChild(el)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('debounces input events by 250ms', () => {
+    let callCount = 0
+    el.addEventListener('filter-bar:change', () => {
+      callCount++
+    })
+
+    const search = el.querySelector<HTMLInputElement>('#filter-search')
+    if (search) {
+      search.value = 'go'
+      search.dispatchEvent(new Event('input', { bubbles: true }))
+      search.value = 'goo'
+      search.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+
+    expect(callCount).toBe(0)
+
+    vi.advanceTimersByTime(250)
+
+    expect(callCount).toBe(1)
+  })
+
+  it('fires change event immediately on Enter even with pending debounce', () => {
+    let callCount = 0
+    el.addEventListener('filter-bar:change', () => {
+      callCount++
+    })
+
+    const search = el.querySelector<HTMLInputElement>('#filter-search')
+    if (search) {
+      search.value = 'go'
+      search.dispatchEvent(new Event('input', { bubbles: true }))
+      search.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+
+    expect(callCount).toBe(1)
+
+    vi.advanceTimersByTime(250)
+
+    expect(callCount).toBe(2)
+  })
+
+  it('clears pending timer on disconnectedCallback', () => {
+    let callCount = 0
+    el.addEventListener('filter-bar:change', () => {
+      callCount++
+    })
+
+    const search = el.querySelector<HTMLInputElement>('#filter-search')
+    if (search) {
+      search.value = 'go'
+      search.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+
+    document.body.removeChild(el)
+
+    vi.advanceTimersByTime(250)
+
+    expect(callCount).toBe(0)
   })
 })

@@ -550,8 +550,18 @@ describe('jobs-mediator', () => {
 
   it('seeds filters from the URL and drives the first render', async () => {
     window.location.hash = '#jobs?status=applied&q=senior'
+    const seniorOnlyResponse = {
+      count: 1,
+      results: [
+        {
+          ...mockJobsResponse.results[1],
+          status: 'applied',
+          signals: { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+        },
+      ],
+    }
     mockFetch({
-      '/api/jobs': jobsResponse({}, { 'job-2': 'applied' }),
+      '/api/jobs': seniorOnlyResponse,
     })
 
     initJobsMediator()
@@ -560,6 +570,9 @@ describe('jobs-mediator', () => {
     const filterBar = document.querySelector('filter-bar')
     expect(filterBar?.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('applied')
     expect(filterBar?.querySelector<HTMLInputElement>('#filter-search')?.value).toBe('senior')
+
+    const calls = vi.mocked(fetch).mock.calls.map(([url]) => url)
+    expect(calls[0]).toContain('q=senior')
 
     const cards = document.querySelectorAll('job-card')
     expect(cards.length).toBe(1)

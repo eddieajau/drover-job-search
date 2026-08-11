@@ -11,6 +11,7 @@ export interface FilterBarEventMap {
 
 export class FilterBar extends HTMLElement {
   #abort: AbortController | null = null
+  #debounceTimer: ReturnType<typeof setTimeout> | null = null
 
   connectedCallback(): void {
     this.render()
@@ -19,6 +20,10 @@ export class FilterBar extends HTMLElement {
 
   disconnectedCallback(): void {
     this.cleanup()
+    if (this.#debounceTimer !== null) {
+      clearTimeout(this.#debounceTimer)
+      this.#debounceTimer = null
+    }
   }
 
   setFilters(filters: JobsFilters): void {
@@ -58,7 +63,13 @@ export class FilterBar extends HTMLElement {
   }
 
   #onInput = (): void => {
-    this.#dispatchChange()
+    if (this.#debounceTimer !== null) {
+      clearTimeout(this.#debounceTimer)
+    }
+    this.#debounceTimer = setTimeout(() => {
+      this.#debounceTimer = null
+      this.#dispatchChange()
+    }, 250)
   }
 
   #dispatchChange(): void {

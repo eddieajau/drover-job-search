@@ -276,3 +276,74 @@ describe('GET /api/jobs description serialization', () => {
     expect(res.json().results[0].descriptionHtml).toBeNull()
   })
 })
+
+describe('GET /api/jobs search', () => {
+  let db: DB
+  let app: Awaited<ReturnType<typeof build>>
+
+  beforeEach(async () => {
+    db = createTestDb()
+    app = await build(getJobs, { db, prefix: '/' })
+  })
+
+  afterEach(async () => {
+    await app.close()
+    db.$client.close()
+  })
+
+  it('filters by title match case-insensitively', async () => {
+    seedJob(db, JOB1)
+    seedJob(db, { ...JOB2, title: 'Go Developer' })
+    seedJob(db, JOB3)
+
+    const res = await app.inject({ method: 'GET', url: '/?q=go' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string; title: string }> }
+    expect(body.count).toBe(1)
+    expect(body.results).toHaveLength(1)
+    expect(body.results[0].providerJobId).toBe('job-2')
+  })
+
+  it('filters by companyName match case-insensitively', async () => {
+    seedJob(db, JOB1)
+    seedJob(db, { ...JOB2, companyName: 'Golang Inc' })
+    seedJob(db, JOB3)
+
+    const res = await app.inject({ method: 'GET', url: '/?q=go' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string; companyName: string }> }
+    expect(body.count).toBe(1)
+    expect(body.results).toHaveLength(1)
+    expect(body.results[0].providerJobId).toBe('job-2')
+  })
+
+  it('matches title OR companyName', async () => {
+    seedJob(db, JOB1)
+    seedJob(db, { ...JOB2, title: 'Go Developer', companyName: 'Other' })
+    seedJob(db, { ...JOB3, title: 'Other Title', companyName: 'Go Corp' })
+
+    const res = await app.inject({ method: 'GET', url: '/?q=go' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string }> }
+    expect(body.count).toBe(2)
+    expect(body.results.map(r => r.providerJobId).sort()).toEqual(['job-2', 'job-3'])
+  })
+
+  it('returns all jobs when q is empty', async () => {
+    seedJob(db, JOB1)
+    seedJob(db, JOB2)
+    seedJob(db, JOB3)
+
+    const res = await app.inject({ method: 'GET', url: '/?q=' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string }> }
+    expect(body.count).toBe(3)
+    expect(body.results).toHaveLength(3)
+  })
+
+  it('trims whitespace from q', async () => {
+    seedJob(db, JOB1)
+    seedJob(db, { ...JOB2, title: 'Go Developer' })
+
+    const res = await app.inject({ method: 'GET', url: '/?q=%20%20go%20%20' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string }> }
+    expect(body.count).toBe(1)
+    expect(body.results[0].providerJobId).toBe('job-2')
+  })
+})

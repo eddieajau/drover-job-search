@@ -99,6 +99,9 @@ async function handleSearch(): Promise<void> {
   jobsPage.setLoading()
   try {
     const params = new URLSearchParams({ limit: String(pageSize), offset: String((page - 1) * pageSize) })
+    if (filters.search) {
+      params.set('q', filters.search)
+    }
     const response = await fetch(`/api/jobs?${params.toString()}`)
     if (!response.ok) {
       throw new Error('Failed to load jobs')
@@ -164,7 +167,7 @@ function handleOpen(event: Event): void {
 function handleFilterChange(event: Event): void {
   filters = (event as CustomEvent<JobsFilters>).detail
   syncHash()
-  pushState()
+  void handleSearch()
 }
 
 function seedSelectedIdFromHash(): void {
@@ -215,10 +218,6 @@ function pushState(): void {
     jobs = jobs.filter(job => job._status === filters.status)
   } else {
     jobs = jobs.filter(job => job._status !== 'skipped')
-  }
-  if (filters.search) {
-    const term = filters.search.toLowerCase()
-    jobs = jobs.filter(job => job.title.toLowerCase().includes(term) || job.companyName.toLowerCase().includes(term))
   }
   if (filters.score === 'hot') {
     jobs = jobs.filter(job => !job.gated && (job.netScore ?? 0) >= HOT_THRESHOLD)
