@@ -272,6 +272,33 @@ describe('jobs-mediator', () => {
     expect(titles[2]).toBe('Staff Engineer')
   })
 
+  it('breaks netScore ties by more recent postedAt, with null postings last', async () => {
+    const equalSignals = {
+      signalCount: 1,
+      gated: false,
+      dimensions: { technical: 50, experience: 50, behavioral: 50, career: 50 },
+      baseScore: 0,
+    }
+    mockFetch({
+      '/api/jobs': {
+        count: 3,
+        results: [
+          { ...mockJobsResponse.results[2], postedAt: null, signals: equalSignals },
+          { ...mockJobsResponse.results[0], signals: equalSignals },
+          { ...mockJobsResponse.results[1], signals: equalSignals },
+        ],
+      },
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const cards = document.querySelectorAll('job-card')
+    expect(cards.length).toBe(3)
+    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
+    expect(titles).toEqual(['Staff Engineer', 'Senior Developer', 'Tech Lead'])
+  })
+
   it('renders auto-skip badge for gated jobs when filter is auto-skip', async () => {
     mockFetch({
       '/api/jobs': jobsResponse({

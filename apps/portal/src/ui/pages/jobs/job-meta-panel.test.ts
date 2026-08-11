@@ -72,7 +72,7 @@ describe('job-meta-panel', () => {
 
     const evalBox = el.querySelector('ai-eval-box')
     expect(evalBox).not.toBeNull()
-    expect(evalBox?.getAttribute('verdict')).toBe('High match')
+    expect(evalBox?.getAttribute('verdict')).toBe('Strong fit')
     expect(evalBox?.getAttribute('score')).toBe('85')
 
     const signalRows = el.querySelectorAll('.signal-row')
@@ -133,6 +133,40 @@ describe('job-meta-panel', () => {
     const evalBox = el.querySelector('ai-eval-box')
     expect(evalBox?.getAttribute('verdict')).toBe('Auto-skip')
     expect(evalBox?.hasAttribute('gated')).toBe(true)
+  })
+
+  it('maps netScore to the five verdict bands at every boundary', () => {
+    const cases: Array<[number, string]> = [
+      [75, 'Strong fit'],
+      [74, 'Good fit'],
+      [60, 'Good fit'],
+      [59, 'Moderate fit'],
+      [45, 'Moderate fit'],
+      [44, 'Weak fit'],
+      [30, 'Weak fit'],
+      [29, 'Poor fit'],
+    ]
+    for (const [score, expected] of cases) {
+      el.showJob({ ...job(), _status: 'new', netScore: score }, [], false)
+      expect(el.querySelector('ai-eval-box')?.getAttribute('verdict')).toBe(expected)
+    }
+  })
+
+  it('marks postings within 7 days as urgent with a Recent chip', () => {
+    const sixDays = new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10)
+    el.showJob({ ...job({ postedAt: sixDays }), _status: 'new', netScore: 80 }, [], false)
+    expect(el.querySelector('ai-eval-box .chip-recent')?.textContent).toBe('Recent')
+  })
+
+  it('does not mark postings older than 7 days as urgent', () => {
+    const eightDays = new Date(Date.now() - 8 * 86_400_000).toISOString().slice(0, 10)
+    el.showJob({ ...job({ postedAt: eightDays }), _status: 'new', netScore: 80 }, [], false)
+    expect(el.querySelector('ai-eval-box .chip-recent')).toBeNull()
+  })
+
+  it('does not mark jobs without a postedAt date as urgent', () => {
+    el.showJob({ ...job({ postedAt: null }), _status: 'new', netScore: 80 }, [], false)
+    expect(el.querySelector('ai-eval-box .chip-recent')).toBeNull()
   })
 
   it('passes strengths and gaps from an eval_summary signal to the eval box', () => {

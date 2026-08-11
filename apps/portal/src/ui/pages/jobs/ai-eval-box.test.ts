@@ -77,6 +77,31 @@ describe('ai-eval-box', () => {
     expect(score?.textContent).toBe('85')
   })
 
+  it('maps score to three colour bands at the 60 and 30 boundaries', () => {
+    const cases: Array<[string, string]> = [
+      ['60', 'score-high'],
+      ['59', 'score-mid'],
+      ['30', 'score-mid'],
+      ['29', 'score-low'],
+    ]
+    for (const [score, band] of cases) {
+      const box = createBox({ verdict: 'Verdict', score })
+      expect(box.querySelector('.score')?.classList.contains(band)).toBe(true)
+    }
+  })
+
+  it('renders a Recent chip beside the verdict when urgent', () => {
+    const box = createBox({ verdict: 'Strong fit', score: '80', urgent: '' })
+
+    const chip = box.querySelector('.chip-recent')
+    expect(chip?.textContent).toBe('Recent')
+  })
+
+  it('omits the Recent chip when not urgent', () => {
+    const box = createBox({ verdict: 'Strong fit', score: '80' })
+    expect(box.querySelector('.chip-recent')).toBeNull()
+  })
+
   it('renders strengths and gaps lists via setWhy', () => {
     const box = createBox({ verdict: 'High match', score: '61' })
     box.setWhy({ strengths: ['Deep TypeScript match'], gaps: ['No Kafka experience'] })

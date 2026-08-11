@@ -34,23 +34,46 @@ function evalWhyFromSignals(signals: JobSignal[]): EvalWhy | null {
   return { strengths: toStringList(summary.metadata.strengths), gaps: toStringList(summary.metadata.gaps) }
 }
 
-function deriveVerdict(job: JobWithStatus): { verdict: string; score: string; why: string; gated: boolean } {
+const URGENT_WINDOW_MS = 7 * 86_400_000
+
+function isUrgent(postedAt: string | null, now: Date = new Date()): boolean {
+  if (!postedAt) {
+    return false
+  }
+  const posted = new Date(postedAt)
+  if (Number.isNaN(posted.getTime())) {
+    return false
+  }
+  return now.getTime() - posted.getTime() <= URGENT_WINDOW_MS
+}
+
+function deriveVerdict(job: JobWithStatus): {
+  verdict: string
+  score: string
+  why: string
+  gated: boolean
+  urgent: boolean
+} {
   if (job.gated) {
-    return { verdict: 'Auto-skip', score: '', why: 'Blocked by dealbreaker rule.', gated: true }
+    return { verdict: 'Auto-skip', score: '', why: 'Blocked by dealbreaker rule.', gated: true, urgent: false }
   }
   if (job.netScore === undefined) {
-    return { verdict: '', score: '', why: '', gated: false }
+    return { verdict: '', score: '', why: '', gated: false, urgent: false }
   }
   const score = job.netScore
   let verdict: string
-  if (score >= 50) {
-    verdict = 'High match'
-  } else if (score >= 0) {
-    verdict = 'Moderate match'
+  if (score >= 75) {
+    verdict = 'Strong fit'
+  } else if (score >= 60) {
+    verdict = 'Good fit'
+  } else if (score >= 45) {
+    verdict = 'Moderate fit'
+  } else if (score >= 30) {
+    verdict = 'Weak fit'
   } else {
-    verdict = 'Weak match'
+    verdict = 'Poor fit'
   }
-  return { verdict, score: String(score), why: '', gated: false }
+  return { verdict, score: String(score), why: '', gated: false, urgent: isUrgent(job.postedAt) }
 }
 
 export class JobMetaPanel extends HTMLElement {
@@ -172,7 +195,7 @@ export class JobMetaPanel extends HTMLElement {
         </div>
         <div class="meta-section">
           <div class="meta-label">AI Evaluation</div>
-          <ai-eval-box${evalData.verdict ? ` verdict="${esc(evalData.verdict)}"` : ''}${evalData.score ? ` score="${esc(evalData.score)}"` : ''}${evalData.why ? ` why="${esc(evalData.why)}"` : ''}${evalData.gated ? ' gated' : ''}></ai-eval-box>
+          <ai-eval-box${evalData.verdict ? ` verdict="${esc(evalData.verdict)}"` : ''}${evalData.score ? ` score="${esc(evalData.score)}"` : ''}${evalData.why ? ` why="${esc(evalData.why)}"` : ''}${evalData.gated ? ' gated' : ''}${evalData.urgent ? ' urgent' : ''}></ai-eval-box>
         </div>
         <div class="meta-section">
           <div class="meta-label">Signals</div>

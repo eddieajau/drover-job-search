@@ -37,6 +37,14 @@ function computeNetScore(job: Job): number | undefined {
   return Math.round(weighted) + job.signals.baseScore
 }
 
+function postedAtMs(postedAt: string | null): number {
+  if (!postedAt) {
+    return 0
+  }
+  const time = new Date(postedAt).getTime()
+  return Number.isNaN(time) ? 0 : time
+}
+
 let registered = false
 
 let results: Job[] = []
@@ -240,7 +248,13 @@ function pushState(): void {
     jobs = jobs.filter(job => !job.gated)
   }
 
-  jobs.sort((a, b) => (b.netScore ?? 0) - (a.netScore ?? 0))
+  jobs.sort((a, b) => {
+    const byScore = (b.netScore ?? 0) - (a.netScore ?? 0)
+    if (byScore !== 0) {
+      return byScore
+    }
+    return postedAtMs(b.postedAt) - postedAtMs(a.postedAt)
+  })
 
   const state: JobsViewState = {
     status: viewStatus,

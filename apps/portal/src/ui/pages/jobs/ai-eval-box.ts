@@ -10,15 +10,16 @@ export interface EvalWhy {
   gaps: string[]
 }
 
-type AiEvalBoxAttribute = 'verdict' | 'score' | 'why' | 'gated'
+type AiEvalBoxAttribute = 'verdict' | 'score' | 'why' | 'gated' | 'urgent'
 
 export class AiEvalBox extends HTMLElement {
-  static observedAttributes: AiEvalBoxAttribute[] = ['verdict', 'score', 'why', 'gated']
+  static observedAttributes: AiEvalBoxAttribute[] = ['verdict', 'score', 'why', 'gated', 'urgent']
 
   #verdict = ''
   #score: number | undefined = undefined
   #why = ''
   #gated = false
+  #urgent = false
   #whyLists: EvalWhy | null = null
 
   connectedCallback(): void {
@@ -46,6 +47,9 @@ export class AiEvalBox extends HTMLElement {
       case 'gated':
         this.#gated = newValue !== null
         break
+      case 'urgent':
+        this.#urgent = newValue !== null
+        break
     }
     if (this.isConnected) {
       this.render()
@@ -61,8 +65,15 @@ export class AiEvalBox extends HTMLElement {
       return
     }
 
-    const scoreBand = this.#gated ? 'score-low' : (this.#score ?? 0) >= 50 ? 'score-high' : 'score-mid'
+    const scoreBand = this.#gated
+      ? 'score-low'
+      : (this.#score ?? 0) >= 60
+        ? 'score-high'
+        : (this.#score ?? 0) >= 30
+          ? 'score-mid'
+          : 'score-low'
     const scoreLabel = this.#gated ? 'auto-skip' : this.#score !== undefined ? `${this.#score}` : ''
+    const recentChip = this.#urgent ? '<span class="chip chip-recent">Recent</span>' : ''
 
     const whyListsHtml = this.#whyLists
       ? `
@@ -91,7 +102,10 @@ export class AiEvalBox extends HTMLElement {
     this.innerHTML = `
       <div class="eval-box">
         <div class="eval-head">
-          <span class="eval-verdict">${esc(this.#verdict)}</span>
+          <span class="eval-verdict-row">
+            <span class="eval-verdict">${esc(this.#verdict)}</span>
+            ${recentChip}
+          </span>
           <span class="score ${scoreBand}">${esc(scoreLabel)}</span>
         </div>
         <p class="eval-why">${esc(this.#why)}</p>

@@ -1187,6 +1187,12 @@ ai-eval-box {
   color: var(--green);
 }
 
+.eval-verdict-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .eval-why {
   font-size: 12px;
   color: var(--muted);
@@ -1305,6 +1311,11 @@ job-meta-panel {
 .chip-skipped {
   background: var(--red-soft);
   color: var(--red);
+}
+
+.chip-recent {
+  background: var(--blue-soft);
+  color: var(--blue);
 }
 
 .switch {
