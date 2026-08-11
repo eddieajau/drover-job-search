@@ -55,6 +55,7 @@ type JobSignals = {
   gated?: boolean
   dimensions?: Record<string, number>
   baseScore?: number
+  netScore?: number
 }
 
 function jobsResponse(
@@ -71,6 +72,7 @@ function jobsResponse(
         gated: false,
         dimensions: {},
         baseScore: 0,
+        netScore: 0,
         ...signals[job.providerJobId],
       },
     })),
@@ -124,14 +126,16 @@ describe('jobs-mediator', () => {
           gated: false,
           dimensions: { technical: 75, experience: 75, behavioral: 75, career: 75 },
           baseScore: 0,
+          netScore: 75,
         },
         'job-2': {
           signalCount: 1,
           gated: false,
           dimensions: { technical: 10, experience: 10, behavioral: 10, career: 10 },
           baseScore: 0,
+          netScore: 10,
         },
-        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
+        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
       }),
     })
 
@@ -153,6 +157,7 @@ describe('jobs-mediator', () => {
           gated: false,
           dimensions: { technical: 50, experience: 50, behavioral: 50, career: 50 },
           baseScore: 0,
+          netScore: 50,
         },
       }),
     })
@@ -167,9 +172,9 @@ describe('jobs-mediator', () => {
   it('ranks by weighted dimensions so heavier dimensions dominate', async () => {
     mockFetch({
       '/api/jobs': jobsResponse({
-        'job-1': { signalCount: 2, gated: false, dimensions: { technical: 100 }, baseScore: 0 },
-        'job-2': { signalCount: 2, gated: false, dimensions: { behavioral: 100 }, baseScore: 0 },
-        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
+        'job-1': { signalCount: 2, gated: false, dimensions: { technical: 100 }, baseScore: 0, netScore: 30 },
+        'job-2': { signalCount: 2, gated: false, dimensions: { behavioral: 100 }, baseScore: 0, netScore: 15 },
+        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
       }),
     })
 
@@ -192,14 +197,16 @@ describe('jobs-mediator', () => {
           gated: false,
           dimensions: { technical: 75, experience: 75, behavioral: 75, career: 75 },
           baseScore: 0,
+          netScore: 75,
         },
         'job-2': {
           signalCount: 1,
           gated: false,
           dimensions: { technical: 10, experience: 10, behavioral: 10, career: 10 },
           baseScore: 0,
+          netScore: 10,
         },
-        'job-3': { signalCount: 0, gated: true, dimensions: {}, baseScore: 0 },
+        'job-3': { signalCount: 0, gated: true, dimensions: {}, baseScore: 0, netScore: 0 },
       }),
     })
 
@@ -217,14 +224,15 @@ describe('jobs-mediator', () => {
   it('auto-skips a gated job regardless of dimension scores', async () => {
     mockFetch({
       '/api/jobs': jobsResponse({
-        'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
+        'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
         'job-2': {
           signalCount: 4,
           gated: true,
           dimensions: { technical: 100, experience: 100, behavioral: 100, career: 100 },
           baseScore: 0,
+          netScore: 100,
         },
-        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
+        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
       }),
     })
 
@@ -245,18 +253,21 @@ describe('jobs-mediator', () => {
           gated: false,
           dimensions: { technical: 20, experience: 20, behavioral: 20, career: 20 },
           baseScore: 0,
+          netScore: 20,
         },
         'job-2': {
           signalCount: 2,
           gated: false,
           dimensions: { technical: 80, experience: 80, behavioral: 80, career: 80 },
           baseScore: 0,
+          netScore: 80,
         },
         'job-3': {
           signalCount: 1,
           gated: false,
           dimensions: { technical: 50, experience: 50, behavioral: 50, career: 50 },
           baseScore: 0,
+          netScore: 50,
         },
       }),
     })
@@ -278,6 +289,7 @@ describe('jobs-mediator', () => {
       gated: false,
       dimensions: { technical: 50, experience: 50, behavioral: 50, career: 50 },
       baseScore: 0,
+      netScore: 50,
     }
     mockFetch({
       '/api/jobs': {
@@ -307,12 +319,14 @@ describe('jobs-mediator', () => {
           gated: true,
           dimensions: { technical: 100, experience: 100, behavioral: 100, career: 100 },
           baseScore: 0,
+          netScore: 100,
         },
         'job-2': {
           signalCount: 1,
           gated: false,
           dimensions: { technical: 10, experience: 10, behavioral: 10, career: 10 },
           baseScore: 0,
+          netScore: 10,
         },
       }),
     })

@@ -8,6 +8,7 @@ export interface SignalSummary {
   gated: boolean
   dimensions: Record<string, number>
   baseScore: number
+  netScore?: number
 }
 
 export interface Job {

@@ -19,24 +19,6 @@ interface JobsResponse {
 
 const HOT_THRESHOLD = 50
 
-const DIMENSION_WEIGHTS: Record<string, number> = {
-  technical: 0.3,
-  experience: 0.25,
-  behavioral: 0.15,
-  career: 0.3,
-}
-
-function computeNetScore(job: Job): number | undefined {
-  if (!job.signals) {
-    return undefined
-  }
-  let weighted = 0
-  for (const [dimension, score] of Object.entries(job.signals.dimensions)) {
-    weighted += score * (DIMENSION_WEIGHTS[dimension] ?? 0)
-  }
-  return Math.round(weighted) + job.signals.baseScore
-}
-
 function postedAtMs(postedAt: string | null): number {
   if (!postedAt) {
     return 0
@@ -219,7 +201,7 @@ function pushState(): void {
   const all: JobWithStatus[] = results.map(job => ({
     ...job,
     _status: (job.status as JobStatus['status']) ?? 'new',
-    netScore: computeNetScore(job),
+    netScore: job.signals?.netScore,
     gated: job.signals?.gated,
   }))
 

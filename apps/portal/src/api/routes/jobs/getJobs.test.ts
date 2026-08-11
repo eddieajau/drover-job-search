@@ -99,13 +99,14 @@ describe('GET /api/jobs signal summary join', () => {
         gated: boolean
         dimensions: Record<string, number>
         baseScore: number
+        netScore?: number
       }
     }>
     expect(results.find(j => j.providerJobId === JOB1.providerJobId)).toMatchObject({
-      signals: { signalCount: 2, gated: false, dimensions: { technical: 75 }, baseScore: 5 },
+      signals: { signalCount: 2, gated: false, dimensions: { technical: 75 }, baseScore: 5, netScore: 28 },
     })
     expect(results.find(j => j.providerJobId === JOB2.providerJobId)).toMatchObject({
-      signals: { signalCount: 1, gated: false, dimensions: {}, baseScore: 2 },
+      signals: { signalCount: 1, gated: false, dimensions: {}, baseScore: 2, netScore: 2 },
     })
   })
 

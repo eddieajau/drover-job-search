@@ -6,7 +6,7 @@
 import { createDb, jobSignals, jobs, type DB } from 'db'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { summariseSignals } from './signals-summary.js'
+import { DIMENSION_WEIGHTS, summariseSignals } from './signals-summary.js'
 
 describe('summariseSignals', () => {
   let db: DB
@@ -55,8 +55,8 @@ describe('summariseSignals', () => {
       .run()
 
     const totals = summariseSignals(db, [jobA.id, jobB.id])
-    expect(totals.get(jobA.id)).toEqual({ signalCount: 2, gated: false, dimensions: {}, baseScore: 2 })
-    expect(totals.get(jobB.id)).toEqual({ signalCount: 1, gated: false, dimensions: {}, baseScore: 2 })
+    expect(totals.get(jobA.id)).toEqual({ signalCount: 2, gated: false, dimensions: {}, baseScore: 2, netScore: 2 })
+    expect(totals.get(jobB.id)).toEqual({ signalCount: 1, gated: false, dimensions: {}, baseScore: 2, netScore: 2 })
   })
 
   it('sets gated=true when any signal has signalType dealbreaker', () => {
@@ -71,6 +71,7 @@ describe('summariseSignals', () => {
     const totals = summariseSignals(db, [job.id])
     expect(totals.get(job.id)?.gated).toBe(true)
     expect(totals.get(job.id)?.baseScore).toBe(10)
+    expect(totals.get(job.id)?.netScore).toBe(10)
   })
 
   it('accumulates dimension scores separately from baseScore', () => {
@@ -101,6 +102,7 @@ describe('summariseSignals', () => {
       gated: false,
       dimensions: { technical: 75, career: 80 },
       baseScore: 5,
+      netScore: 52,
     })
   })
 
@@ -127,7 +129,7 @@ describe('summariseSignals', () => {
       .run()
 
     const totals = summariseSignals(db, [job.id])
-    expect(totals.get(job.id)).toEqual({ signalCount: 3, gated: false, dimensions: {}, baseScore: 130 })
+    expect(totals.get(job.id)).toEqual({ signalCount: 3, gated: false, dimensions: {}, baseScore: 130, netScore: 130 })
   })
 
   it('ignores job ids that do not exist', () => {
@@ -135,7 +137,60 @@ describe('summariseSignals', () => {
     db.insert(jobSignals).values({ jobId: job.id, source: 'regex_title', signalType: 'skill_match', score: 7 }).run()
 
     const totals = summariseSignals(db, [job.id, 999])
-    expect(totals.get(job.id)).toEqual({ signalCount: 1, gated: false, dimensions: {}, baseScore: 7 })
+    expect(totals.get(job.id)).toEqual({ signalCount: 1, gated: false, dimensions: {}, baseScore: 7, netScore: 7 })
     expect(totals.has(999)).toBe(false)
+  })
+
+  it('applies dimension weights and adds baseScore to compute netScore', () => {
+    const job = insertJob('a')
+    db.insert(jobSignals)
+      .values([
+        {
+          jobId: job.id,
+          source: 'llm_deep_eval',
+          signalType: 'skill_match',
+          score: 100,
+          metadata: JSON.stringify({ dimension: 'technical' }),
+        },
+        {
+          jobId: job.id,
+          source: 'llm_deep_eval',
+          signalType: 'skill_match',
+          score: 40,
+          metadata: JSON.stringify({ dimension: 'experience' }),
+        },
+        { jobId: job.id, source: 'regex_title', signalType: 'skill_match', score: 5 },
+      ])
+      .run()
+
+    const totals = summariseSignals(db, [job.id])
+    expect(totals.get(job.id)?.netScore).toBe(45)
+  })
+
+  it('computes netScore 0 for empty dimensions and zero baseScore', () => {
+    const job = insertJob('a')
+    db.insert(jobSignals)
+      .values([
+        {
+          jobId: job.id,
+          source: 'llm_deep_eval',
+          signalType: 'skill_match',
+          score: 50,
+          metadata: JSON.stringify({ dimension: 'unknown_dimension' }),
+        },
+      ])
+      .run()
+
+    const totals = summariseSignals(db, [job.id])
+    expect(totals.get(job.id)?.netScore).toBe(50)
+  })
+
+  it('exposes the documented dimension weights', () => {
+    expect(DIMENSION_WEIGHTS).toEqual({
+      technical: 0.3,
+      experience: 0.25,
+      behavioral: 0.15,
+      career: 0.3,
+    })
   })
 })

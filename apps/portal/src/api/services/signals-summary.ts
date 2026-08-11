@@ -10,6 +10,21 @@ import type { SignalSummary } from '../../shared/types.js'
 
 export const DIMENSION_KEYS = ['technical', 'experience', 'behavioral', 'career']
 
+export const DIMENSION_WEIGHTS: Record<string, number> = {
+  technical: 0.3,
+  experience: 0.25,
+  behavioral: 0.15,
+  career: 0.3,
+}
+
+export function computeNetScore(dimensions: Record<string, number>, baseScore: number): number {
+  let weighted = 0
+  for (const [dimension, score] of Object.entries(dimensions)) {
+    weighted += score * (DIMENSION_WEIGHTS[dimension] ?? 0)
+  }
+  return Math.round(weighted) + baseScore
+}
+
 function signalDimension(metadata: string | null): string | null {
   if (!metadata) {
     return null
@@ -51,6 +66,9 @@ export function summariseSignals(db: DB, jobIds: number[]): Map<number, SignalSu
       }
     }
     totals.set(signal.jobId, current)
+  }
+  for (const summary of totals.values()) {
+    summary.netScore = computeNetScore(summary.dimensions, summary.baseScore)
   }
   return totals
 }
