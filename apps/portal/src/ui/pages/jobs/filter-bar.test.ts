@@ -18,36 +18,27 @@ describe('filter-bar', () => {
   })
 
   it('dispatches filter-bar:change with the current values', () => {
-    const received: { priority: string; status: string; search: string; score: string; sort: string } = {
-      priority: '',
+    const received: { status: string; search: string; score: string; sort: string } = {
       status: '',
       search: '',
       score: '',
       sort: '',
     }
     el.addEventListener('filter-bar:change', event => {
-      const detail = (
-        event as CustomEvent<{ priority: string; status: string; search: string; score: string; sort: string }>
-      ).detail
-      received.priority = detail.priority
+      const detail = (event as CustomEvent<{ status: string; search: string; score: string; sort: string }>).detail
       received.status = detail.status
       received.search = detail.search
       received.score = detail.score
       received.sort = detail.sort
     })
 
-    const priority = el.querySelector<HTMLSelectElement>('#filter-priority')
-    if (priority) {
-      priority.value = '2'
-    }
     el.dispatchEvent(new Event('change', { bubbles: true }))
 
-    expect(received).toEqual({ priority: '2', status: 'relevant', search: '', score: 'relevant', sort: 'score' })
+    expect(received).toEqual({ status: 'relevant', search: '', score: 'relevant', sort: 'score' })
   })
 
   it('restores filter values via setFilters', () => {
-    el.setFilters({ priority: '3', status: 'applied', search: 'engineer', score: 'hot', sort: 'company' })
-    expect(el.querySelector<HTMLSelectElement>('#filter-priority')?.value).toBe('3')
+    el.setFilters({ status: 'applied', search: 'engineer', score: 'hot', sort: 'company' })
     expect(el.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('applied')
     expect(el.querySelector<HTMLInputElement>('#filter-search')?.value).toBe('engineer')
     expect(el.querySelector<HTMLSelectElement>('#filter-score')?.value).toBe('hot')
@@ -59,7 +50,7 @@ describe('filter-bar', () => {
       (node): node is Element => node.nodeType === Node.ELEMENT_NODE
     )
     const ids = elementChildren.map(node => node.id)
-    expect(ids).toEqual(['filter-search', 'filter-priority', 'filter-status', 'filter-score', 'filter-sort'])
+    expect(ids).toEqual(['filter-search', 'filter-status', 'filter-score', 'filter-sort'])
   })
 
   it('renders the score-bucket select with expected options', () => {
@@ -105,7 +96,7 @@ describe('filter-bar', () => {
   })
 
   it('setFilters with relevant does not set any select to placeholder', () => {
-    el.setFilters({ priority: '', status: 'relevant', search: '', score: 'relevant', sort: 'score' })
+    el.setFilters({ status: 'relevant', search: '', score: 'relevant', sort: 'score' })
     expect(el.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('relevant')
     expect(el.querySelector<HTMLSelectElement>('#filter-score')?.value).toBe('relevant')
     expect(el.querySelector<HTMLSelectElement>('#filter-sort')?.value).toBe('score')

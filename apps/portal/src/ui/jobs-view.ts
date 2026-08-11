@@ -10,7 +10,6 @@ export type JobWithStatus = Job & { _status: JobStatus['status']; netScore?: num
 export type JobSortKey = 'score' | 'posted' | 'company'
 
 export interface JobsFilters {
-  priority: string
   status: string
   search: string
   score: string

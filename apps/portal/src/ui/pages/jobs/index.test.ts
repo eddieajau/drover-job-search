@@ -33,7 +33,7 @@ function state(overrides: Partial<JobsViewState> = {}): JobsViewState {
     message: '',
     all: [],
     jobs: [],
-    filters: { priority: '', status: '', search: '', score: '', sort: 'score' },
+    filters: { status: '', search: '', score: '', sort: 'score' },
     selectedId: null,
     page: 1,
     pageSize: 50,

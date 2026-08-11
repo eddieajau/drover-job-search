@@ -27,14 +27,10 @@ export class FilterBar extends HTMLElement {
   }
 
   setFilters(filters: JobsFilters): void {
-    const priority = this.querySelector<HTMLSelectElement>('#filter-priority')
     const status = this.querySelector<HTMLSelectElement>('#filter-status')
     const search = this.querySelector<HTMLInputElement>('#filter-search')
     const score = this.querySelector<HTMLSelectElement>('#filter-score')
     const sort = this.querySelector<HTMLSelectElement>('#filter-sort')
-    if (priority) {
-      priority.value = filters.priority
-    }
     if (status) {
       status.value = filters.status
     }
@@ -77,7 +73,6 @@ export class FilterBar extends HTMLElement {
   }
 
   #dispatchChange(): void {
-    const priority = this.querySelector<HTMLSelectElement>('#filter-priority')
     const status = this.querySelector<HTMLSelectElement>('#filter-status')
     const search = this.querySelector<HTMLInputElement>('#filter-search')
     const score = this.querySelector<HTMLSelectElement>('#filter-score')
@@ -87,7 +82,6 @@ export class FilterBar extends HTMLElement {
         bubbles: true,
         composed: true,
         detail: {
-          priority: priority?.value ?? '',
           status: status?.value ?? '',
           search: search?.value ?? '',
           score: score?.value ?? '',
@@ -101,13 +95,6 @@ export class FilterBar extends HTMLElement {
     this.classList.add('filters')
     this.innerHTML = `
       <input type="text" id="filter-search" placeholder="Search titles..." />
-      <select id="filter-priority" aria-label="Filter by priority">
-        <option value="">All priorities</option>
-        <option value="1">P1 — Principal/Staff</option>
-        <option value="2">P2 — Architect/Lead</option>
-        <option value="3">P3 — Engineer</option>
-        <option value="4">P4 — PM/Delivery</option>
-      </select>
       <select id="filter-status" aria-label="Filter by status">
         <option value="relevant" selected>Relevant (excl. skipped)</option>
         <option value="all">All</option>

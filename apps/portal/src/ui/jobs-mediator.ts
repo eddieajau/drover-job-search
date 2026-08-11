@@ -31,7 +31,7 @@ let registered = false
 
 let results: Job[] = []
 let selectedId: number | null = null
-let filters: JobsFilters = { priority: '', status: 'relevant', search: '', score: 'relevant', sort: 'score' }
+let filters: JobsFilters = { status: 'relevant', search: '', score: 'relevant', sort: 'score' }
 let viewStatus: ViewStatus = 'idle'
 let message = ''
 let page = 1
@@ -71,7 +71,7 @@ export function _resetJobsMediatorForTesting(): void {
   registered = false
   results = []
   selectedId = null
-  filters = { priority: '', status: 'relevant', search: '', score: 'relevant', sort: 'score' }
+  filters = { status: 'relevant', search: '', score: 'relevant', sort: 'score' }
   viewStatus = 'idle'
   message = ''
   page = 1
@@ -215,9 +215,6 @@ function pushState(): void {
   }))
 
   let jobs = all
-  if (filters.priority) {
-    jobs = jobs.filter(job => String(job.priority) === filters.priority)
-  }
   if (filters.status === 'all') {
   } else if (filters.status === 'relevant') {
     jobs = jobs.filter(job => job._status !== 'skipped')

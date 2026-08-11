@@ -832,4 +832,15 @@ describe('jobs-mediator', () => {
     const filterBar = document.querySelector('filter-bar')
     expect(filterBar?.querySelector<HTMLSelectElement>('#filter-sort')?.value).toBe('company')
   })
+
+  it('ignores a stray priority URL param without breaking', async () => {
+    window.location.hash = '#jobs?priority=1'
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const cards = document.querySelectorAll('job-card')
+    expect(cards.length).toBe(3)
+  })
 })
