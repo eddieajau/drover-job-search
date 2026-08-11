@@ -3,8 +3,9 @@
  * @license   MIT
  */
 
-import type { FactResponse } from '../shared/types.js'
+import type { FactResponse, TaskStatus } from '../shared/types.js'
 import { parseHash } from './navigation-state.js'
+import type { FactIngestPage } from './pages/facts/fact-ingest-page.js'
 
 interface SaveFactDetail {
   id?: number
@@ -109,41 +110,91 @@ async function handleSave(event: Event): Promise<void> {
   window.location.hash = '#facts'
 }
 
+const POLL_INTERVAL = 2000
+
+let ingestAbort: AbortController | null = null
+
 async function handleIngest(event: Event): Promise<void> {
   const page = document.querySelector('fact-ingest-page')
   if (!page) {
     return
   }
   const { resume } = (event as CustomEvent<{ resume: string }>).detail
+  ingestAbort?.abort()
+  const abort = new AbortController()
+  ingestAbort = abort
   page.setBusy(true)
   try {
     const response = await fetch('/api/facts/ingest', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ resume }),
+      signal: abort.signal,
     })
-    if (response.status === 201) {
-      const data = (await response.json()) as { inserted: number }
-      page.setResult({ inserted: data.inserted })
-    } else if (response.status === 422) {
-      let message = 'ingestion produced no facts'
-      try {
-        const body = (await response.json()) as { error?: string }
-        if (body.error) {
-          message = body.error
-        }
-      } catch {
-        // use default message
-      }
-      page.setResult({ error: message })
+    if (response.status === 202) {
+      const data = (await response.json()) as { taskId: number }
+      await pollTask(page, data.taskId, abort.signal)
     } else {
       page.setResult({ error: 'ingestion failed' })
     }
   } catch {
-    page.setResult({ error: 'ingestion failed' })
+    if (!abort.signal.aborted) {
+      page.setResult({ error: 'ingestion failed' })
+    }
   } finally {
     page.setBusy(false)
+    if (ingestAbort === abort) {
+      ingestAbort = null
+    }
   }
+}
+
+async function pollTask(page: FactIngestPage, taskId: number, signal: AbortSignal): Promise<void> {
+  for (;;) {
+    if (signal.aborted || !page.isConnected) {
+      return
+    }
+    let task: TaskStatus
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, { signal })
+      if (!response.ok) {
+        page.setResult({ error: 'ingestion failed' })
+        return
+      }
+      task = (await response.json()) as TaskStatus
+    } catch {
+      if (!signal.aborted) {
+        page.setResult({ error: 'ingestion failed' })
+      }
+      return
+    }
+    if (task.completedAt !== null) {
+      if (task.errorMessage) {
+        page.setResult({ error: task.errorMessage })
+      } else {
+        page.setResult({ inserted: task.result?.inserted ?? 0, superseded: task.result?.superseded })
+      }
+      return
+    }
+    await waitForNextPoll(signal)
+  }
+}
+
+function waitForNextPoll(signal: AbortSignal): Promise<void> {
+  return new Promise(resolve => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const onAbort = (): void => {
+      if (timer !== undefined) {
+        clearTimeout(timer)
+      }
+      resolve()
+    }
+    timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, POLL_INTERVAL)
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
 }
 
 async function refreshFacts(category?: string, active?: string): Promise<void> {

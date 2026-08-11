@@ -71,6 +71,12 @@ describe('fact-ingest-page', () => {
     expect(banner?.querySelector('a[href="#facts"]')).not.toBeNull()
   })
 
+  it('renders a success banner with a superseded count when present', () => {
+    el.setResult({ inserted: 5, superseded: 2 })
+    const banner = el.querySelector('.ingest-result.success')
+    expect(banner?.textContent).toContain('Inserted 5 facts, superseded 2')
+  })
+
   it('renders an error banner on setResult({ error: "..." })', () => {
     el.setResult({ error: 'something went wrong' })
     const banner = el.querySelector('.ingest-result.error')
@@ -83,6 +89,20 @@ describe('fact-ingest-page', () => {
     el.setResult({ inserted: 3 })
     expect(el.querySelector<HTMLTextAreaElement>('#ingest-resume')).not.toBeNull()
     expect(el.querySelector<HTMLButtonElement>('#btn-ingest')).not.toBeNull()
+  })
+
+  it('clears the textarea value on success so a fresh resume can be pasted', () => {
+    const textarea = el.querySelector<HTMLTextAreaElement>('#ingest-resume')!
+    textarea.value = 'My resume text'
+    el.setResult({ inserted: 3 })
+    expect(el.querySelector<HTMLTextAreaElement>('#ingest-resume')?.value).toBe('')
+  })
+
+  it('keeps the textarea value on error so a failed run can be resubmitted', () => {
+    const textarea = el.querySelector<HTMLTextAreaElement>('#ingest-resume')!
+    textarea.value = 'My resume text'
+    el.setResult({ error: 'ingestion failed' })
+    expect(el.querySelector<HTMLTextAreaElement>('#ingest-resume')?.value).toBe('My resume text')
   })
 
   it('dispatches fact-ingest-page:ingest with resume text when #btn-ingest is clicked', () => {

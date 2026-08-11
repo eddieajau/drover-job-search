@@ -116,4 +116,13 @@ export interface QueueSummaryResponse {
   recent: QueueSummaryRow[]
 }
 
+export interface TaskStatus {
+  id: number
+  topic: string
+  queuedAt: string
+  completedAt: string | null
+  errorMessage: string | null
+  result: { inserted?: number; superseded?: number } | null
+}
+
 export type { FactResponse } from '../api/serializers.js'

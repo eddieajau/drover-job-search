@@ -62,6 +62,8 @@ describe('facts-mediator', () => {
   afterEach(() => {
     _resetFactsMediatorForTesting()
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
     document.body.innerHTML = ''
     window.location.hash = ''
   })
@@ -235,11 +237,26 @@ describe('facts-mediator', () => {
     expect(window.location.hash).toBe(originalHash)
   })
 
-  it('POSTs to /api/facts/ingest on fact-ingest-page:ingest and calls setBusy + setResult', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({ ok: true, status: 201, json: async () => ({ inserted: 3 }) }))
-    )
+  it('POSTs to /api/facts/ingest, polls the task, and shows the inserted result on completion', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 202, json: async () => ({ taskId: 7 }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 7, topic: 'slice_resume', completedAt: null, errorMessage: null, result: null }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 7,
+          topic: 'slice_resume',
+          completedAt: '2026-08-11 10:00:00',
+          errorMessage: null,
+          result: { inserted: 3, superseded: 1 },
+        }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
     initFactsMediator()
     const page = document.createElement('fact-ingest-page') as FactIngestPage
     document.body.appendChild(page)
@@ -248,23 +265,41 @@ describe('facts-mediator', () => {
     const setResultSpy = vi.spyOn(page, 'setResult')
 
     window.dispatchEvent(new CustomEvent('fact-ingest-page:ingest', { detail: { resume: 'My resume text' } }))
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await vi.advanceTimersByTimeAsync(0)
 
     expect(setBusySpy).toHaveBeenCalledWith(true)
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/facts/ingest', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ resume: 'My resume text' }),
-    })
-    expect(setResultSpy).toHaveBeenCalledWith({ inserted: 3 })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/facts/ingest',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ resume: 'My resume text' }),
+      })
+    )
+    expect(fetchMock).toHaveBeenCalledWith('/api/tasks/7', expect.anything())
+
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(setResultSpy).toHaveBeenCalledWith({ inserted: 3, superseded: 1 })
     expect(setBusySpy).toHaveBeenCalledWith(false)
   })
 
-  it('sets an error result on 422 from /api/facts/ingest', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({ ok: false, status: 422, json: async () => ({ error: 'ingestion produced no facts' }) }))
-    )
+  it('shows an error result when the polled task reports an errorMessage', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 202, json: async () => ({ taskId: 7 }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 7,
+          topic: 'slice_resume',
+          completedAt: '2026-08-11 10:00:00',
+          errorMessage: 'passes failed to parse after retry',
+          result: null,
+        }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
     initFactsMediator()
     const page = document.createElement('fact-ingest-page') as FactIngestPage
     document.body.appendChild(page)
@@ -272,9 +307,9 @@ describe('facts-mediator', () => {
     const setResultSpy = vi.spyOn(page, 'setResult')
 
     window.dispatchEvent(new CustomEvent('fact-ingest-page:ingest', { detail: { resume: 'empty resume' } }))
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await vi.advanceTimersByTimeAsync(0)
 
-    expect(setResultSpy).toHaveBeenCalledWith({ error: 'ingestion produced no facts' })
+    expect(setResultSpy).toHaveBeenCalledWith({ error: 'passes failed to parse after retry' })
   })
 
   it('sets a generic error result on network failure', async () => {

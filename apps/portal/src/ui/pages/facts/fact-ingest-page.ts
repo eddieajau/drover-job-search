@@ -10,9 +10,14 @@ export interface FactIngestPageEventMap {
   'fact-ingest-page:ingest': CustomEvent<{ resume: string }>
 }
 
+export interface FactIngestResult {
+  inserted: number
+  superseded?: number
+}
+
 export class FactIngestPage extends HTMLElement {
   #busy = false
-  #result: { inserted: number } | { error: string } | null = null
+  #result: FactIngestResult | { error: string } | null = null
   #abort: AbortController | null = null
 
   connectedCallback(): void {
@@ -30,7 +35,7 @@ export class FactIngestPage extends HTMLElement {
     this.render()
   }
 
-  setResult(result: { inserted: number } | { error: string }): void {
+  setResult(result: FactIngestResult | { error: string }): void {
     this.#result = result
     this.render()
   }
@@ -73,12 +78,14 @@ export class FactIngestPage extends HTMLElement {
 
   render(): void {
     this.classList.add('fact-ingest-page')
-    const resumeValue = this.querySelector<HTMLTextAreaElement>('#ingest-resume')?.value ?? ''
+    const success = this.#result != null && 'inserted' in this.#result
+    const resumeValue = success ? '' : (this.querySelector<HTMLTextAreaElement>('#ingest-resume')?.value ?? '')
 
     let resultBanner = ''
     if (this.#result != null) {
       if ('inserted' in this.#result) {
-        resultBanner = `<div class="ingest-result success" role="status">Inserted ${this.#result.inserted} facts. <a href="#facts">View facts</a></div>`
+        const superseded = this.#result.superseded != null ? `, superseded ${this.#result.superseded}` : ''
+        resultBanner = `<div class="ingest-result success" role="status">Inserted ${this.#result.inserted} facts${superseded}. <a href="#facts">View facts</a></div>`
       } else {
         resultBanner = `<div class="ingest-result error" role="status">${esc(this.#result.error)}</div>`
       }
@@ -92,7 +99,7 @@ export class FactIngestPage extends HTMLElement {
           <div class="field">
             <label class="field-label req" for="ingest-resume">Resume text</label>
             <textarea class="input" id="ingest-resume" rows="16" placeholder="Paste your resume as plain text\u2026">${esc(resumeValue)}</textarea>
-            <p class="hint">The LLM slices this into fact rows. Sync call \u2014 may take a while.</p>
+            <p class="hint">The LLM slices this into fact rows. Runs as a background task \u2014 this page polls until it finishes.</p>
           </div>
           <div class="form-actions">
             <button type="button" class="btn primary" id="btn-ingest"${this.#busy ? ' disabled aria-busy="true"' : ''}>${this.#busy ? 'Ingesting\u2026' : 'Ingest'}</button>
