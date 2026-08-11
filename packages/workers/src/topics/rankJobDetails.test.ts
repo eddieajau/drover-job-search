@@ -254,6 +254,92 @@ describe('rank-job-details drain', () => {
     expect(onProgress).toHaveBeenCalledTimes(1)
   })
 
+  it('persists strengths and gaps as an eval_summary signal with score 0', async () => {
+    const { jobId } = seedQueue(db, '123456')
+
+    const response = JSON.stringify({
+      gates: [],
+      dimensions: [],
+      strengths: ['Deep TypeScript match (fact: TypeScript)', 'Remote-friendly (fact: Open to remote)'],
+      gaps: ['No Kafka experience (gap: Kafka)'],
+    })
+
+    const result = await drain(db, { client: mockClient(response) })
+    expect(result).toEqual({ written: 1, skipped: 0 })
+
+    const signals = db.select().from(jobSignals).all()
+    expect(signals).toHaveLength(1)
+    expect(signals[0].jobId).toBe(jobId)
+    expect(signals[0].source).toBe('llm_deep_eval')
+    expect(signals[0].signalType).toBe('eval_summary')
+    expect(signals[0].score).toBe(0)
+    expect(JSON.parse(signals[0].metadata!)).toEqual({
+      strengths: ['Deep TypeScript match (fact: TypeScript)', 'Remote-friendly (fact: Open to remote)'],
+      gaps: ['No Kafka experience (gap: Kafka)'],
+    })
+  })
+
+  it('caps strengths and gaps at 3 items and filters non-strings', async () => {
+    seedQueue(db, '123456')
+
+    const response = JSON.stringify({
+      gates: [],
+      dimensions: [],
+      strengths: ['a', 'b', 'c', 'd', 42, null],
+      gaps: ['x', 'y', 'z', 'w', false],
+    })
+
+    await drain(db, { client: mockClient(response) })
+
+    const signal = db.select().from(jobSignals).get()!
+    const metadata = JSON.parse(signal.metadata!) as { strengths: string[]; gaps: string[] }
+    expect(metadata.strengths).toEqual(['a', 'b', 'c'])
+    expect(metadata.gaps).toEqual(['x', 'y', 'z'])
+  })
+
+  it('writes no eval_summary when strengths and gaps are absent', async () => {
+    seedQueue(db, '123456')
+
+    const response = JSON.stringify({
+      gates: [{ name: 'eligibility', passed: true, score: 0, reason: 'ok' }],
+      dimensions: [{ name: 'technical', signal_type: 'skill_match', score: 50, matched_keywords: [], reason: 'test' }],
+    })
+
+    await drain(db, { client: mockClient(response) })
+
+    const signals = db.select().from(jobSignals).all()
+    expect(signals).toHaveLength(1)
+    expect(signals[0].signalType).toBe('skill_match')
+  })
+
+  it('replaces the eval_summary row on re-rank', async () => {
+    const { queueId } = seedQueue(db, '123456')
+
+    const first = JSON.stringify({
+      gates: [],
+      dimensions: [],
+      strengths: ['old strength'],
+      gaps: ['old gap'],
+    })
+    await drain(db, { client: mockClient(first) })
+    expect(db.select().from(jobSignals).all()).toHaveLength(1)
+
+    db.update(analysisQueue).set({ completedAt: null }).where(eq(analysisQueue.id, queueId)).run()
+
+    const second = JSON.stringify({
+      gates: [],
+      dimensions: [],
+      strengths: ['new strength'],
+      gaps: [],
+    })
+    await drain(db, { client: mockClient(second) })
+
+    const signals = db.select().from(jobSignals).all()
+    expect(signals).toHaveLength(1)
+    expect(signals[0].signalType).toBe('eval_summary')
+    expect(JSON.parse(signals[0].metadata!)).toEqual({ strengths: ['new strength'], gaps: [] })
+  })
+
   it('marks the row done when LLM returns malformed JSON and calls onError', async () => {
     seedQueue(db, '123456')
     const onError = vi.fn()

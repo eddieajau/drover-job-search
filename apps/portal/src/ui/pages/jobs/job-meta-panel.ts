@@ -6,6 +6,7 @@
 import type { JobSignal } from '../../../shared/types.js'
 import { escapeHtml as esc } from '../../escape.js'
 import type { JobWithStatus } from '../../jobs-view.js'
+import type { EvalWhy } from './ai-eval-box.js'
 import './ai-eval-box.js'
 
 export interface JobMetaPanelEventMap {
@@ -19,6 +20,18 @@ const STATUS_LABELS: Record<string, string> = {
   applied: 'Applied',
   skipped: 'Skipped',
   evaluated: 'Evaluated',
+}
+
+function toStringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+}
+
+function evalWhyFromSignals(signals: JobSignal[]): EvalWhy | null {
+  const summary = signals.find(s => s.signalType === 'eval_summary')
+  if (!summary?.metadata) {
+    return null
+  }
+  return { strengths: toStringList(summary.metadata.strengths), gaps: toStringList(summary.metadata.gaps) }
 }
 
 function deriveVerdict(job: JobWithStatus): { verdict: string; score: string; why: string; gated: boolean } {
@@ -168,6 +181,8 @@ export class JobMetaPanel extends HTMLElement {
         </div>
       </aside>
     `
+
+    this.querySelector('ai-eval-box')?.setWhy(evalWhyFromSignals(this.#signals))
   }
 }
 

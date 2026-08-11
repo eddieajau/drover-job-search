@@ -67,7 +67,11 @@ interface DimensionScore {
 interface LlmEvalResult {
   gates: GateVerdict[]
   dimensions: DimensionScore[]
+  strengths: string[]
+  gaps: string[]
 }
+
+const MAX_WHY_BULLETS = 3
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
@@ -83,6 +87,13 @@ function isGateName(value: unknown): value is GateName {
 
 function isDimensionName(value: unknown): value is DimensionName {
   return typeof value === 'string' && (DIMENSION_NAMES as readonly string[]).includes(value)
+}
+
+function parseWhyList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value.filter((item): item is string => typeof item === 'string').slice(0, MAX_WHY_BULLETS)
 }
 
 function parseLlmResponse(raw: string): LlmEvalResult | null {
@@ -126,7 +137,7 @@ function parseLlmResponse(raw: string): LlmEvalResult | null {
       })
     }
 
-    return { gates, dimensions }
+    return { gates, dimensions, strengths: parseWhyList(parsed.strengths), gaps: parseWhyList(parsed.gaps) }
   } catch {
     return null
   }
@@ -259,6 +270,17 @@ async function evaluateJob(
       signalType: dim.signal_type,
       score: dim.score,
       metadata: JSON.stringify({ dimension: dim.name, matched_keywords: dim.matched_keywords, reason: dim.reason }),
+    })
+  }
+
+  if (result.strengths.length > 0 || result.gaps.length > 0) {
+    values.push({
+      jobId: row.jobId,
+      ruleId: null,
+      source: 'llm_deep_eval',
+      signalType: 'eval_summary',
+      score: 0,
+      metadata: JSON.stringify({ strengths: result.strengths, gaps: result.gaps }),
     })
   }
 

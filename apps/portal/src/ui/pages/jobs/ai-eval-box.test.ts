@@ -76,4 +76,38 @@ describe('ai-eval-box', () => {
     expect(score?.classList.contains('score-high')).toBe(true)
     expect(score?.textContent).toBe('85')
   })
+
+  it('renders strengths and gaps lists via setWhy', () => {
+    const box = createBox({ verdict: 'High match', score: '61' })
+    box.setWhy({ strengths: ['Deep TypeScript match'], gaps: ['No Kafka experience'] })
+
+    const labels = box.querySelectorAll('.eval-why-label')
+    expect(labels).toHaveLength(2)
+    expect(labels[0]?.textContent).toBe('Strengths')
+    expect(labels[1]?.textContent).toBe('Gaps')
+
+    const lists = box.querySelectorAll('.eval-why-block ul')
+    expect(lists[0]?.textContent).toContain('Deep TypeScript match')
+    expect(lists[1]?.textContent).toContain('No Kafka experience')
+  })
+
+  it('escapes HTML in setWhy items', () => {
+    const box = createBox({ verdict: 'High match', score: '61' })
+    box.setWhy({ strengths: ['<script>alert("x")</script>'], gaps: ['<b>bold</b>'] })
+
+    const list = box.querySelector('.eval-why-block ul')
+    expect(list?.innerHTML).not.toContain('<script>')
+    expect(list?.innerHTML).toContain('&lt;script&gt;')
+    expect(list?.textContent).toContain('<script>alert("x")</script>')
+  })
+
+  it('clears the lists when setWhy(null) is called', () => {
+    const box = createBox({ verdict: 'High match', score: '61' })
+    box.setWhy({ strengths: ['Deep TypeScript match'], gaps: ['No Kafka experience'] })
+    expect(box.querySelector('.eval-why-lists')).not.toBeNull()
+
+    box.setWhy(null)
+    expect(box.querySelector('.eval-why-lists')).toBeNull()
+    expect(box.querySelector('.eval-verdict')?.textContent).toBe('High match')
+  })
 })

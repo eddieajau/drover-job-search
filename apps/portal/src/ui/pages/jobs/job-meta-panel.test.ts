@@ -134,4 +134,35 @@ describe('job-meta-panel', () => {
     expect(evalBox?.getAttribute('verdict')).toBe('Auto-skip')
     expect(evalBox?.hasAttribute('gated')).toBe(true)
   })
+
+  it('passes strengths and gaps from an eval_summary signal to the eval box', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 61 }
+    const sigs = [
+      signal({
+        source: 'llm_deep_eval',
+        signalType: 'eval_summary',
+        score: 0,
+        metadata: {
+          strengths: ['Deep TypeScript match (fact: TypeScript)'],
+          gaps: ['No Kafka experience (gap: Kafka)'],
+        },
+      }),
+    ]
+    el.showJob(j, sigs, false)
+
+    const labels = el.querySelectorAll('ai-eval-box .eval-why-label')
+    expect(labels).toHaveLength(2)
+    expect(labels[0]?.textContent).toBe('Strengths')
+    expect(labels[1]?.textContent).toBe('Gaps')
+
+    const lists = el.querySelectorAll('ai-eval-box .eval-why-block ul')
+    expect(lists[0]?.textContent).toContain('Deep TypeScript match (fact: TypeScript)')
+    expect(lists[1]?.textContent).toContain('No Kafka experience (gap: Kafka)')
+  })
+
+  it('renders no strengths or gaps lists without an eval_summary signal', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 61 }
+    el.showJob(j, [signal({ source: 'llm_deep_eval', signalType: 'skill_match', score: 50 })], false)
+    expect(el.querySelector('ai-eval-box .eval-why-lists')).toBeNull()
+  })
 })

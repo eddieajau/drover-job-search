@@ -113,6 +113,16 @@ describe('buildPrompt', () => {
     )
     expect(prompt).toContain('"signal_type"')
     expect(prompt).toContain('"matched_keywords"')
+    expect(prompt).toContain('"strengths": ["<string>"]')
+    expect(prompt).toContain('"gaps": ["<string>"]')
+  })
+
+  it('instructs the model to emit grounded strengths and honest gaps', () => {
+    const prompt = buildPrompt(job, facts)
+    expect(prompt).toContain('"strengths"')
+    expect(prompt).toContain('cite the matching fact label')
+    expect(prompt).toContain('"gaps"')
+    expect(prompt).toContain('A poor-fit posting gets honest gaps')
   })
 
   it('wraps job data in an untrusted-data block', () => {
