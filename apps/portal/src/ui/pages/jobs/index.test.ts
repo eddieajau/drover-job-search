@@ -108,4 +108,41 @@ describe('jobs-page', () => {
     expect(metaPanel?.querySelector('.meta-panel')).not.toBeNull()
     expect(metaPanel?.querySelector('.meta-empty')).toBeNull()
   })
+
+  it('shows the meta panel placeholder with the selected job on setState with selectedId', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', queued: true }
+    el.setState(state({ all: [j], jobs: [j], selectedId: 1 }))
+    const metaPanel = el.querySelector('job-meta-panel')
+    expect(metaPanel?.querySelector('.meta-panel')).not.toBeNull()
+    expect(metaPanel?.querySelector('.meta-empty')).toBeNull()
+    expect(metaPanel?.querySelector('button[data-action="flag"]')?.textContent).toContain('Queued')
+  })
+
+  it('shows the empty meta panel when selectedId is null', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new' }
+    el.setState(state({ all: [j], jobs: [j], selectedId: null }))
+    const metaPanel = el.querySelector('job-meta-panel')
+    expect(metaPanel?.querySelector('.meta-empty')).not.toBeNull()
+  })
+
+  it('dispatches jobs-page:selected with providerJobId on first setState with selectedId', () => {
+    const received: string[] = []
+    document.addEventListener('jobs-page:selected', ((e: CustomEvent) => {
+      received.push(e.detail.providerJobId)
+    }) as EventListener)
+    const j: JobWithStatus = { ...job(), _status: 'new' }
+    el.setState(state({ all: [j], jobs: [j], selectedId: 1 }))
+    expect(received).toEqual(['4445084022'])
+  })
+
+  it('does not re-dispatch jobs-page:selected on subsequent setState with the same selectedId', () => {
+    const received: string[] = []
+    document.addEventListener('jobs-page:selected', ((e: CustomEvent) => {
+      received.push(e.detail.providerJobId)
+    }) as EventListener)
+    const j: JobWithStatus = { ...job(), _status: 'new' }
+    el.setState(state({ all: [j], jobs: [j], selectedId: 1 }))
+    el.setState(state({ all: [j], jobs: [j], selectedId: 1 }))
+    expect(received).toEqual(['4445084022'])
+  })
 })

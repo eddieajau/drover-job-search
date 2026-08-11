@@ -188,3 +188,64 @@ describe('signals-mediator seed wiring', () => {
     expect(page?.querySelector<HTMLButtonElement>('#btn-seed-rules')?.disabled).toBe(false)
   })
 })
+
+describe('signals-mediator deep-link hydration', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<jobs-page></jobs-page>'
+  })
+
+  afterEach(() => {
+    _resetSignalsMediatorForTesting()
+    vi.restoreAllMocks()
+    document.body.innerHTML = ''
+  })
+
+  it('fetches signals and analysis-queue then calls setJobMeta on jobs-page:selected', async () => {
+    const signals = [
+      { id: 1, providerJobId: 'job-1', signalType: 'regex_title', source: 'rule-1', score: 5, metadata: null },
+    ]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.startsWith('/api/signals')) {
+          return { ok: true, json: async () => signals }
+        }
+        if (url.startsWith('/api/analysis-queue')) {
+          return { ok: true, json: async () => ({ queued: true }) }
+        }
+        return { ok: false, status: 404 }
+      })
+    )
+    initSignalsMediator()
+
+    const page = document.querySelector('jobs-page')
+    const setJobMeta = vi.fn()
+    page!.setJobMeta = setJobMeta
+
+    window.dispatchEvent(new CustomEvent('jobs-page:selected', { detail: { providerJobId: 'job-1' } }))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/signals?providerJobId=job-1')
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/analysis-queue?providerJobId=job-1')
+    expect(setJobMeta).toHaveBeenCalledWith('job-1', signals, true)
+  })
+
+  it('calls setJobMeta with empty signals when fetches fail', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network error')
+      })
+    )
+    initSignalsMediator()
+
+    const page = document.querySelector('jobs-page')
+    const setJobMeta = vi.fn()
+    page!.setJobMeta = setJobMeta
+
+    window.dispatchEvent(new CustomEvent('jobs-page:selected', { detail: { providerJobId: 'job-1' } }))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(setJobMeta).toHaveBeenCalledWith('job-1', [], false)
+  })
+})

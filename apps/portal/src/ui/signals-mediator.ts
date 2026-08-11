@@ -4,6 +4,7 @@
  */
 
 import type { JobSignal, SignalRule } from '../shared/types.js'
+import type { JobsPage } from './pages/jobs/index.js'
 import type { SignalsPage } from './pages/signals/index.js'
 import type { RuleDraft } from './pages/signals/rules-list.js'
 
@@ -20,6 +21,7 @@ export function initSignalsMediator(): void {
   window.addEventListener('rules-list:trash', handleTrash)
   window.addEventListener('rules-list:toggle', handleToggle)
   window.addEventListener('job-list:select', handleJobSelect)
+  window.addEventListener('jobs-page:selected', handleInitialSelect)
   window.addEventListener('job-meta:flag', handleFlag)
   window.addEventListener('job-meta:rank', handleRank)
   window.addEventListener('job-card:flag', handleFlag)
@@ -33,6 +35,7 @@ export function _resetSignalsMediatorForTesting(): void {
     window.removeEventListener('rules-list:trash', handleTrash)
     window.removeEventListener('rules-list:toggle', handleToggle)
     window.removeEventListener('job-list:select', handleJobSelect)
+    window.removeEventListener('jobs-page:selected', handleInitialSelect)
     window.removeEventListener('job-meta:flag', handleFlag)
     window.removeEventListener('job-meta:rank', handleRank)
     window.removeEventListener('job-card:flag', handleFlag)
@@ -121,7 +124,19 @@ async function handleJobSelect(event: Event): Promise<void> {
   if (!page || !providerJobId) {
     return
   }
+  await fetchAndSetJobMeta(providerJobId, page)
+}
 
+async function handleInitialSelect(event: Event): Promise<void> {
+  const { providerJobId } = (event as CustomEvent<{ providerJobId: string }>).detail
+  const page = document.querySelector('jobs-page')
+  if (!page || !providerJobId) {
+    return
+  }
+  await fetchAndSetJobMeta(providerJobId, page)
+}
+
+async function fetchAndSetJobMeta(providerJobId: string, page: JobsPage): Promise<void> {
   let signals: JobSignal[] = []
   let queued = false
 

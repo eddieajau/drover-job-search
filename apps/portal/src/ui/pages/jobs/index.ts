@@ -24,6 +24,7 @@ export interface JobsPageEventMap {
 export class JobsPage extends HTMLElement {
   #abort: AbortController | null = null
   #state: JobsViewState | null = null
+  #announcedSelectionId: number | null = null
 
   connectedCallback(): void {
     this.render()
@@ -59,6 +60,22 @@ export class JobsPage extends HTMLElement {
     this.#pager()?.setAttribute('total', String(state.total))
     if (!state.selectedId) {
       this.#metaPanel()?.showJob(null, [], false)
+      this.#announcedSelectionId = null
+    } else {
+      const selectedJob = state.all.find(job => job.id === state.selectedId)
+      if (selectedJob) {
+        this.#metaPanel()?.showJob(selectedJob, [], selectedJob.queued ?? false)
+        if (this.#announcedSelectionId !== state.selectedId) {
+          this.#announcedSelectionId = state.selectedId
+          this.dispatchEvent(
+            new CustomEvent('jobs-page:selected', {
+              bubbles: true,
+              composed: true,
+              detail: { providerJobId: selectedJob.providerJobId },
+            })
+          )
+        }
+      }
     }
   }
 
