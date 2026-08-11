@@ -82,6 +82,7 @@ export class FactsPage extends HTMLElement {
             <option value="gap">Gap</option>
             <option value="credential">Credential</option>
             <option value="principle">Principle</option>
+            <option value="constraint">Constraint</option>
           </select>
           <select class="fact-filter fact-filter-active" aria-label="Filter by active">
             <option value="">All</option>

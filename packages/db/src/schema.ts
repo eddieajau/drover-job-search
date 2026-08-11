@@ -208,7 +208,7 @@ export const facts = sqliteTable(
     index('idx_facts_active').on(table.active),
     check(
       'check_fact_category',
-      sql`${table.category} IN ('skill', 'role', 'precedent_story', 'gap', 'credential', 'principle')`
+      sql`${table.category} IN ('skill', 'role', 'precedent_story', 'gap', 'credential', 'principle', 'constraint')`
     ),
     check(
       'check_fact_evidence_type',
@@ -369,7 +369,7 @@ CREATE INDEX IF NOT EXISTS idx_analysis_queue_job_id_topic ON analysis_queue(job
 CREATE TABLE IF NOT EXISTS facts (
     id INTEGER PRIMARY KEY,
     category TEXT NOT NULL CHECK (
-        category IN ('skill', 'role', 'precedent_story', 'gap', 'credential', 'principle')
+        category IN ('skill', 'role', 'precedent_story', 'gap', 'credential', 'principle', 'constraint')
     ),
     label TEXT NOT NULL,
     detail TEXT,

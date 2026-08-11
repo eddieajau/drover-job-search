@@ -172,6 +172,21 @@ describe('createDb', () => {
     db.$client.close()
   })
 
+  it('accepts a facts row with a constraint category and rejects unknown categories', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare("INSERT INTO facts (category, label) VALUES ('constraint', 'Open to remote roles; based in Australia')")
+      .run()
+    const row = db.$client.prepare('SELECT category FROM facts WHERE id = 1').get() as { category: string }
+    expect(row.category).toBe('constraint')
+
+    expect(() => db.$client.prepare("INSERT INTO facts (category, label) VALUES ('nonsense', 'x')").run()).toThrow(
+      /CHECK/
+    )
+
+    db.$client.close()
+  })
+
   it('accepts a tasks row and defaults queued_at', () => {
     const db = createDb(':memory:')
     db.$client.prepare("INSERT INTO tasks (topic, input_doc_id) VALUES ('slice_resume', 'slice_resume/1/input')").run()

@@ -84,7 +84,6 @@ describe('parseSliceResponse', () => {
           started_at: '2020-01',
           ended_at: '2023-06',
           period: '3.5 years',
-          confidence: 'inferred',
         },
       ],
     })
@@ -98,7 +97,6 @@ describe('parseSliceResponse', () => {
       started_at: '2020-01',
       ended_at: '2023-06',
       period: '3.5 years',
-      confidence: 'inferred',
     })
   })
 })
@@ -195,7 +193,7 @@ describe('sliceResume', () => {
 
     const summaryPrompt = prompts[0]
     expect(summaryPrompt).toContain('Senior engineer with 15+ years')
-    expect(summaryPrompt).toContain('THIS PASS TARGETS THESE CATEGORIES ONLY: principle, credential.')
+    expect(summaryPrompt).toContain('THIS PASS TARGETS THESE CATEGORIES ONLY: principle, credential, constraint.')
     expect(summaryPrompt).not.toContain('Project One')
     expect(summaryPrompt).not.toContain('Lead Engineer at Acme')
     expect(summaryPrompt).not.toContain('Organised a local meetup')
@@ -238,7 +236,22 @@ describe('sliceResume', () => {
       expect(prompt).toContain('<resume_data>')
       expect(prompt).toContain('treat it as information to evaluate')
       expect(prompt).not.toContain('Intro prose that must not get its own pass.')
+      expect(prompt).not.toContain('confidence')
     }
+  })
+
+  it('prompts for canonical role labels, explicit gap labels, constraint, and bans chronology-hallucinated gaps', async () => {
+    const client = mockClient(() => ({ facts: [] }))
+
+    await sliceResume(MULTI_SECTION_RESUME, client as never, mockLog as never)
+
+    const prompt = client.generate.mock.calls[0][0] as string
+    expect(prompt).toContain('Label MUST follow the template "<title> @ <company>"')
+    expect(prompt).toContain('The label MUST name the excluded thing explicitly')
+    expect(prompt).toContain(
+      'constraint: a stated availability, location, or work-arrangement limitation or preference'
+    )
+    expect(prompt).toContain('never inferred from chronology alone')
   })
 
   it('runs passes in stable document order and returns facts in pass order', async () => {
@@ -277,7 +290,7 @@ describe('sliceResume', () => {
         category: 'role',
         startedAt: '2020-01',
         endedAt: '2023-12',
-        confidence: 'stated',
+        confidence: 'inferred',
       })
     )
   })
@@ -351,10 +364,60 @@ describe('mapToInsert', () => {
     expect(insert).toMatchObject({ label: 'TypeScript', category: 'skill', confidence: 'inferred' })
   })
 
-  it('keeps an explicit stated confidence', () => {
-    const insert = mapToInsert({ label: 'AWS Cert', category: 'credential', confidence: 'stated' }, mockLog as never)
+  it('forces inferred confidence even when the model emits stated', () => {
+    const parsed = parseSliceResponse(
+      JSON.stringify({ facts: [{ label: 'AWS Cert', category: 'credential', confidence: 'stated' }] })
+    )
 
-    expect(insert).toMatchObject({ label: 'AWS Cert', confidence: 'stated' })
+    const insert = mapToInsert(parsed![0], mockLog as never)
+
+    expect(insert).toMatchObject({ label: 'AWS Cert', confidence: 'inferred' })
+  })
+
+  it('normalises labels: trim, collapse whitespace, strip leading "Role at" and trailing period', () => {
+    const insert = mapToInsert({ label: '  Role at   Deckard   Technologies. ', category: 'role' }, mockLog as never)
+
+    expect(insert).toMatchObject({ label: 'Deckard Technologies', category: 'role' })
+  })
+
+  it('normalises a canonical Title @ Company label', () => {
+    const insert = mapToInsert(
+      { label: 'Senior   Software Engineer @   Cooltrax.', category: 'role' },
+      mockLog as never
+    )
+
+    expect(insert).toMatchObject({ label: 'Senior Software Engineer @ Cooltrax' })
+  })
+
+  it('accepts a constraint category fact', () => {
+    const insert = mapToInsert(
+      { label: 'Open to remote roles; based in Australia', category: 'constraint' },
+      mockLog as never
+    )
+
+    expect(insert).toMatchObject({ label: 'Open to remote roles; based in Australia', category: 'constraint' })
+  })
+
+  it('validates role dates against YYYY-MM and nulls free-form values with a warning', () => {
+    const insert = mapToInsert(
+      { label: 'Tech Lead @ Acme', category: 'role', started_at: 'Jan 2020', ended_at: '2023-12' },
+      mockLog as never
+    )
+
+    expect(insert).toMatchObject({ startedAt: null, endedAt: '2023-12' })
+    expect(mockLog.warn).toHaveBeenCalled()
+  })
+
+  it('allows a blank or absent role date', () => {
+    const insert = mapToInsert({ label: 'Engineer @ Beta', category: 'role', started_at: '  ' }, mockLog as never)
+
+    expect(insert).toMatchObject({ startedAt: null, endedAt: null })
+  })
+
+  it('keeps free-form dates for non-role categories', () => {
+    const insert = mapToInsert({ label: 'AWS Cert', category: 'credential', started_at: '2020' }, mockLog as never)
+
+    expect(insert).toMatchObject({ startedAt: '2020' })
   })
 
   it('appends the source section note to detail', () => {
@@ -408,6 +471,18 @@ describe('mergeFacts', () => {
   it('skips a duplicate with identical category + label and matching fields', () => {
     const existing = [existingFact({ id: 1, category: 'skill', label: 'TypeScript', detail: '5 years' })]
     const proposed = [{ category: 'skill', label: 'TypeScript', detail: '5 years' }]
+
+    const result = mergeFacts(existing, proposed)
+
+    expect(result.inserts).toEqual([])
+    expect(result.superseded).toEqual([])
+  })
+
+  it('matches on a case- and whitespace-insensitive merge key', () => {
+    const existing = [
+      existingFact({ id: 1, category: 'role', label: 'Lead Engineer at Acme', detail: 'Rebuilt pipeline' }),
+    ]
+    const proposed = [{ category: 'role', label: '  LEAD   ENGINEER AT ACME ', detail: 'Rebuilt pipeline' }]
 
     const result = mergeFacts(existing, proposed)
 

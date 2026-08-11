@@ -86,12 +86,13 @@ describe('fact-edit-page', () => {
     expect(label?.textContent).toBe('Label')
   })
 
-  it('renders six category options', () => {
+  it('renders seven category options including constraint', () => {
     el.setState({ fact: fact() })
     const options = el.querySelectorAll<HTMLOptionElement>('#edit-fact-category option')
-    expect(options.length).toBe(6)
+    expect(options.length).toBe(7)
     expect(options[0]?.value).toBe('skill')
     expect(options[5]?.value).toBe('principle')
+    expect(options[6]?.value).toBe('constraint')
   })
 
   it('renders the evidence-type select with a blank option and three values', () => {

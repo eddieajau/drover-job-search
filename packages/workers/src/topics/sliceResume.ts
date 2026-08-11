@@ -15,13 +15,11 @@ import { completeTask, failTask, selectPendingTasks } from '../tasks.js'
 
 type SliceLog = Pick<FastifyBaseLogger, 'debug' | 'info' | 'warn' | 'error'>
 
-const VALID_CATEGORIES = ['skill', 'role', 'precedent_story', 'gap', 'credential', 'principle'] as const
+const VALID_CATEGORIES = ['skill', 'role', 'precedent_story', 'gap', 'credential', 'principle', 'constraint'] as const
 const VALID_EVIDENCE_TYPES = ['fast_pivot', 'genuine_precedent', 'genuine_gap'] as const
-const VALID_CONFIDENCES = ['stated', 'inferred', 'stretch'] as const
 
 type ValidCategory = (typeof VALID_CATEGORIES)[number]
 type ValidEvidenceType = (typeof VALID_EVIDENCE_TYPES)[number]
-type ValidConfidence = (typeof VALID_CONFIDENCES)[number]
 
 type FactInsert = typeof facts.$inferInsert
 
@@ -33,7 +31,6 @@ interface SliceResponseFact {
   started_at?: string
   ended_at?: string
   period?: string
-  confidence?: string
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -75,27 +72,28 @@ SLICING METHODOLOGY (apply before deciding categories):
 4. If the same claim appears in multiple places (e.g. summary paragraph, dedicated section, and matrix), emit it ONCE as a single fact. Use the most specific/detailed occurrence as the source; note in "detail" if it's corroborated elsewhere.
 5. Self-assessment language ("principal-level," "strong advocate of," "expert in") is NOT itself a fact. Only extract the underlying, checkable claim it's attached to (e.g. not "strong advocate of TDD" but "used TDD for 21 years" from the matrix).
 6. For precedent_story and gap facts, "detail" must include enough of the original phrasing/context that the claim can be traced back to a specific resume line without re-reading the whole document.
+7. A gap must name a skill/role genuinely absent from the text — never inferred from chronology alone ("no CTO title before 1997" is not a gap).
 
 CATEGORY DEFINITIONS (use to resolve ambiguity):
 - skill: a named technology/tool/method plus proficiency evidence (matrix rows are the primary source).
-- role: an employment period — title, employer, dates. One fact per role, not per bullet.
+- role: an employment period — title, employer, dates. One fact per role, not per bullet. Label MUST follow the template "<title> @ <company>" (e.g. "Senior Software Engineer @ Cooltrax"); use the title alone only when the text names no employer.
 - precedent_story: a specific, evidence-backed achievement within a role that could be cited as proof of capability (usually one per meaningful bullet).
-- gap: an explicit or clearly-inferable absence of experience (e.g. no CTO title, no C/C++ professionally) — only extract if genuinely absent, not merely "less years than others."
+- gap: an explicit or clearly-inferable absence of experience (e.g. no CTO title, no C/C++ professionally) — only extract if genuinely absent, not merely "less years than others." The label MUST name the excluded thing explicitly (e.g. "No professional .NET or Java experience") so it can seed a filter rule.
 - credential: formal qualifications, certifications, licences.
 - principle: a stated working philosophy or methodology commitment, distinct from a skill (e.g. "trunk-based delivery with full CI/CD" is a principle; "Docker" is a skill).
+- constraint: a stated availability, location, or work-arrangement limitation or preference (e.g. "Open to remote roles; based in Australia").
 
 ${scopeLine}Return JSON with this exact shape:
-{ "facts": [ { "label", "category", "detail", "evidence_type", "started_at", "ended_at", "period", "confidence" } ] }
+{ "facts": [ { "label", "category", "detail", "evidence_type", "started_at", "ended_at", "period" } ] }
 
 Fields:
 - label (string, required): Short name for the fact.
-- category (string, required): One of: skill, role, precedent_story, gap, credential, principle.
+- category (string, required): One of: skill, role, precedent_story, gap, credential, principle, constraint.
 - detail (string, optional): Additional context, including traceable source phrasing for precedent_story and gap facts.
-- evidence_type (string, optional): One of: fast_pivot, genuine_precedent, genuine_gap. Only apply to skill and gap facts; omit for role, credential, principle.
+- evidence_type (string, optional): One of: fast_pivot, genuine_precedent, genuine_gap. Only apply to skill and gap facts; omit for role, credential, principle, constraint.
 - started_at (string, optional): ISO date or partial date (e.g. "2020-01").
 - ended_at (string, optional): ISO date or partial date.
 - period (string, optional): Human-readable duration (e.g. "3 years").
-- confidence (string, optional): One of: stated, inferred, stretch. Defaults to stated.
 
 Extract only facts supported by the text. Do not extract self-assessment or marketing language as standalone facts. Return an empty array if nothing is found.
 
@@ -112,6 +110,31 @@ export function appendSourceNote(detail: string | null, source: string | undefin
   return detail ? `${detail} ${note}` : note
 }
 
+// Normalises labels deterministically so cosmetic drift (leading "Role at ",
+// stray periods, run-on whitespace) cannot split the merge key. Static code
+// owns formatting; the LLM owns semantics only.
+export function normaliseLabel(label: string): string {
+  return label
+    .trim()
+    .replace(/^Role at\s+/i, '')
+    .replace(/\.$/, '')
+    .replace(/\s+/g, ' ')
+}
+
+const YEAR_MONTH_SHAPE = /^\d{4}-\d{2}$/
+
+function yearMonth(raw: string | undefined, field: string, label: string, log: SliceLog): string | null {
+  if (raw === undefined || raw.trim() === '') {
+    return null
+  }
+  const value = raw.trim()
+  if (!YEAR_MONTH_SHAPE.test(value)) {
+    log.warn({ field, label, value }, 'invalid date, not a YYYY-MM shape, setting null')
+    return null
+  }
+  return value
+}
+
 export function mapToInsert(raw: SliceResponseFact, log: SliceLog, source?: string): FactInsert | null {
   if (!VALID_CATEGORIES.includes(raw.category as ValidCategory)) {
     log.warn({ category: raw.category, label: raw.label }, 'unknown category from LLM, skipping')
@@ -126,11 +149,11 @@ export function mapToInsert(raw: SliceResponseFact, log: SliceLog, source?: stri
 
   const insert: FactInsert = {
     category: raw.category as ValidCategory,
-    label: raw.label,
+    label: normaliseLabel(raw.label),
     detail: appendSourceNote(detail, source),
     evidenceType: null,
-    startedAt: typeof raw.started_at === 'string' ? raw.started_at : null,
-    endedAt: typeof raw.ended_at === 'string' ? raw.ended_at : null,
+    startedAt: null,
+    endedAt: null,
     period: typeof raw.period === 'string' ? raw.period : null,
     confidence: 'inferred',
     active: true,
@@ -144,12 +167,12 @@ export function mapToInsert(raw: SliceResponseFact, log: SliceLog, source?: stri
     }
   }
 
-  if (typeof raw.confidence === 'string') {
-    if (VALID_CONFIDENCES.includes(raw.confidence as ValidConfidence)) {
-      insert.confidence = raw.confidence as ValidConfidence
-    } else {
-      log.warn({ confidence: raw.confidence, label: raw.label }, 'unknown confidence, defaulting to inferred')
-    }
+  if (raw.category === 'role') {
+    insert.startedAt = yearMonth(raw.started_at, 'started_at', insert.label, log)
+    insert.endedAt = yearMonth(raw.ended_at, 'ended_at', insert.label, log)
+  } else {
+    insert.startedAt = typeof raw.started_at === 'string' ? raw.started_at : null
+    insert.endedAt = typeof raw.ended_at === 'string' ? raw.ended_at : null
   }
 
   return insert
@@ -216,7 +239,10 @@ function buildPasses(resume: string): SlicePass[] {
   for (const section of chunked.sections) {
     switch (section.category) {
       case 'summary':
-        passes.push({ prompt: buildSlicePrompt(section.body, ['principle', 'credential']), source: section.title })
+        passes.push({
+          prompt: buildSlicePrompt(section.body, ['principle', 'credential', 'constraint']),
+          source: section.title,
+        })
         break
       case 'projects':
         addChildPasses(passes, section, ['precedent_story'])
@@ -259,7 +285,7 @@ interface MergeResult {
 }
 
 function factKey(category: string, label: string): string {
-  return `${category}\u0000${label}`
+  return `${category}\u0000${label.trim().replace(/\s+/g, ' ').toLowerCase()}`
 }
 
 function sameOrBothAbsent(a: string | null | undefined, b: string | null | undefined): boolean {
@@ -269,8 +295,10 @@ function sameOrBothAbsent(a: string | null | undefined, b: string | null | undef
 // Merges proposed extractions against existing facts instead of blind
 // inserting. Active rows matching on category + label are compared on
 // detail/startedAt/endedAt: identical → duplicate (skip), different →
-// conflict (proposed becomes `inferred`, existing is superseded). Inactive
-// rows are treated as absent. Superseded rows are deactivated, never deleted.
+// conflict (proposed becomes `inferred`, existing is superseded). The match
+// key is normalised (trim, collapsed whitespace, case-insensitive) so
+// cosmetic label drift cannot duplicate facts. Inactive rows are treated as
+// absent. Superseded rows are deactivated, never deleted.
 export function mergeFacts(existing: Fact[], proposed: FactInsert[]): MergeResult {
   const activeByKey = new Map<string, Fact>()
   for (const fact of existing) {

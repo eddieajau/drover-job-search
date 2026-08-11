@@ -22,6 +22,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   gap: 'Gap',
   credential: 'Credential',
   principle: 'Principle',
+  constraint: 'Constraint',
 }
 
 const CONFIDENCE_LABELS: Record<string, string> = {

@@ -88,6 +88,18 @@ describe('fact-row', () => {
     expect(row.querySelector('.fact-date')?.textContent).toBe('since 2023-03')
   })
 
+  it('renders a constraint category with a labelled chip', () => {
+    const row = createRow({
+      'fact-id': '9',
+      label: 'Open to remote roles; based in Australia',
+      category: 'constraint',
+      confidence: 'inferred',
+    })
+
+    const chips = Array.from(row.querySelectorAll('.fact-meta .chip'), chip => chip.textContent)
+    expect(chips).toContain('Constraint')
+  })
+
   it('escapes HTML in label', () => {
     const row = createRow({
       'fact-id': '6',

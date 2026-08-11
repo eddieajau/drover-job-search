@@ -8,7 +8,7 @@ import type { FastifyPluginAsync } from 'fastify'
 
 import { toFactJson } from '../../serializers.js'
 
-const VALID_CATEGORIES = ['skill', 'role', 'precedent_story', 'gap', 'credential', 'principle'] as const
+const VALID_CATEGORIES = ['skill', 'role', 'precedent_story', 'gap', 'credential', 'principle', 'constraint'] as const
 const VALID_EVIDENCE_TYPES = ['fast_pivot', 'genuine_precedent', 'genuine_gap'] as const
 const VALID_CONFIDENCES = ['stated', 'inferred', 'stretch'] as const
 

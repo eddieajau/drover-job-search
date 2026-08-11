@@ -9,7 +9,7 @@ import type { FastifyPluginAsync } from 'fastify'
 
 import { toFactJson } from '../../serializers.js'
 
-const VALID_CATEGORIES = ['skill', 'role', 'precedent_story', 'gap', 'credential', 'principle'] as const
+const VALID_CATEGORIES = ['skill', 'role', 'precedent_story', 'gap', 'credential', 'principle', 'constraint'] as const
 
 const getFacts: FastifyPluginAsync = async app => {
   app.get('/', async (req, reply) => {

@@ -27,7 +27,7 @@ export interface FactEditPageEventMap {
   }>
 }
 
-const CATEGORIES = ['skill', 'role', 'precedent_story', 'gap', 'credential', 'principle'] as const
+const CATEGORIES = ['skill', 'role', 'precedent_story', 'gap', 'credential', 'principle', 'constraint'] as const
 const EVIDENCE_TYPES = ['fast_pivot', 'genuine_precedent', 'genuine_gap'] as const
 const CONFIDENCES = ['stated', 'inferred', 'stretch'] as const
 
@@ -38,6 +38,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   gap: 'Gap',
   credential: 'Credential',
   principle: 'Principle',
+  constraint: 'Constraint',
 }
 
 const EVIDENCE_LABELS: Record<string, string> = {
