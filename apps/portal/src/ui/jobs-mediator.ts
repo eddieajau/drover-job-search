@@ -31,7 +31,7 @@ let registered = false
 
 let results: Job[] = []
 let selectedId: number | null = null
-let filters: JobsFilters = { priority: '', status: '', search: '', score: '' }
+let filters: JobsFilters = { priority: '', status: 'relevant', search: '', score: 'relevant' }
 let viewStatus: ViewStatus = 'idle'
 let message = ''
 let page = 1
@@ -71,7 +71,7 @@ export function _resetJobsMediatorForTesting(): void {
   registered = false
   results = []
   selectedId = null
-  filters = { priority: '', status: '', search: '', score: '' }
+  filters = { priority: '', status: 'relevant', search: '', score: 'relevant' }
   viewStatus = 'idle'
   message = ''
   page = 1
@@ -181,6 +181,12 @@ function seedFiltersFromHash(): void {
   const state = parseHash(window.location.hash)
   if (state?.view === 'jobs' && state.filters) {
     filters = { ...filters, ...state.filters }
+    if (!filters.status) {
+      filters.status = 'relevant'
+    }
+    if (!filters.score) {
+      filters.score = 'relevant'
+    }
   }
 }
 
@@ -212,14 +218,18 @@ function pushState(): void {
   if (filters.priority) {
     jobs = jobs.filter(job => String(job.priority) === filters.priority)
   }
-  if (filters.status === 'skipped') {
+  if (filters.status === 'all') {
+  } else if (filters.status === 'relevant') {
+    jobs = jobs.filter(job => job._status !== 'skipped')
+  } else if (filters.status === 'skipped') {
     jobs = jobs.filter(job => job._status === 'skipped')
-  } else if (filters.status && filters.status !== 'skipped') {
+  } else if (filters.status) {
     jobs = jobs.filter(job => job._status === filters.status)
   } else {
     jobs = jobs.filter(job => job._status !== 'skipped')
   }
-  if (filters.score === 'hot') {
+  if (filters.score === 'all') {
+  } else if (filters.score === 'hot') {
     jobs = jobs.filter(job => !job.gated && (job.netScore ?? 0) >= HOT_THRESHOLD)
   } else if (filters.score === 'neutral') {
     jobs = jobs.filter(job => !job.gated && (job.netScore ?? 0) < HOT_THRESHOLD)

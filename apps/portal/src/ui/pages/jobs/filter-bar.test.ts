@@ -38,7 +38,7 @@ describe('filter-bar', () => {
     }
     el.dispatchEvent(new Event('change', { bubbles: true }))
 
-    expect(received).toEqual({ priority: '2', status: '', search: '', score: '' })
+    expect(received).toEqual({ priority: '2', status: 'relevant', search: '', score: 'relevant' })
   })
 
   it('restores filter values via setFilters', () => {
@@ -61,15 +61,15 @@ describe('filter-bar', () => {
     const scoreSelect = el.querySelector<HTMLSelectElement>('#filter-score')
     expect(scoreSelect).not.toBeNull()
     const options = Array.from(scoreSelect!.querySelectorAll('option')).map(o => o.value)
-    expect(options).toEqual(['', 'hot', 'neutral', 'auto-skip'])
+    expect(options).toEqual(['relevant', 'all', 'hot', 'neutral', 'auto-skip'])
   })
 
-  it('labels the default status option as excluding skipped jobs', () => {
+  it('labels the default status option as Relevant excluding skipped jobs', () => {
     const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
     expect(statusSelect).not.toBeNull()
-    const allOption = statusSelect?.querySelector('option[value=""]')
-    expect(allOption?.textContent).toBe('All (excl. skipped)')
-    expect(allOption?.getAttribute('selected')).not.toBeNull()
+    const defaultOption = statusSelect?.querySelector('option[value="relevant"]')
+    expect(defaultOption?.textContent).toBe('Relevant (excl. skipped)')
+    expect(defaultOption?.getAttribute('selected')).not.toBeNull()
   })
 
   it('dispatches score filter value on change', () => {
@@ -85,6 +85,17 @@ describe('filter-bar', () => {
     el.dispatchEvent(new Event('change', { bubbles: true }))
 
     expect(received.score).toBe('auto-skip')
+  })
+
+  it('defaults both selects to relevant', () => {
+    expect(el.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('relevant')
+    expect(el.querySelector<HTMLSelectElement>('#filter-score')?.value).toBe('relevant')
+  })
+
+  it('setFilters with relevant does not set any select to placeholder', () => {
+    el.setFilters({ priority: '', status: 'relevant', search: '', score: 'relevant' })
+    expect(el.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('relevant')
+    expect(el.querySelector<HTMLSelectElement>('#filter-score')?.value).toBe('relevant')
   })
 })
 

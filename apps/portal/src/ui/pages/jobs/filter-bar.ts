@@ -103,13 +103,15 @@ export class FilterBar extends HTMLElement {
         <option value="4">P4 — PM/Delivery</option>
       </select>
       <select id="filter-status" aria-label="Filter by status">
-        <option value="" selected>All (excl. skipped)</option>
+        <option value="relevant" selected>Relevant (excl. skipped)</option>
+        <option value="all">All</option>
         <option value="new">New</option>
         <option value="applied">Applied</option>
         <option value="skipped">Skipped</option>
       </select>
       <select id="filter-score" aria-label="Filter by score bucket">
-        <option value="" selected>All</option>
+        <option value="relevant" selected>Relevant (excl. auto-skip)</option>
+        <option value="all">All</option>
         <option value="hot">Hot</option>
         <option value="neutral">Neutral</option>
         <option value="auto-skip">Auto-skip</option>

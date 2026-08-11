@@ -110,6 +110,24 @@ describe('parseHash', () => {
       filters: { priority: '', status: '', search: '', score: 'neutral' },
     })
   })
+
+  it('parses relevant and all for status and score filters', () => {
+    expect(parseHash('#jobs?status=all&score=relevant')).toEqual({
+      view: 'jobs',
+      filters: { priority: '', status: 'all', search: '', score: 'relevant' },
+    })
+    expect(parseHash('#jobs?status=relevant&score=all')).toEqual({
+      view: 'jobs',
+      filters: { priority: '', status: 'relevant', search: '', score: 'all' },
+    })
+  })
+
+  it('returns empty string for absent status and score keys', () => {
+    expect(parseHash('#jobs?q=go')).toEqual({
+      view: 'jobs',
+      filters: { priority: '', status: '', search: 'go', score: '' },
+    })
+  })
 })
 
 describe('toHash', () => {
@@ -145,5 +163,23 @@ describe('toHash', () => {
         filters: { priority: '1', status: '', search: '', score: '' },
       })
     ).toBe('#jobs?job=3&priority=1')
+  })
+
+  it('omits relevant filter values from the URL', () => {
+    expect(
+      toHash({
+        view: 'jobs',
+        filters: { priority: '', status: 'relevant', search: '', score: 'relevant' },
+      })
+    ).toBe('#jobs')
+  })
+
+  it('includes all filter values in the URL', () => {
+    expect(
+      toHash({
+        view: 'jobs',
+        filters: { priority: '', status: 'all', search: '', score: 'all' },
+      })
+    ).toBe('#jobs?status=all&score=all')
   })
 })

@@ -97,10 +97,10 @@ export function toHash(state: NavigationState): string {
         if (filters.priority) {
           params.set('priority', filters.priority)
         }
-        if (filters.status) {
+        if (filters.status && filters.status !== 'relevant') {
           params.set('status', filters.status)
         }
-        if (filters.score) {
+        if (filters.score && filters.score !== 'relevant') {
           params.set('score', filters.score)
         }
         if (filters.search) {
