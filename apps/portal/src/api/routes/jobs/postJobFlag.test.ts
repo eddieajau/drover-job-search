@@ -81,4 +81,84 @@ describe('POST /api/jobs/:jobId/flag', () => {
     const rankRow = rows.find(r => r.topic === 'rank')!
     expect(rankRow.errorMessage).toBe('previous failure')
   })
+
+  it('accepts a body with { topic: "rank" } and inserts a rank row', async () => {
+    const job = seedJob(db, JOB1)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: { topic: 'rank' },
+    })
+    expect(res.statusCode).toBe(202)
+    expect(res.body).toBe('')
+
+    const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()
+    expect(row).toBeDefined()
+    expect(row?.topic).toBe('rank')
+    expect(row?.completedAt).toBeNull()
+  })
+
+  it('emits kick with topic rank on the bus when rank is requested', async () => {
+    const job = seedJob(db, JOB1)
+    let received: { topic: string } | undefined
+    app.bus.on('kick', payload => {
+      received = payload
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: { topic: 'rank' },
+    })
+    expect(res.statusCode).toBe(202)
+    expect(received).toEqual({ topic: 'rank' })
+  })
+
+  it('treats an explicit { topic: "fetch_job_details" } body like the default', async () => {
+    const job = seedJob(db, JOB1)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: { topic: 'fetch_job_details' },
+    })
+    expect(res.statusCode).toBe(202)
+
+    const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()
+    expect(row?.topic).toBe('fetch_job_details')
+  })
+
+  it('returns 400 on an unknown topic and inserts no row, emits no kick', async () => {
+    const job = seedJob(db, JOB1)
+    let received: { topic: string } | undefined
+    app.bus.on('kick', payload => {
+      received = payload
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: { topic: 'bogus' },
+    })
+    expect(res.statusCode).toBe(400)
+
+    const rows = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).all()
+    expect(rows).toHaveLength(0)
+    expect(received).toBeUndefined()
+  })
+
+  it('falls back to fetch_job_details when the body is an empty object', async () => {
+    const job = seedJob(db, JOB1)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: {},
+    })
+    expect(res.statusCode).toBe(202)
+
+    const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()
+    expect(row?.topic).toBe('fetch_job_details')
+  })
 })
