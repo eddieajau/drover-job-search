@@ -4,6 +4,7 @@
  */
 
 import type { JobSignal, SignalRule } from '../shared/types.js'
+import type { SignalsPage } from './pages/signals/index.js'
 import type { RuleDraft } from './pages/signals/rules-list.js'
 
 let registered = false
@@ -14,6 +15,7 @@ export function initSignalsMediator(): void {
   }
   registered = true
   window.addEventListener('signals-page:ready', handleSignalsReady)
+  window.addEventListener('signals-page:seed', handleSeed)
   window.addEventListener('rules-list:save', handleSave)
   window.addEventListener('rules-list:trash', handleTrash)
   window.addEventListener('rules-list:toggle', handleToggle)
@@ -25,6 +27,7 @@ export function initSignalsMediator(): void {
 export function _resetSignalsMediatorForTesting(): void {
   if (registered) {
     window.removeEventListener('signals-page:ready', handleSignalsReady)
+    window.removeEventListener('signals-page:seed', handleSeed)
     window.removeEventListener('rules-list:save', handleSave)
     window.removeEventListener('rules-list:trash', handleTrash)
     window.removeEventListener('rules-list:toggle', handleToggle)
@@ -40,6 +43,31 @@ async function handleSignalsReady(): Promise<void> {
   if (!page) {
     return
   }
+  await loadRules(page)
+}
+
+async function handleSeed(): Promise<void> {
+  const page = document.querySelector('signals-page')
+  if (!page) {
+    return
+  }
+  page.setSeedBusy(true)
+  try {
+    const response = await fetch('/api/rules/seed-from-facts', { method: 'POST' })
+    if (!response.ok) {
+      throw new Error('Failed to seed rules')
+    }
+    const { created } = (await response.json()) as { created: number }
+    await loadRules(page)
+    page.showSeedResult(created)
+  } catch {
+    page.showSeedResult(-1)
+  } finally {
+    page.setSeedBusy(false)
+  }
+}
+
+async function loadRules(page: SignalsPage): Promise<void> {
   try {
     const response = await fetch('/api/rules')
     if (!response.ok) {

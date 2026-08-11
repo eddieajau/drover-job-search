@@ -34,6 +34,7 @@ describe('signals-page', () => {
   it('renders the page shell with head, sub, legend, and rules-list', () => {
     expect(el.querySelector<HTMLHeadingElement>('h1')?.textContent).toBe('Signal rules')
     expect(el.querySelector<HTMLButtonElement>('#btn-add-rule')?.textContent).toContain('Add rule')
+    expect(el.querySelector<HTMLButtonElement>('#btn-seed-rules')?.textContent).toContain('Seed rules from gap facts')
     expect(el.querySelector('.page-sub')?.textContent).toContain('dealbreakers gate the shortlist')
     expect(el.querySelectorAll('.legend .dot').length).toBe(3)
     expect(el.querySelector('rules-list')).not.toBeNull()
@@ -56,5 +57,37 @@ describe('signals-page', () => {
   it('focuses the draft name input when Add rule is clicked', () => {
     el.querySelector<HTMLButtonElement>('#btn-add-rule')?.click()
     expect(document.activeElement).toBe(el.querySelector('#rule-draft .rule-name'))
+  })
+
+  it('dispatches signals-page:seed when the seed button is clicked', () => {
+    let fired = false
+    el.addEventListener('signals-page:seed', () => {
+      fired = true
+    })
+    el.querySelector<HTMLButtonElement>('#btn-seed-rules')?.click()
+    expect(fired).toBe(true)
+  })
+
+  it('setSeedBusy disables the seed button and swaps its label', () => {
+    el.setSeedBusy(true)
+    const btn = el.querySelector<HTMLButtonElement>('#btn-seed-rules')
+    expect(btn?.disabled).toBe(true)
+    expect(btn?.textContent).toContain('Seeding rules')
+    el.setSeedBusy(false)
+    expect(btn?.disabled).toBe(false)
+    expect(btn?.textContent).toContain('Seed rules from gap facts')
+  })
+
+  it('showSeedResult renders the created count in the live region', () => {
+    const notice = el.querySelector<HTMLElement>('#seed-notice')
+    expect(notice?.getAttribute('aria-live')).toBe('polite')
+    el.showSeedResult(2)
+    expect(notice?.textContent).toContain('Created 2 rules from gap facts')
+    el.showSeedResult(1)
+    expect(notice?.textContent).toContain('Created 1 rule from gap facts')
+    el.showSeedResult(0)
+    expect(notice?.textContent).toContain('No new rules from gap facts')
+    el.showSeedResult(-1)
+    expect(notice?.textContent).toContain('Seeding failed')
   })
 })

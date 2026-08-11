@@ -411,6 +411,10 @@ job-list {
   color: var(--muted);
 }
 
+.btn-outline {
+  border-color: var(--muted);
+}
+
 .btn.ghost:hover {
   color: var(--text);
   background: var(--surface-2);
@@ -1410,6 +1414,21 @@ job-meta-panel {
 
 .signals-page .page-head {
   margin-bottom: 4px;
+}
+
+.signals-page .page-head .primary {
+  margin-left: 0;
+}
+
+.seed-notice {
+  font-size: 13px;
+  color: var(--text);
+  min-height: 1em;
+  margin: -4px 0 8px;
+}
+
+.seed-notice.is-error {
+  color: var(--red);
 }
 
 .page-sub {
