@@ -3,10 +3,33 @@
  * @license   MIT
  */
 
-import { type Fact } from 'db'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { documents, facts, tasks, type DB, type Fact } from 'db'
+import { and, eq } from 'drizzle-orm'
+import { createTestDb, seedFact } from 'test-fixtures'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { mapToInsert, mergeFacts, parseSliceResponse, sliceResume } from './slice-resume.js'
+import { createOllamaClient } from '../clients/ollama.js'
+import { createConsumer, type ConsumerOptions } from '../consumer.js'
+import { attachInputDoc, enqueueTask } from '../tasks.js'
+import { createSliceConsumer, mapToInsert, mergeFacts, parseSliceResponse, sliceResume } from './sliceResume.js'
+
+const { consumerKickFn, consumerStopFn, consumerCaptured } = vi.hoisted(() => ({
+  consumerKickFn: vi.fn(),
+  consumerStopFn: vi.fn(),
+  consumerCaptured: { opts: undefined as ConsumerOptions | undefined },
+}))
+
+vi.mock('../consumer.js', () => ({
+  createConsumer: vi.fn((opts: ConsumerOptions) => {
+    consumerCaptured.opts = opts
+    return { kick: consumerKickFn, stop: consumerStopFn }
+  }),
+}))
+
+const mockOllama = { generate: vi.fn() }
+vi.mock('../clients/ollama.js', () => ({
+  createOllamaClient: vi.fn(() => mockOllama),
+}))
 
 describe('parseSliceResponse', () => {
   it('returns facts from a valid response', () => {
@@ -435,5 +458,171 @@ describe('mergeFacts', () => {
     const result = mergeFacts([], proposed)
 
     expect(result.inserts).toHaveLength(1)
+  })
+})
+
+const consumerLog = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+
+function seedSliceTask(db: DB, resume: string): number {
+  const id = enqueueTask(db, { topic: 'slice_resume' })
+  const docId = `slice_resume/${id}/input`
+  db.insert(documents).values({ id: docId, payload: resume }).run()
+  attachInputDoc(db, id, docId)
+  return id
+}
+
+describe('createSliceConsumer', () => {
+  beforeEach(() => {
+    consumerKickFn.mockClear()
+    consumerStopFn.mockClear()
+    consumerCaptured.opts = undefined
+    vi.mocked(createOllamaClient).mockClear()
+    mockOllama.generate.mockReset()
+  })
+
+  it('returns a Consumer delegating kick/stop to createConsumer', () => {
+    const db = createTestDb()
+    const consumer = createSliceConsumer({ db, log: consumerLog })
+
+    consumer.kick()
+    consumer.stop()
+
+    expect(consumerKickFn).toHaveBeenCalledTimes(1)
+    expect(consumerStopFn).toHaveBeenCalledTimes(1)
+    expect(createConsumer).toHaveBeenCalledWith(expect.objectContaining({ topic: 'slice_resume' }))
+    db.$client.close()
+  })
+
+  it('builds the ollama client from the supplied base URL and model', () => {
+    const db = createTestDb()
+    createSliceConsumer({ db, log: consumerLog, ollamaBaseUrl: 'http://custom:1234', ollamaModel: 'mistral' })
+
+    expect(createOllamaClient).toHaveBeenCalledOnce()
+    expect(createOllamaClient).toHaveBeenCalledWith('http://custom:1234', 'mistral', consumerLog)
+    db.$client.close()
+  })
+})
+
+describe('slice consumer drain', () => {
+  let db: DB
+
+  beforeEach(() => {
+    db = createTestDb()
+    mockOllama.generate.mockReset()
+    consumerCaptured.opts = undefined
+  })
+
+  afterEach(() => {
+    db.$client.close()
+  })
+
+  it('drains a synthetic task end-to-end: artifacts in documents, facts merged, task completed', async () => {
+    const taskId = seedSliceTask(db, MULTI_SECTION_RESUME)
+    const conflicting = seedFact(db, { category: 'role', label: 'Lead Engineer at Acme', startedAt: '2019-01' })
+
+    mockOllama.generate.mockResolvedValue(
+      JSON.stringify({
+        facts: [
+          { label: 'TypeScript', category: 'skill' },
+          { label: 'Lead Engineer at Acme', category: 'role', started_at: '2020-01' },
+        ],
+      })
+    )
+    createSliceConsumer({ db, log: consumerLog, ollamaBaseUrl: 'http://custom:1234', ollamaModel: 'mistral' })
+
+    const result = await consumerCaptured.opts?.drain()
+
+    expect(result).toEqual({ total: 1 })
+
+    const docs = db.select().from(documents).all()
+    const passDocs = docs.filter(d => d.id.startsWith(`slice_resume/${taskId}/pass/`))
+    expect(passDocs).toHaveLength(8)
+    const proposed = docs.find(d => d.id === `slice_resume/${taskId}/proposed`)!
+    expect(proposed).toBeDefined()
+    expect(JSON.parse(proposed.payload)).toEqual({
+      proposed: expect.any(Array),
+      inserted: expect.any(Array),
+      superseded: [conflicting.id],
+    })
+
+    const task = db.select().from(tasks).where(eq(tasks.id, taskId)).get()!
+    expect(task.completedAt).not.toBeNull()
+    expect(task.errorMessage).toBeNull()
+    expect(JSON.parse(task.result!)).toEqual({ inserted: 2, superseded: 1 })
+
+    const typeScript = db
+      .select()
+      .from(facts)
+      .where(and(eq(facts.label, 'TypeScript'), eq(facts.active, true)))
+      .all()
+    expect(typeScript).toHaveLength(1)
+
+    const lead = db.select().from(facts).where(eq(facts.label, 'Lead Engineer at Acme')).all()
+    expect(lead).toHaveLength(2)
+    expect(lead.find(f => f.id === conflicting.id)?.active).toBe(false)
+    const replacement = lead.find(f => f.id !== conflicting.id)!
+    expect(replacement.active).toBe(true)
+    expect(replacement.startedAt).toBe('2020-01')
+    expect(replacement.confidence).toBe('inferred')
+  })
+
+  it('retries an unparseable pass once, then fails the task with the pass sources and writes no facts', async () => {
+    const taskId = seedSliceTask(db, '## Summary\n\nHello there\n\n## Skills\n\nTypeScript, Node.js')
+
+    mockOllama.generate.mockResolvedValue('not json')
+    createSliceConsumer({ db, log: consumerLog, ollamaBaseUrl: 'http://custom:1234', ollamaModel: 'mistral' })
+
+    const result = await consumerCaptured.opts?.drain()
+
+    expect(result).toEqual({ total: 1 })
+    expect(mockOllama.generate).toHaveBeenCalledTimes(4)
+
+    const task = db.select().from(tasks).where(eq(tasks.id, taskId)).get()!
+    expect(task.completedAt).not.toBeNull()
+    expect(task.errorMessage).toContain('Summary')
+    expect(task.errorMessage).toContain('Skills')
+
+    expect(db.select().from(facts).all()).toHaveLength(0)
+    expect(db.select().from(documents).all()).toHaveLength(1)
+  })
+
+  it('runs passes with bounded concurrency', async () => {
+    seedSliceTask(db, MULTI_SECTION_RESUME)
+
+    let inFlight = 0
+    let maxInFlight = 0
+    mockOllama.generate.mockImplementation(async () => {
+      inFlight++
+      maxInFlight = Math.max(maxInFlight, inFlight)
+      await new Promise(resolve => setTimeout(resolve, 5))
+      inFlight--
+      return JSON.stringify({ facts: [] })
+    })
+    createSliceConsumer({
+      db,
+      log: consumerLog,
+      ollamaBaseUrl: 'http://custom:1234',
+      ollamaModel: 'mistral',
+      concurrency: 2,
+    })
+
+    const result = await consumerCaptured.opts?.drain()
+
+    expect(result).toEqual({ total: 1 })
+    expect(mockOllama.generate).toHaveBeenCalledTimes(8)
+    expect(maxInFlight).toBe(2)
+  })
+
+  it('fails a task with no input document without calling the model', async () => {
+    const taskId = enqueueTask(db, { topic: 'slice_resume' })
+
+    createSliceConsumer({ db, log: consumerLog, ollamaBaseUrl: 'http://custom:1234', ollamaModel: 'mistral' })
+
+    const result = await consumerCaptured.opts?.drain()
+
+    expect(result).toEqual({ total: 1 })
+    expect(mockOllama.generate).not.toHaveBeenCalled()
+    const task = db.select().from(tasks).where(eq(tasks.id, taskId)).get()!
+    expect(task.errorMessage).toContain('missing input document')
   })
 })

@@ -5,6 +5,7 @@
 
 export * as fetchJobDetails from './topics/fetchJobDetails.js'
 export * as rankJobDetails from './topics/rankJobDetails.js'
+export * as sliceResume from './topics/sliceResume.js'
 export * as ollama from './clients/ollama.js'
 export { createWorkerLoop } from './loop.js'
 export type { WorkerLoop, WorkerLoopOptions } from './loop.js'
@@ -19,3 +20,5 @@ export { attachInputDoc, completeTask, enqueueTask, failTask, selectPendingTasks
 export type { Task } from 'db'
 export { createFetchJobDetailsConsumer } from './topics/fetchJobDetails.js'
 export { createRankConsumer } from './topics/rankJobDetails.js'
+export { createSliceConsumer } from './topics/sliceResume.js'
+export { chunkResume } from './lib/chunkResume.js'

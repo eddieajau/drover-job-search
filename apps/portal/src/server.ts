@@ -14,7 +14,13 @@ import { type DB } from 'db'
 import { config } from 'dotenv'
 import fastify from 'fastify'
 import { detail } from 'provider-linkedin'
-import { createFetchJobDetailsConsumer, createPublisher, createRankConsumer, type Publisher } from 'workers'
+import {
+  createFetchJobDetailsConsumer,
+  createPublisher,
+  createRankConsumer,
+  createSliceConsumer,
+  type Publisher,
+} from 'workers'
 
 import { createDatabase } from './api/database.js'
 import type { BusEvents } from './bus.js'
@@ -82,6 +88,22 @@ app.addHook('onClose', () => {
   rank.stop()
 })
 bus.emit('kick', { topic: 'rank' })
+
+const slice = createSliceConsumer({
+  db,
+  log: app.log,
+  ollamaBaseUrl: process.env.OLLAMA_BASE_URL,
+  ollamaModel: process.env.OLLAMA_MODEL,
+})
+const onKickSlice = ({ topic }: { topic: string }) => {
+  if (topic === 'slice_resume') slice.kick()
+}
+bus.on('kick', onKickSlice)
+app.addHook('onClose', () => {
+  bus.off('kick', onKickSlice)
+  slice.stop()
+})
+bus.emit('kick', { topic: 'slice_resume' })
 
 await app.register(fastifyStatic, {
   root: resolve(__dirname, '../www'),

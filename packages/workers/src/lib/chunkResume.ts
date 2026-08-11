@@ -3,9 +3,9 @@
  * @license   MIT
  */
 
-import { sectionTypeFor, splitH3Children, splitSections, type ChunkedResume } from './resume-sections.js'
+import { sectionTypeFor, splitH3Children, splitSections, type ChunkedResume } from './resumeSections.js'
 
-export type { ChunkedResume, ResumeChild, ResumeSection, SectionType } from './resume-sections.js'
+export type { ChunkedResume, ResumeChild, ResumeSection, SectionType } from './resumeSections.js'
 
 // Slices a resume into `##` sections, inferring a category per section from
 // its title and collecting `###` children so the LLM can evaluate each chunk

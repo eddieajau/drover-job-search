@@ -5,25 +5,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { sectionTypeFor, splitH3Children, splitSections, toYearMonth } from './resume-sections.js'
-
-describe('toYearMonth', () => {
-  it('normalises a month name and year to YYYY-MM', () => {
-    expect(toYearMonth('Oct', '2025')).toBe('2025-10')
-    expect(toYearMonth('Sep', '2024')).toBe('2024-09')
-  })
-
-  it('is case-insensitive and tolerates full month names', () => {
-    expect(toYearMonth('oct', '2025')).toBe('2025-10')
-    expect(toYearMonth('January', '1991')).toBe('1991-01')
-    expect(toYearMonth('December', '2016')).toBe('2016-12')
-  })
-
-  it('returns null for an unknown month name', () => {
-    expect(toYearMonth('Somem', '2025')).toBeNull()
-    expect(toYearMonth('', '2025')).toBeNull()
-  })
-})
+import { sectionTypeFor, splitH3Children, splitSections } from './resumeSections.js'
 
 describe('sectionTypeFor', () => {
   it('categorises known heading shapes by keyword', () => {

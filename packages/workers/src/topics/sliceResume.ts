@@ -3,13 +3,17 @@
  * @license   MIT
  */
 
-import { facts, type Fact } from 'db'
+import { documents, facts, type DB, type Fact, type Task } from 'db'
+import { eq } from 'drizzle-orm'
 import type { FastifyBaseLogger } from 'fastify'
-import { sanitise, type ollama } from 'workers'
 
-import { chunkResume, type ResumeSection } from './chunk-resume.js'
+import { createOllamaClient, type OllamaClient } from '../clients/ollama.js'
+import { createConsumer, type Consumer } from '../consumer.js'
+import { chunkResume, type ResumeSection } from '../lib/chunkResume.js'
+import { sanitise } from '../lib/sanitise.js'
+import { completeTask, failTask, selectPendingTasks } from '../tasks.js'
 
-type OllamaClient = ollama.OllamaClient
+type SliceLog = Pick<FastifyBaseLogger, 'debug' | 'info' | 'warn' | 'error'>
 
 const VALID_CATEGORIES = ['skill', 'role', 'precedent_story', 'gap', 'credential', 'principle'] as const
 const VALID_EVIDENCE_TYPES = ['fast_pivot', 'genuine_precedent', 'genuine_gap'] as const
@@ -108,7 +112,7 @@ export function appendSourceNote(detail: string | null, source: string | undefin
   return detail ? `${detail} ${note}` : note
 }
 
-export function mapToInsert(raw: SliceResponseFact, log: FastifyBaseLogger, source?: string): FactInsert | null {
+export function mapToInsert(raw: SliceResponseFact, log: SliceLog, source?: string): FactInsert | null {
   if (!VALID_CATEGORIES.includes(raw.category as ValidCategory)) {
     log.warn({ category: raw.category, label: raw.label }, 'unknown category from LLM, skipping')
     return null
@@ -156,12 +160,17 @@ interface SlicePass {
   source: string | undefined
 }
 
-async function runPass(pass: SlicePass, client: OllamaClient, log: FastifyBaseLogger): Promise<FactInsert[]> {
+interface PassOutcome {
+  raw: string
+  inserts: FactInsert[]
+}
+
+async function runPassOnce(pass: SlicePass, client: OllamaClient, log: SliceLog): Promise<PassOutcome | null> {
   const raw = await client.generate(pass.prompt)
   const parsed = parseSliceResponse(raw)
 
   if (!parsed) {
-    return []
+    return null
   }
 
   const inserts: FactInsert[] = []
@@ -172,7 +181,12 @@ async function runPass(pass: SlicePass, client: OllamaClient, log: FastifyBaseLo
     }
   }
 
-  return inserts
+  return { raw, inserts }
+}
+
+async function runPass(pass: SlicePass, client: OllamaClient, log: SliceLog): Promise<FactInsert[]> {
+  const outcome = await runPassOnce(pass, client, log)
+  return outcome ? outcome.inserts : []
 }
 
 function childSource(section: ResumeSection, childTitle: string): string {
@@ -194,7 +208,7 @@ function addChildPasses(passes: SlicePass[], section: ResumeSection, targetCateg
   }
 }
 
-export async function sliceResume(resume: string, client: OllamaClient, log: FastifyBaseLogger): Promise<FactInsert[]> {
+function buildPasses(resume: string): SlicePass[] {
   const chunked = chunkResume(resume)
 
   const passes: SlicePass[] = []
@@ -223,6 +237,12 @@ export async function sliceResume(resume: string, client: OllamaClient, log: Fas
         break
     }
   }
+
+  return passes
+}
+
+export async function sliceResume(resume: string, client: OllamaClient, log: SliceLog): Promise<FactInsert[]> {
+  const passes = buildPasses(resume)
 
   const passResults = await Promise.all(passes.map(async pass => runPass(pass, client, log)))
   const inserts: FactInsert[] = []
@@ -289,4 +309,156 @@ export function mergeFacts(existing: Fact[], proposed: FactInsert[]): MergeResul
   }
 
   return { inserts, superseded }
+}
+
+export interface SliceDrainOptions {
+  client: OllamaClient
+  log: SliceLog
+  concurrency?: number
+  onProgress?: (task: Task) => void
+  onError?: (task: Task, err: unknown) => void
+}
+
+export function createSliceConsumer(opts: {
+  db: DB
+  log: SliceLog
+  ollamaBaseUrl?: string
+  ollamaModel?: string
+  concurrency?: number
+}): Consumer {
+  const client = createOllamaClient(opts.ollamaBaseUrl, opts.ollamaModel, opts.log)
+  return createConsumer({
+    topic: 'slice_resume',
+    drain: () =>
+      drainTasks(opts.db, {
+        client,
+        log: opts.log,
+        concurrency: opts.concurrency,
+        onProgress: task => opts.log.info({ taskId: task.id }, 'sliced'),
+        onError: (task, err) =>
+          opts.log.warn({ taskId: task.id, err: err instanceof Error ? err.message : err }, 'slice skipped'),
+      }).then(r => ({ total: r.succeeded + r.failed })),
+    log: opts.log,
+  })
+}
+
+export async function drainTasks(db: DB, opts: SliceDrainOptions): Promise<{ succeeded: number; failed: number }> {
+  const tasks = selectPendingTasks(db, 'slice_resume')
+  let succeeded = 0
+  let failed = 0
+  for (const task of tasks) {
+    const outcome = await processTask(db, task, opts)
+    if (outcome) succeeded++
+    else failed++
+  }
+  return { succeeded, failed }
+}
+
+function writeDocument(db: DB, id: string, payload: unknown): void {
+  db.insert(documents)
+    .values({ id, payload: typeof payload === 'string' ? payload : JSON.stringify(payload) })
+    .run()
+}
+
+function slugify(source: string): string {
+  const slug = source
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return slug || 'section'
+}
+
+// Runs the mapper at most `limit` items in flight, preserving input order.
+// A tiny inline pool — the local ollama server queues internally anyway, so
+// the cap just stops one task from firing every pass at once.
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: Array<{ index: number; value: R }> = []
+  let next = 0
+  const workers: Array<Promise<void>> = []
+  const count = Math.max(1, Math.min(limit, items.length))
+  for (let i = 0; i < count; i++) {
+    workers.push(
+      (async () => {
+        for (;;) {
+          const index = next++
+          if (index >= items.length) return
+          results.push({ index, value: await fn(items[index], index) })
+        }
+      })()
+    )
+  }
+  await Promise.all(workers)
+  return results.sort((a, b) => a.index - b.index).map(r => r.value)
+}
+
+async function processTask(db: DB, task: Task, opts: SliceDrainOptions): Promise<boolean> {
+  const inputId = task.inputDocId
+  if (!inputId) {
+    failTask(db, task.id, 'missing input document')
+    opts.onError?.(task, new Error('missing input document'))
+    return false
+  }
+
+  const input = db.select().from(documents).where(eq(documents.id, inputId)).get()
+  if (!input) {
+    failTask(db, task.id, `input document not found: ${inputId}`)
+    opts.onError?.(task, new Error(`input document not found: ${inputId}`))
+    return false
+  }
+
+  const passes = buildPasses(input.payload)
+  const outcomes = await mapWithConcurrency(passes, opts.concurrency ?? 2, async (pass, index) => {
+    let outcome: PassOutcome | null = null
+    for (let attempt = 0; attempt < 2; attempt++) {
+      outcome = await runPassOnce(pass, opts.client, opts.log).catch(() => null)
+      if (outcome) break
+    }
+    if (outcome) {
+      writeDocument(
+        db,
+        `slice_resume/${task.id}/pass/${String(index).padStart(2, '0')}-${slugify(pass.source ?? '')}`,
+        outcome.raw
+      )
+    }
+    return outcome
+  })
+
+  const failed = passes.map((pass, index) => ({ pass, outcome: outcomes[index] })).filter(o => o.outcome === null)
+  if (failed.length > 0) {
+    const sources = failed.map(o => o.pass.source ?? '<untitled>').join(', ')
+    failTask(db, task.id, `passes failed to parse after retry: ${sources}`)
+    opts.onError?.(task, new Error(`passes failed to parse after retry: ${sources}`))
+    return false
+  }
+
+  const proposed: FactInsert[] = []
+  for (const outcome of outcomes) {
+    if (outcome) {
+      proposed.push(...outcome.inserts)
+    }
+  }
+
+  const existing = db.select().from(facts).where(eq(facts.active, true)).all()
+  const merge = mergeFacts(existing, proposed)
+
+  writeDocument(db, `slice_resume/${task.id}/proposed`, {
+    proposed,
+    inserted: merge.inserts,
+    superseded: merge.superseded,
+  })
+
+  for (const insert of merge.inserts) {
+    db.insert(facts).values(insert).run()
+  }
+  for (const id of merge.superseded) {
+    db.update(facts).set({ active: false }).where(eq(facts.id, id)).run()
+  }
+
+  completeTask(db, task.id, { inserted: merge.inserts.length, superseded: merge.superseded.length })
+  opts.onProgress?.(task)
+  return true
 }

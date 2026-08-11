@@ -38,31 +38,6 @@ const SECTION_TYPE_KEYWORDS: ReadonlyArray<{ type: SectionType; keywords: readon
   { type: 'hobbies', keywords: ['hobbie', 'interest', 'leisure'] },
 ]
 
-const MONTHS: Record<string, number> = {
-  jan: 1,
-  feb: 2,
-  mar: 3,
-  apr: 4,
-  may: 5,
-  jun: 6,
-  jul: 7,
-  aug: 8,
-  sep: 9,
-  oct: 10,
-  nov: 11,
-  dec: 12,
-}
-
-// Normalises a month-name + year pair to `YYYY-MM` (e.g. `Oct`, `2025` →
-// `2025-10`). Unknown month names return null.
-export function toYearMonth(month: string, year: string): string | null {
-  const value = MONTHS[month.slice(0, 3).toLowerCase()]
-  if (!value) {
-    return null
-  }
-  return `${year}-${String(value).padStart(2, '0')}`
-}
-
 export function sectionTypeFor(title: string): SectionType {
   const lower = title.toLowerCase()
   for (const { type, keywords } of SECTION_TYPE_KEYWORDS) {

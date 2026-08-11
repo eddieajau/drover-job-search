@@ -6,9 +6,7 @@
 import { facts } from 'db'
 import { eq } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
-import { rankJobDetails } from 'workers'
-
-import { mergeFacts, sliceResume } from '../../services/slice-resume.js'
+import { rankJobDetails, sliceResume } from 'workers'
 
 const bodySchema = {
   type: 'object',
@@ -25,8 +23,8 @@ const postFactsIngest: FastifyPluginAsync = async app => {
 
     const client = rankJobDetails.createOllamaClient(process.env.OLLAMA_BASE_URL, process.env.OLLAMA_MODEL, app.log)
     const existing = app.db.select().from(facts).where(eq(facts.active, true)).all()
-    const proposed = await sliceResume(resume, client, app.log)
-    const { inserts, superseded } = mergeFacts(existing, proposed)
+    const proposed = await sliceResume.sliceResume(resume, client, app.log)
+    const { inserts, superseded } = sliceResume.mergeFacts(existing, proposed)
 
     if (inserts.length === 0) {
       return reply.code(422).send({ error: 'ingestion produced no facts' })

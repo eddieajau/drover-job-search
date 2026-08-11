@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { chunkResume } from './chunk-resume.js'
+import { chunkResume } from './chunkResume.js'
 
 // Minimal, anonymised resume fixture. No real personal data — venues, dates and
 // project descriptions are fabricated; it only needs the shapes the slicer parses.
