@@ -21,6 +21,7 @@ export function initSignalsMediator(): void {
   window.addEventListener('rules-list:toggle', handleToggle)
   window.addEventListener('job-list:select', handleJobSelect)
   window.addEventListener('job-meta:flag', handleFlag)
+  window.addEventListener('job-meta:rank', handleRank)
   window.addEventListener('job-card:flag', handleFlag)
 }
 
@@ -33,6 +34,7 @@ export function _resetSignalsMediatorForTesting(): void {
     window.removeEventListener('rules-list:toggle', handleToggle)
     window.removeEventListener('job-list:select', handleJobSelect)
     window.removeEventListener('job-meta:flag', handleFlag)
+    window.removeEventListener('job-meta:rank', handleRank)
     window.removeEventListener('job-card:flag', handleFlag)
   }
   registered = false
@@ -146,6 +148,27 @@ async function handleFlag(event: Event): Promise<void> {
   const { jobId, providerJobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
   try {
     const response = await fetch(`/api/jobs/${jobId}/flag`, { method: 'POST' })
+    if (!response.ok) {
+      return
+    }
+  } catch {
+    return
+  }
+  const page = document.querySelector('jobs-page')
+  if (page) {
+    page.setJobMeta(providerJobId, [], true)
+  }
+  window.dispatchEvent(new CustomEvent('jobs:refresh-request'))
+}
+
+async function handleRank(event: Event): Promise<void> {
+  const { jobId, providerJobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
+  try {
+    const response = await fetch(`/api/jobs/${jobId}/flag`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ topic: 'rank' }),
+    })
     if (!response.ok) {
       return
     }

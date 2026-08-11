@@ -69,6 +69,7 @@ describe('job-meta-panel', () => {
     expect(actions).toContain('status:skipped')
     expect(actions).toContain('open:https://li/job-1')
     expect(actions).toContain('flag:4445084022')
+    expect(actions).toContain('rank:4445084022')
 
     const evalBox = el.querySelector('ai-eval-box')
     expect(evalBox).not.toBeNull()
@@ -79,11 +80,12 @@ describe('job-meta-panel', () => {
     expect(signalRows.length).toBe(1)
     expect(signalRows[0].querySelector('.signal-source')?.textContent).toBe('regex_title')
     expect(signalRows[0].querySelector('.signal-score')?.classList.contains('pos')).toBe(true)
-    expect(signalRows[0].querySelector('.signal-score')?.textContent).toBe('+10')
+    expect(signalRows[0].querySelector('.signal-score')?.textContent).toBe('10')
+    expect(signalRows[0].querySelector('.chip')).toBeNull()
 
     const flagBtn = el.querySelector<HTMLButtonElement>('[data-action="flag"]')
     expect(flagBtn?.disabled).toBe(false)
-    expect(flagBtn?.textContent).toBe('Flag for deep analysis')
+    expect(flagBtn?.textContent).toBe('Refetch Details')
   })
 
   it('disables the flag button when queued is true', () => {
@@ -92,6 +94,45 @@ describe('job-meta-panel', () => {
     const flagBtn = el.querySelector<HTMLButtonElement>('[data-action="flag"]')
     expect(flagBtn?.disabled).toBe(true)
     expect(flagBtn?.textContent).toBe('Queued')
+  })
+
+  it('shows Fetch Details when descriptionHtml is null and Refetch Details when present', () => {
+    const jNoDesc: JobWithStatus = { ...job({ descriptionHtml: null }), _status: 'new', netScore: 50 }
+    el.showJob(jNoDesc, [], false)
+    expect(el.querySelector<HTMLButtonElement>('[data-action="flag"]')?.textContent).toBe('Fetch Details')
+
+    const jWithDesc: JobWithStatus = { ...job({ descriptionHtml: '<p>text</p>' }), _status: 'new', netScore: 50 }
+    el.showJob(jWithDesc, [], false)
+    expect(el.querySelector<HTMLButtonElement>('[data-action="flag"]')?.textContent).toBe('Refetch Details')
+  })
+
+  it('dispatches job-meta:rank when the Re-rank button is clicked', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+    let received: { jobId: number; providerJobId: string } | undefined
+    el.addEventListener('job-meta:rank', event => {
+      received = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
+    })
+    el.querySelector<HTMLButtonElement>('[data-action="rank"]')?.click()
+    expect(received).toEqual({ jobId: 1, providerJobId: '4445084022' })
+  })
+
+  it('disables the Re-rank button when descriptionHtml is null', () => {
+    const j: JobWithStatus = { ...job({ descriptionHtml: null }), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+    const rankBtn = el.querySelector<HTMLButtonElement>('[data-action="rank"]')
+    expect(rankBtn?.disabled).toBe(true)
+  })
+
+  it('does not dispatch job-meta:rank when the Re-rank button is disabled', () => {
+    const j: JobWithStatus = { ...job({ descriptionHtml: null }), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+    let received = false
+    el.addEventListener('job-meta:rank', () => {
+      received = true
+    })
+    el.querySelector<HTMLButtonElement>('[data-action="rank"]')?.click()
+    expect(received).toBe(false)
   })
 
   it('dispatches job-meta:status when Skip is clicked', () => {

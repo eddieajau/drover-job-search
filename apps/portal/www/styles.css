@@ -1263,6 +1263,17 @@ job-meta-panel {
   margin-bottom: 8px;
 }
 
+.meta-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.meta-label-row .meta-label {
+  margin-bottom: 0;
+}
+
 .meta-section.actions {
   display: flex;
   flex-direction: column;
@@ -1278,6 +1289,11 @@ job-meta-panel {
 
 .btn-block {
   width: 100%;
+}
+
+.btn-sm {
+  padding: 2px 8px;
+  font-size: 11px;
 }
 
 .chip {
@@ -1380,11 +1396,31 @@ job-meta-panel {
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border-left: 3px solid var(--border-strong);
+  border-radius: 0;
   margin-bottom: 6px;
   background: var(--field);
   font-size: 12px;
+}
+
+.signal-row.st-dealbreaker {
+  border-left-color: var(--red);
+}
+
+.signal-row.st-eval_summary {
+  border-left-color: var(--accent);
+}
+
+.signal-row.st-skill_match {
+  border-left-color: var(--green);
+}
+
+.signal-row.st-company_match {
+  border-left-color: var(--blue);
+}
+
+.signal-row.st-dimension {
+  border-left-color: var(--accent);
 }
 
 .signal-source {

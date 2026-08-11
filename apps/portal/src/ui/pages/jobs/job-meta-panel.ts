@@ -13,6 +13,7 @@ export interface JobMetaPanelEventMap {
   'job-meta:status': CustomEvent<{ jobId: number; status: string }>
   'job-meta:open': CustomEvent<{ url: string }>
   'job-meta:flag': CustomEvent<{ jobId: number; providerJobId: string }>
+  'job-meta:rank': CustomEvent<{ jobId: number; providerJobId: string }>
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -155,6 +156,23 @@ export class JobMetaPanel extends HTMLElement {
           })
         )
       }
+      return
+    }
+    if (action === 'rank') {
+      if (button.disabled) {
+        return
+      }
+      const providerJobId = button.dataset.jobId ?? ''
+      const jobId = this.#job?.id
+      if (providerJobId && jobId) {
+        this.dispatchEvent(
+          new CustomEvent('job-meta:rank', {
+            bubbles: true,
+            composed: true,
+            detail: { jobId, providerJobId },
+          })
+        )
+      }
     }
   }
 
@@ -167,17 +185,17 @@ export class JobMetaPanel extends HTMLElement {
     const job = this.#job
     const statusLabel = STATUS_LABELS[job._status] ?? job._status
     const evalData = deriveVerdict(job)
+    const hasDescription = !!job.descriptionHtml
     const flagDisabled = this.#queued ? 'disabled' : ''
-    const flagLabel = this.#queued ? 'Queued' : 'Flag for deep analysis'
+    const flagLabel = this.#queued ? 'Queued' : hasDescription ? 'Refetch Details' : 'Fetch Details'
+    const rankDisabled = !hasDescription ? 'disabled' : ''
 
     const signalsHtml = this.#signals
       .map(s => {
         const scoreClass = s.score >= 0 ? 'pos' : 'neg'
-        const scorePrefix = s.score >= 0 ? '+' : ''
-        return `<div class="signal-row">
+        return `<div class="signal-row st-${esc(s.signalType)}">
           <span class="signal-source">${esc(s.source)}</span>
-          <span class="chip">${esc(s.signalType)}</span>
-          <span class="signal-score ${scoreClass}">${scorePrefix}${s.score}</span>
+          <span class="signal-score ${scoreClass}">${s.score}</span>
         </div>`
       })
       .join('')
@@ -194,12 +212,17 @@ export class JobMetaPanel extends HTMLElement {
           <button class="btn btn-block" type="button" data-action="open" data-url="${esc(job.url)}">Open LinkedIn</button>
         </div>
         <div class="meta-section">
-          <div class="meta-label">AI Evaluation</div>
+          <div class="meta-label-row">
+            <div class="meta-label">AI Evaluation</div>
+            <button class="btn btn-sm" type="button" data-action="rank" data-job-id="${esc(job.providerJobId)}" ${rankDisabled}>Re-rank</button>
+          </div>
           <ai-eval-box${evalData.verdict ? ` verdict="${esc(evalData.verdict)}"` : ''}${evalData.score ? ` score="${esc(evalData.score)}"` : ''}${evalData.why ? ` why="${esc(evalData.why)}"` : ''}${evalData.gated ? ' gated' : ''}${evalData.urgent ? ' urgent' : ''}></ai-eval-box>
         </div>
         <div class="meta-section">
           <div class="meta-label">Signals</div>
           ${signalsHtml}
+        </div>
+        <div class="meta-section actions">
           <button class="btn btn-block" type="button" data-action="flag" data-job-id="${esc(job.providerJobId)}" ${flagDisabled}>${flagLabel}</button>
         </div>
       </aside>
