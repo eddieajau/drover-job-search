@@ -3,8 +3,9 @@
  * @license   MIT
  */
 
-import { analysisQueue, createDb, jobSignals, jobs, type DB } from 'db'
+import { analysisQueue, createDb, facts, jobSignals, jobs, type DB } from 'db'
 import { eq } from 'drizzle-orm'
+import { seedFact } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createOllamaClient } from '../clients/ollama.js'
@@ -131,6 +132,44 @@ describe('rank-job-details drain', () => {
     expect(queue.completedAt).not.toBeNull()
     expect(queue.errorMessage).toBeNull()
     expect(onProgress).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes the active facts into the prompt for each evaluated job', async () => {
+    seedQueue(db, '123456')
+    seedFact(db, { category: 'constraint', label: 'Open to remote; based in Australia', confidence: 'stated' })
+    seedFact(db, { category: 'skill', label: 'TypeScript', period: '10 yrs', confidence: 'stated' })
+    seedFact(db, { category: 'skill', label: 'Kafka', confidence: 'inferred' })
+    seedFact(db, { category: 'skill', label: 'COBOL', confidence: 'stretch' })
+    seedFact(db, { category: 'skill', label: 'Retired skill', active: false })
+
+    const generate = vi.fn(async () => documentedResponse)
+    const result = await drain(db, { client: { generate } })
+
+    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(generate).toHaveBeenCalledOnce()
+    const prompt = generate.mock.calls[0][0] as string
+    expect(prompt).toContain('Candidate profile (derived from facts):')
+    expect(prompt).toContain('- Open to remote; based in Australia')
+    expect(prompt).toContain('- TypeScript — 10 yrs')
+    expect(prompt).toContain('- (inferred from resume) Kafka')
+    expect(prompt).not.toContain('COBOL')
+    expect(prompt).not.toContain('Retired skill')
+  })
+
+  it('only reads active facts once per drain', async () => {
+    for (const id of ['111111', '222222']) {
+      seedQueue(db, id)
+    }
+    seedFact(db, { category: 'skill', label: 'TypeScript', confidence: 'stated' })
+
+    const generate = vi.fn(async () => documentedResponse)
+    await drain(db, { client: { generate } })
+
+    expect(generate).toHaveBeenCalledTimes(2)
+    for (const call of generate.mock.calls) {
+      expect(call[0]).toContain('- TypeScript')
+    }
+    expect(db.select().from(facts).all()).toHaveLength(1)
   })
 
   it('writes one dealbreaker per failed gate and one signal per dimension', async () => {

@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { analysisQueue, jobSignals, jobs, type DB } from 'db'
+import { analysisQueue, facts, jobSignals, jobs, type DB, type Fact } from 'db'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { FastifyBaseLogger } from 'fastify'
 
@@ -141,20 +141,26 @@ export interface RankDrainOptions {
 
 export async function drain(db: DB, opts: RankDrainOptions): Promise<{ written: number; skipped: number }> {
   const rows = selectPending(db, 'rank', opts.limit)
+  const activeFacts = db.select().from(facts).where(eq(facts.active, true)).all()
   let written = 0
   let skipped = 0
   for (const row of rows) {
-    const outcome = await drainOne(db, row.queueId, opts)
+    const outcome = await drainOne(db, row.queueId, opts, activeFacts)
     if (outcome === 'written') written++
     else skipped++
   }
   return { written, skipped }
 }
 
-export async function drainOne(db: DB, queueId: number, opts: RankDrainOptions): Promise<'written' | 'skipped'> {
+export async function drainOne(
+  db: DB,
+  queueId: number,
+  opts: RankDrainOptions,
+  activeFacts?: Fact[]
+): Promise<'written' | 'skipped'> {
   const row = selectPendingRow(db, queueId)
   if (!row) return 'skipped'
-  return evaluateJob(db, row, opts)
+  return evaluateJob(db, row, opts, activeFacts)
 }
 
 function selectPendingRow(db: DB, queueId: number): PendingRow | null {
@@ -173,7 +179,12 @@ function selectPendingRow(db: DB, queueId: number): PendingRow | null {
   )
 }
 
-async function evaluateJob(db: DB, row: PendingRow, opts: RankDrainOptions): Promise<'written' | 'skipped'> {
+async function evaluateJob(
+  db: DB,
+  row: PendingRow,
+  opts: RankDrainOptions,
+  activeFacts?: Fact[]
+): Promise<'written' | 'skipped'> {
   const job = db
     .select({
       id: jobs.id,
@@ -193,12 +204,16 @@ async function evaluateJob(db: DB, row: PendingRow, opts: RankDrainOptions): Pro
   }
 
   const cleanDesc = sanitise(job.description)
-  const prompt = buildPrompt({
-    title: job.title,
-    companyName: job.companyName,
-    location: job.location,
-    description: cleanDesc,
-  })
+  const factsForPrompt = activeFacts ?? db.select().from(facts).where(eq(facts.active, true)).all()
+  const prompt = buildPrompt(
+    {
+      title: job.title,
+      companyName: job.companyName,
+      location: job.location,
+      description: cleanDesc,
+    },
+    factsForPrompt
+  )
 
   let raw: string
   try {
