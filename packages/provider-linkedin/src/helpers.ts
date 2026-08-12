@@ -83,6 +83,7 @@ export interface JobDetail extends JobCard {
   industries: string | null
   workplaceType: string | null
   applyUrl: string | null
+  closed: boolean
 }
 
 /**
@@ -231,6 +232,9 @@ export function parseJobDetail(html: string, id: string): JobDetail {
   const applyMatch = html.match(/class="topcard__link[^"]*"[^>]*href="([^"]+)"/i)
   const applyUrl = applyMatch ? decodeHtmlEntities(applyMatch[1]).split('?')[0] : null
 
+  // Detect closed jobs: LinkedIn shows "No longer accepting applications" on expired listings.
+  const closed = /no\s+longer\s+accepting\s+applications/i.test(html)
+
   return {
     id,
     title: title ? clean(title) : '(untitled)',
@@ -246,6 +250,7 @@ export function parseJobDetail(html: string, id: string): JobDetail {
     industries: criteria['industries'] ?? null,
     workplaceType: normaliseWorkplace(criteria['workplace type'] ?? null),
     applyUrl,
+    closed,
   }
 }
 

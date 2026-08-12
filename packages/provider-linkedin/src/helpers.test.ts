@@ -56,6 +56,22 @@ describe('parseJobDetail', () => {
 
     expect(detail.workplaceType).toBeNull()
   })
+
+  it('sets closed to true when "No longer accepting applications" is present', () => {
+    const html =
+      '<div class="topcard__flavor--bullet">No longer accepting applications</div>' +
+      '<div class="show-more-less-html__markup"><p>Some job</p></div>'
+
+    const detail = parseJobDetail(html, '123456')
+
+    expect(detail.closed).toBe(true)
+  })
+
+  it('sets closed to false when the text is not present', () => {
+    const detail = parseJobDetail('<div class="show-more-less-html__markup"><p>Some job</p></div>', '123456')
+
+    expect(detail.closed).toBe(false)
+  })
 })
 
 describe('workTypeFlag', () => {
