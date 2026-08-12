@@ -68,7 +68,7 @@ describe('fetch-job-details drain', () => {
       onProgress,
     })
 
-    expect(result).toEqual({ processed: 1, failed: 0 })
+    expect(result).toEqual({ processed: 1, failed: 0, skipped: 0 })
     const job = db.select().from(jobs).get()!
     expect(job.description).toBe('## The Team\n\n-   a\n-   b')
 
@@ -90,7 +90,7 @@ describe('fetch-job-details drain', () => {
 
     const result = await drain(db, { detailFn: async () => null, onError })
 
-    expect(result).toEqual({ processed: 0, failed: 1 })
+    expect(result).toEqual({ processed: 0, failed: 1, skipped: 0 })
     const job = db.select().from(jobs).get()!
     expect(job.description).toBeNull()
 
@@ -114,7 +114,7 @@ describe('fetch-job-details drain', () => {
       onError,
     })
 
-    expect(result).toEqual({ processed: 0, failed: 1 })
+    expect(result).toEqual({ processed: 0, failed: 1, skipped: 0 })
     const job = db.select().from(jobs).get()!
     expect(job.description).toBeNull()
 
@@ -151,7 +151,7 @@ describe('fetch-job-details drain', () => {
 
     const result = await drain(db, { detailFn, limit: 2 })
 
-    expect(result).toEqual({ processed: 2, failed: 0 })
+    expect(result).toEqual({ processed: 2, failed: 0, skipped: 0 })
     expect(calls).toHaveLength(2)
 
     const pending = db
@@ -168,7 +168,7 @@ describe('fetch-job-details drain', () => {
 
     const result = await drain(db, { detailFn })
 
-    expect(result).toEqual({ processed: 0, failed: 0 })
+    expect(result).toEqual({ processed: 0, failed: 0, skipped: 0 })
     expect(detailFn).not.toHaveBeenCalled()
   })
 
@@ -206,6 +206,43 @@ describe('fetch-job-details drain', () => {
     const outcome = await drainOne(db, 999, { detailFn: async () => ({ description: 'desc' }) })
 
     expect(outcome).toBe('failed')
+  })
+
+  it('skips closed jobs with status=skipped and processedBy=system', async () => {
+    seedQueue(db, '789012')
+    const onSkip = vi.fn()
+
+    const result = await drain(db, {
+      detailFn: async () => ({ description: '<p>Has description</p>', closed: true }),
+      onSkip,
+    })
+
+    expect(result).toEqual({ processed: 0, failed: 0, skipped: 1 })
+
+    const queue = db.select().from(analysisQueue).all()
+    expect(queue.find(q => q.topic === 'fetch_job_details')!.completedAt).not.toBeNull()
+    expect(queue.length).toBe(1)
+
+    const job = db.select().from(jobs).get()!
+    expect(job.status).toBe('skipped')
+    expect(job.processedBy).toBe('system')
+    expect(job.skipReason).toBe('No longer accepting applications')
+    expect(job.skippedAt).not.toBeNull()
+    expect(job.updatedAt).not.toBeNull()
+
+    expect(onSkip).toHaveBeenCalledTimes(1)
+  })
+
+  it('onProgress does not fire for closed jobs', async () => {
+    seedQueue(db, '345678')
+    const onProgress = vi.fn()
+
+    await drain(db, {
+      detailFn: async () => ({ description: '<p>Has description</p>', closed: true }),
+      onProgress,
+    })
+
+    expect(onProgress).not.toHaveBeenCalled()
   })
 })
 
@@ -255,6 +292,25 @@ describe('createFetchJobDetailsConsumer', () => {
     const job = db.select().from(jobs).get()!
     expect(job.description).toBe('A description')
     expect(log.info).toHaveBeenCalledWith({ providerJobId: '123456' }, 'description saved')
+    db.$client.close()
+  })
+
+  it('consumer total includes skipped in the sum', async () => {
+    const db = createDb(':memory:')
+    seedQueue(db, '111111') // will be processed (written)
+    seedQueue(db, '222222') // will be closed (skipped)
+
+    const detailFn = vi.fn<DetailFn>()
+    detailFn.mockImplementation(async ({ id }) => {
+      return id === '111111' ? { description: '<p>parsed</p>' } : { description: '<p>desc</p>', closed: true }
+    })
+
+    createFetchJobDetailsConsumer({ db, log, detailFn })
+
+    const result = await consumerCaptured.opts?.drain()
+
+    expect(result).toEqual({ total: 2 })
+    expect(log.info).toHaveBeenCalledWith(expect.objectContaining({ reason: 'closed' }), 'job skipped')
     db.$client.close()
   })
 })

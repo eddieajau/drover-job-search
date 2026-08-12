@@ -35,7 +35,7 @@ async function main() {
   const db = createDb(dbFile)
 
   if (isDetail) {
-    const { processed, failed } = await fetchJobDetails.drain(db, {
+    const { processed, failed, skipped } = await fetchJobDetails.drain(db, {
       detailFn: detail,
       limit,
       onProgress: row => log.info({ providerJobId: row.providerJobId }, 'description saved'),
@@ -43,8 +43,9 @@ async function main() {
         err === null
           ? log.warn({ providerJobId: row.providerJobId }, 'no description returned; marked done')
           : log.error({ providerJobId: row.providerJobId, err }, 'detail fetch failed; marked done'),
+      onSkip: (row, reason) => log.info({ providerJobId: row.providerJobId, reason }, 'job skipped'),
     })
-    log.info({ processed, failed }, 'detail crawl complete')
+    log.info({ processed, failed, skipped }, 'detail crawl complete')
     await new Promise<void>(resolve => log.flush(() => resolve()))
     db.$client.close()
     return
