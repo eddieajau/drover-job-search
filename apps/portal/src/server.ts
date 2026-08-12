@@ -11,7 +11,6 @@ import fastifyAutoload from '@fastify/autoload'
 import sensible from '@fastify/sensible'
 import fastifyStatic from '@fastify/static'
 import { type DB } from 'db'
-import { config } from 'dotenv'
 import fastify from 'fastify'
 import { detail } from 'provider-linkedin'
 import {
@@ -36,7 +35,7 @@ declare module 'fastify' {
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const rootDir = join(__dirname, '..', '..', '..')
 
-config({ path: join(rootDir, '.env') })
+process.loadEnvFile(join(rootDir, '.env'))
 
 const PORT = Number(process.env.PORT) || 4000
 const DEV = process.env.NODE_ENV !== 'production'

@@ -11,7 +11,6 @@
     "verify": "oxfmt check . && oxlint . && npm test"
   },
   "dependencies": {
-    "dotenv": "^17.4.2",
     "pino": "^10.3.1",
     "workers": "^0.1.0"
   },
