@@ -586,31 +586,37 @@ job-card:focus-visible {
   color: var(--muted);
 }
 
-.card-flag,
-.card-skip {
+.tri-switch {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3px;
+  margin-left: auto;
+  border: 1px solid var(--muted);
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.tri-switch button {
   border: none;
   background: none;
-  cursor: pointer;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--muted);
-  border-radius: 4px;
-  line-height: 0;
+  cursor: pointer;
 }
 
-.card-flag:hover,
-.card-flag:focus-visible,
-.card-skip:hover,
-.card-skip:focus-visible {
-  color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+.tri-switch button:hover {
+  background: var(--surface-2);
 }
 
-.card-flag[aria-pressed='true'] {
-  color: var(--accent);
+.tri-yes[aria-pressed='true'] {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.tri-no[aria-pressed='true'] {
+  color: var(--red);
+  background: var(--red-soft);
 }
 
 .detail {

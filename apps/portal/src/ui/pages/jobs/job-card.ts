@@ -25,6 +25,7 @@ type JobCardAttribute =
   | 'active'
   | 'seen'
   | 'queued'
+  | 'skipped'
   | 'has-description'
 
 export class JobCard extends HTMLElement {
@@ -41,6 +42,7 @@ export class JobCard extends HTMLElement {
     'active',
     'seen',
     'queued',
+    'skipped',
     'has-description',
   ]
 
@@ -55,6 +57,7 @@ export class JobCard extends HTMLElement {
   #active = false
   #seen = false
   #queued = false
+  #skipped = false
   #hasDescription = false
   #abort: AbortController | null = null
 
@@ -104,6 +107,9 @@ export class JobCard extends HTMLElement {
       case 'queued':
         this.#queued = newValue !== null
         break
+      case 'skipped':
+        this.#skipped = newValue !== null
+        break
       case 'has-description':
         this.#hasDescription = newValue !== null
         break
@@ -128,7 +134,7 @@ export class JobCard extends HTMLElement {
 
   #onClick = (event: MouseEvent): void => {
     const actionTarget = (event.target as HTMLElement).closest<HTMLElement>('[data-action]')
-    if (actionTarget?.dataset.action === 'flag') {
+    if (actionTarget?.dataset.action === 'yes') {
       this.dispatchEvent(
         new CustomEvent<JobCardEventMap['job-card:flag'] extends CustomEvent<infer D> ? D : never>('job-card:flag', {
           bubbles: true,
@@ -193,12 +199,12 @@ export class JobCard extends HTMLElement {
       ? '<svg class="has-desc-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9 1.5z"/><path d="M9 1.5V5.5h4"/><path d="M6 8.5h4M6 11h2"/></svg>'
       : '<svg class="no-desc-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9 1.5z"/><path d="M9 1.5V5.5h4"/></svg>'
 
-    const flagIcon = this.#queued
-      ? '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M3 1v14"/><path d="M3 2.5h9l-2.1 3 2.1 3H3z"/></svg>'
-      : '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 1v14"/><path d="M3 2.5h9l-2.1 3 2.1 3H3z"/></svg>'
-
-    const skipIcon =
-      '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M3 3.5l6.5 4.5L3 12.5z"/><path d="M11.5 3.5h1.5v9h-1.5z"/></svg>'
+    const triSwitch = this.#gated
+      ? ''
+      : `<span class="tri-switch" role="group" aria-label="Triage job">
+          <button class="tri-yes" type="button" data-action="yes" aria-pressed="${this.#queued}">Yes</button>
+          <button class="tri-no" type="button" data-action="skip" aria-pressed="${this.#skipped}">No</button>
+        </span>`
 
     const classes = ['job-card']
     if (this.#active) classes.push('active')
@@ -216,12 +222,7 @@ export class JobCard extends HTMLElement {
           <span class="loc">${esc(this.#location)}</span>
           <span class="posted">${esc(relativeAge(this.#posted))}</span>
           ${docIcon}
-          <button class="card-skip" type="button" data-action="skip" aria-label="Skip job">
-            ${skipIcon}
-          </button>
-          <button class="card-flag" type="button" data-action="flag" aria-pressed="${this.#queued}" aria-label="Flag for deep analysis">
-            ${flagIcon}
-          </button>
+          ${triSwitch}
         </div>
       </div>
     `

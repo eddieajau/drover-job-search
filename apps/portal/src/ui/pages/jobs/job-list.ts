@@ -112,6 +112,9 @@ export class JobList extends HTMLElement {
         if (job.queued) {
           card.setAttribute('queued', '')
         }
+        if (job._status === 'skipped') {
+          card.setAttribute('skipped', '')
+        }
         if (job.id === this.#state.selectedId) {
           card.setAttribute('active', '')
         }

@@ -124,6 +124,11 @@ describe('job-list', () => {
     expect(el.querySelector('job-card')?.hasAttribute('queued')).toBe(true)
   })
 
+  it('sets the skipped attribute on cards for skipped jobs', () => {
+    el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'skipped')], selectedId: null })
+    expect(el.querySelector('job-card')?.hasAttribute('skipped')).toBe(true)
+  })
+
   it('lets job-card:flag bubble through the list without re-dispatching', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job())], selectedId: null })
     const received: Array<{ jobId: number; providerJobId: string }> = []
@@ -135,7 +140,7 @@ describe('job-list', () => {
       listFlagFired = true
     })
 
-    el.querySelector<HTMLButtonElement>('job-card .card-flag')?.click()
+    el.querySelector<HTMLButtonElement>('job-card .tri-yes')?.click()
     expect(received).toEqual([{ jobId: 1, providerJobId: '4445084022' }])
     expect(listFlagFired).toBe(false)
   })
@@ -147,7 +152,7 @@ describe('job-list', () => {
       received.push((event as CustomEvent<{ jobId: number; status: string }>).detail)
     })
 
-    el.querySelector<HTMLButtonElement>('job-card .card-skip')?.click()
+    el.querySelector<HTMLButtonElement>('job-card .tri-no')?.click()
     expect(received).toEqual([{ jobId: 1, status: 'skipped' }])
   })
 

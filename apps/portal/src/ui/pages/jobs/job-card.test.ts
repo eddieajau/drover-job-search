@@ -251,7 +251,7 @@ describe('job-card', () => {
     expect(card.querySelector('.posted')?.textContent).toBe('2d')
   })
 
-  it('dispatches job-card:flag on flag click and not job-card:select', () => {
+  it('dispatches job-card:flag on tri-yes click and not job-card:select', () => {
     const card = createCard({
       'job-id': '11',
       'provider-job-id': 'job-11',
@@ -270,12 +270,12 @@ describe('job-card', () => {
       selectFired = true
     })
 
-    card.querySelector<HTMLButtonElement>('.card-flag')?.click()
+    card.querySelector<HTMLButtonElement>('.tri-yes')?.click()
     expect(flagEvents).toEqual([{ jobId: 11, providerJobId: 'job-11' }])
     expect(selectFired).toBe(false)
   })
 
-  it('dispatches job-card:status with skipped on skip click and not job-card:select', () => {
+  it('dispatches job-card:status with skipped on tri-no click and not job-card:select', () => {
     const card = createCard({
       'job-id': '11',
       'provider-job-id': 'job-11',
@@ -294,14 +294,26 @@ describe('job-card', () => {
       selectFired = true
     })
 
-    const skip = card.querySelector<HTMLButtonElement>('.card-skip')
-    expect(skip?.getAttribute('aria-label')).toBe('Skip job')
-    skip?.click()
+    card.querySelector<HTMLButtonElement>('.tri-no')?.click()
     expect(statusEvents).toEqual([{ jobId: 11, providerJobId: 'job-11', status: 'skipped' }])
     expect(selectFired).toBe(false)
   })
 
-  it('renders a filled flag with aria-pressed=true when queued', () => {
+  it('renders a neutral tri-switch with both sides unpressed', () => {
+    const card = createCard({
+      'job-id': '12',
+      'provider-job-id': 'job-12',
+      title: 'Engineer',
+      company: 'Mu',
+      location: 'Perth',
+      posted: '3d',
+    })
+
+    expect(card.querySelector('.tri-yes')?.getAttribute('aria-pressed')).toBe('false')
+    expect(card.querySelector('.tri-no')?.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('presses the yes side when queued', () => {
     const card = createCard({
       'job-id': '12',
       'provider-job-id': 'job-12',
@@ -312,12 +324,11 @@ describe('job-card', () => {
       queued: '',
     })
 
-    const flag = card.querySelector<HTMLButtonElement>('.card-flag')
-    expect(flag?.getAttribute('aria-pressed')).toBe('true')
-    expect(flag?.querySelector('svg')?.getAttribute('fill')).toBe('currentColor')
+    expect(card.querySelector('.tri-yes')?.getAttribute('aria-pressed')).toBe('true')
+    expect(card.querySelector('.tri-no')?.getAttribute('aria-pressed')).toBe('false')
   })
 
-  it('renders a hollow flag with aria-pressed=false when not queued', () => {
+  it('presses the no side when skipped', () => {
     const card = createCard({
       'job-id': '13',
       'provider-job-id': 'job-13',
@@ -325,14 +336,14 @@ describe('job-card', () => {
       company: 'Nu',
       location: 'Hobart',
       posted: '4d',
+      skipped: '',
     })
 
-    const flag = card.querySelector<HTMLButtonElement>('.card-flag')
-    expect(flag?.getAttribute('aria-pressed')).toBe('false')
-    expect(flag?.querySelector('svg')?.getAttribute('fill')).toBe('none')
+    expect(card.querySelector('.tri-yes')?.getAttribute('aria-pressed')).toBe('false')
+    expect(card.querySelector('.tri-no')?.getAttribute('aria-pressed')).toBe('true')
   })
 
-  it('does not dispatch job-card:select when Enter is pressed on the flag button', () => {
+  it('does not dispatch job-card:select when Enter is pressed on the yes button', () => {
     const card = createCard({
       'job-id': '14',
       'provider-job-id': 'job-14',
@@ -347,9 +358,24 @@ describe('job-card', () => {
       selectFired = true
     })
 
-    const flag = card.querySelector<HTMLButtonElement>('.card-flag')
-    flag?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    const yes = card.querySelector<HTMLButtonElement>('.tri-yes')
+    yes?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
     expect(selectFired).toBe(false)
+  })
+
+  it('renders no tri-switch on gated cards', () => {
+    const card = createCard({
+      'job-id': '17',
+      'provider-job-id': 'job-17',
+      title: 'Engineer',
+      company: 'Rho',
+      location: 'Sydney',
+      posted: '2d',
+      gated: '',
+    })
+
+    expect(card.querySelector('.tri-switch')).toBeNull()
+    expect(card.querySelector('.card-chips .card-chip-blocked')).not.toBeNull()
   })
 
   it('reflects has-description on the inner .job-card div when set', () => {
