@@ -8,6 +8,7 @@ import { escapeHtml as esc } from '../../escape.js'
 export interface EvalWhy {
   strengths: string[]
   gaps: string[]
+  dealbreakers: string[]
 }
 
 type AiEvalBoxAttribute = 'verdict' | 'score' | 'why' | 'gated' | 'urgent'
@@ -78,6 +79,15 @@ export class AiEvalBox extends HTMLElement {
     const whyListsHtml = this.#whyLists
       ? `
         <div class="eval-why-lists">
+          ${
+            this.#whyLists.dealbreakers.length > 0
+              ? `
+            <div class="eval-why-block">
+              <span class="eval-why-label">Dealbreakers</span>
+              <ul>${this.#whyLists.dealbreakers.map(item => `<li>${esc(item)}</li>`).join('')}</ul>
+            </div>`
+              : ''
+          }
           ${
             this.#whyLists.strengths.length > 0
               ? `

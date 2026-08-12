@@ -104,7 +104,7 @@ describe('ai-eval-box', () => {
 
   it('renders strengths and gaps lists via setWhy', () => {
     const box = createBox({ verdict: 'High match', score: '61' })
-    box.setWhy({ strengths: ['Deep TypeScript match'], gaps: ['No Kafka experience'] })
+    box.setWhy({ strengths: ['Deep TypeScript match'], gaps: ['No Kafka experience'], dealbreakers: [] })
 
     const labels = box.querySelectorAll('.eval-why-label')
     expect(labels).toHaveLength(2)
@@ -116,9 +116,23 @@ describe('ai-eval-box', () => {
     expect(lists[1]?.textContent).toContain('No Kafka experience')
   })
 
+  it('renders dealbreakers list before strengths and gaps', () => {
+    const box = createBox({ verdict: 'Auto-skip', gated: '' })
+    box.setWhy({ strengths: ['Good TS'], gaps: ['No AWS'], dealbreakers: ['Requires visa sponsorship'] })
+
+    const labels = box.querySelectorAll('.eval-why-label')
+    expect(labels).toHaveLength(3)
+    expect(labels[0]?.textContent).toBe('Dealbreakers')
+    expect(labels[1]?.textContent).toBe('Strengths')
+    expect(labels[2]?.textContent).toBe('Gaps')
+
+    const lists = box.querySelectorAll('.eval-why-block ul')
+    expect(lists[0]?.textContent).toContain('Requires visa sponsorship')
+  })
+
   it('escapes HTML in setWhy items', () => {
     const box = createBox({ verdict: 'High match', score: '61' })
-    box.setWhy({ strengths: ['<script>alert("x")</script>'], gaps: ['<b>bold</b>'] })
+    box.setWhy({ strengths: ['<script>alert("x")</script>'], gaps: ['<b>bold</b>'], dealbreakers: [] })
 
     const list = box.querySelector('.eval-why-block ul')
     expect(list?.innerHTML).not.toContain('<script>')
@@ -128,7 +142,7 @@ describe('ai-eval-box', () => {
 
   it('clears the lists when setWhy(null) is called', () => {
     const box = createBox({ verdict: 'High match', score: '61' })
-    box.setWhy({ strengths: ['Deep TypeScript match'], gaps: ['No Kafka experience'] })
+    box.setWhy({ strengths: ['Deep TypeScript match'], gaps: ['No Kafka experience'], dealbreakers: [] })
     expect(box.querySelector('.eval-why-lists')).not.toBeNull()
 
     box.setWhy(null)

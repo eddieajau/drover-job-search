@@ -190,18 +190,13 @@ export class JobCard extends HTMLElement {
       this.#score !== undefined
         ? `<span class="score ${(this.#score ?? 0) >= 50 ? 'score-high' : 'score-mid'}">${esc(`${this.#score}`)}</span>`
         : ''
-    const chipsHtml =
-      this.#gated || this.#score !== undefined
-        ? `<div class="card-chips">${this.#gated ? '<span class="card-chip-blocked">Blocked</span>' : scoreHtml}</div>`
-        : ''
-
+    const blockedChip = this.#gated ? '<span class="card-chip-blocked">Blocked</span>' : ''
+    const chipsHtml = blockedChip || scoreHtml ? `<div class="card-chips">${scoreHtml}${blockedChip}</div>` : ''
     const docIcon = this.#hasDescription
       ? '<svg class="has-desc-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9 1.5z"/><path d="M9 1.5V5.5h4"/><path d="M6 8.5h4M6 11h2"/></svg>'
       : '<svg class="no-desc-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9 1.5z"/><path d="M9 1.5V5.5h4"/></svg>'
 
-    const triSwitch = this.#gated
-      ? ''
-      : `<span class="tri-switch" role="group" aria-label="Triage job">
+    const triSwitch = `<span class="tri-switch" role="group" aria-label="Triage job">
           <button class="tri-yes" type="button" data-action="yes" aria-pressed="${this.#queued}">Yes</button>
           <button class="tri-no" type="button" data-action="skip" aria-pressed="${this.#skipped}">No</button>
         </span>`

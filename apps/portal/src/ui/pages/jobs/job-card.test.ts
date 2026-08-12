@@ -363,7 +363,7 @@ describe('job-card', () => {
     expect(selectFired).toBe(false)
   })
 
-  it('renders no tri-switch on gated cards', () => {
+  it('renders tri-switch on gated cards', () => {
     const card = createCard({
       'job-id': '17',
       'provider-job-id': 'job-17',
@@ -374,7 +374,7 @@ describe('job-card', () => {
       gated: '',
     })
 
-    expect(card.querySelector('.tri-switch')).toBeNull()
+    expect(card.querySelector('.tri-switch')).not.toBeNull()
     expect(card.querySelector('.card-chips .card-chip-blocked')).not.toBeNull()
   })
 

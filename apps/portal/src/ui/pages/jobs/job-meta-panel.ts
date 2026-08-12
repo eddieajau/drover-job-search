@@ -33,7 +33,14 @@ function evalWhyFromSignals(signals: JobSignal[]): EvalWhy | null {
   if (!summary?.metadata) {
     return null
   }
-  return { strengths: toStringList(summary.metadata.strengths), gaps: toStringList(summary.metadata.gaps) }
+  const dealbreakers = signals
+    .filter(s => s.signalType === 'dealbreaker' && s.metadata?.reason)
+    .map(s => String(s.metadata!.reason))
+  return {
+    strengths: toStringList(summary.metadata.strengths),
+    gaps: toStringList(summary.metadata.gaps),
+    dealbreakers,
+  }
 }
 
 const URGENT_WINDOW_MS = 7 * 86_400_000
