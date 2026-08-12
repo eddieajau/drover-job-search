@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Maintain `.local/plan/README.md` — check off completed tickets in the Ticket order list, prune or tidy rows, and keep Overview/Verification in sync. Plan output is plan documents only; this skill never implements ticket work. Use when the user says "update the plan", "check off tickets", "prune done steps", or asks what is done/remaining.
+description: Use when the user says "create a plan", "check off tickets", "prune done steps", "tick" or asks what is done/remaining.
 ---
 
 # Maintaining the Plan README
@@ -38,7 +38,7 @@ A single numbered checklist — one line per ticket, `- [ ]` when pending,
 `- [x]` when done. Never split it into "Completed" and "Remaining" tables.
 
 ```markdown
-## Ticket order
+## Next - in order
 
 - [x] 7. Align `api/search.ts` with autoload conventions
 - [x] 8. Move `apps/db` → `packages/db`
@@ -56,29 +56,11 @@ Rules:
   files (`Out of scope` / Goal cross-references) to keep the list simple.
 - Keep the list in ticket-number order.
 
-## Workflow
-
-1. **Read the README** first, then the ticket files, then `git log --oneline`
-   to map commits to ticket numbers.
-2. **Check off a ticket only when it is actually folded into history.** The
-   repo commits after the manual browser verification pass; a ticket whose
-   code is committed is `- [x]`. Never check off work-in-progress or
-   uncommitted work.
-3. **Prune by checking, not deleting.** A done ticket stays in the list as
-   `- [x]`. If the user explicitly asks to prune done steps, keep a compact
-   "Folded into history" note and drop the rest of the checked rows — ask
-   first if the intent is unclear.
-4. **Append new tickets** as unchecked rows when `mint` creates them; never
-   renumber existing rows.
-5. **Keep the rest of the file honest**: update `Overview` when project
-   scope changes, and `Verification` when the checklist for manual passes
-   changes.
-
 ## Ownership
 
 - `mint` skill creates ticket files and appends their README rows; it never
   checks boxes.
-- `plan` skill maintains the README: checkbox state, tidy ordering, and the
+- `plan` skill maintains the README: checkbox state if asked, tidy ordering, and the
   Overview / Verification / Pattern sections.
 - When a ticket is completed, update the README in the same change as (or
   immediately after) folding the history, so the plan never lies.

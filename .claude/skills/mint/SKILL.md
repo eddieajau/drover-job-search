@@ -1,6 +1,6 @@
 ---
 name: mint
-description: Decompose a feature into numbered plan tickets under `.local/plan/` — mint new ticket files (NN-name.md) and append their rows to the README Ticket order list. Use when the user asks to "mint tickets", "decompose", or "plan the next step".
+description: Use when asked to "mint" tickets from the user of the "plan" skill, or when we have discussed a plan for a new slice of work.
 ---
 
 # Minting Plan Tickets

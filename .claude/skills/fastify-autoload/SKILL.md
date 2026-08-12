@@ -1,6 +1,6 @@
 ---
 name: fastify-autoload
-description: Filesystem-based routing with @fastify/autoload. Use when creating, moving, or debugging Fastify route files, or when configuring autoload registration. Covers file→URL mapping, naming conventions, dynamic params, and common gotchas.
+description: Use when creating, moving, or debugging Fastify route files, or when configuring autoload registration. This covers file-to-URL mapping, naming conventions, dynamic params, and common gotchas.
 ---
 
 # Fastify Autoload — Routing by Folder Structure

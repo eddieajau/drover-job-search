@@ -1,6 +1,6 @@
 ---
 name: fastify-test
-description: Testing Fastify route handlers in isolation with a minimal app harness and deterministic seed fixtures. Use when writing or reviewing route handler tests (app.inject, build harness, seed data, in-memory SQLite db).
+description: Use when writing or reviewing route handler tests (app.inject, build harness, seed data, in-memory SQLite db).
 ---
 
 # Fastify Testing — Route Tests with a Minimal Harness

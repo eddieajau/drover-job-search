@@ -1,6 +1,6 @@
 ---
 name: next
-description: Read `.local/plan/README.md`, pick the next incomplete ticket (first `- [ ]` in the Ticket order list), and implement it per its ticket file. Use when the user types `/next` or says "do the next ticket".
+description: Use when the user types `/next` or says "do the next ticket".
 ---
 
 # Next Ticket

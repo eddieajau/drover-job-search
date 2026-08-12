@@ -1,6 +1,6 @@
 ---
 name: custom-elements
-description: Engineering standards for Custom HTML Elements. Use when creating, editing, or reviewing any Custom Element (customElements.define, HTMLElement subclass, connectedCallback, etc.).
+description: Use when building Custom HTML Elements for the portal's UI.
 ---
 
 # Custom HTML Elements — Engineering Standard
@@ -130,7 +130,7 @@ cleanup(): void {
 
 ### 7. Rendering
 
-- **Favour `innerHTML` style**: Explicitly favour creating elements with template literal `innerHTML` (e.g. `this.innerHTML = \`...\`` inside `render()`) as illustrated in `apps/portal/src/ui/elements/app-shell.ts`. Declarative `innerHTML` templates are significantly more human readable and maintainable than imperative DOM creation (`document.createElement`, `appendChild`, etc.). Use `innerHTML` template literals by default unless the structural complexity of the element demands programmatic DOM construction (e.g. `<canvas>` contexts, node-level child preservation, or advanced dynamic updates).
+- **Favour `innerHTML` style**: Explicitly favour creating elements with template literal `innerHTML` (e.g. `this.innerHTML = \`...\``inside`render()`) as illustrated in `apps/portal/src/ui/elements/app-shell.ts`. Declarative `innerHTML` templates are significantly more human readable and maintainable than imperative DOM creation (`document.createElement`, `appendChild`, etc.). Use `innerHTML`template literals by default unless the structural complexity of the element demands programmatic DOM construction (e.g.`<canvas>` contexts, node-level child preservation, or advanced dynamic updates).
 - Canvas-based elements render to a `<canvas>` context, not innerHTML. They still follow all other rules (lifecycle, cleanup, events, mediator pattern).
 - For containers that accept children, save `childNodes` before clearing, then re-append.
 - After re-render, re-attach internal listeners (or use event delegation on `this`).
