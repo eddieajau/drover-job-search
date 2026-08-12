@@ -4,7 +4,7 @@
  */
 
 import { jobs, type DB } from 'db'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 import { build, createTestDb, JOB1, seedJob } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -55,6 +55,28 @@ describe('PATCH /api/jobs/:id/status', () => {
     expect(row?.status).toBe('skipped')
     expect(row?.skippedAt).not.toBeNull()
     expect(row?.appliedAt).toBeNull()
+  })
+
+  it('persists discovered status and clears both applied and skipped timestamps', async () => {
+    const job = seedJob(db, JOB1)
+    db.update(jobs)
+      .set({
+        status: 'applied',
+        appliedAt: sql`(CURRENT_TIMESTAMP)`,
+        skippedAt: sql`(CURRENT_TIMESTAMP)`,
+        updatedAt: sql`(CURRENT_TIMESTAMP)`,
+      })
+      .where(eq(jobs.id, job.id))
+      .run()
+
+    const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'discovered' } })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().status).toBe('discovered')
+
+    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(row?.status).toBe('discovered')
+    expect(row?.appliedAt).toBeNull()
+    expect(row?.skippedAt).toBeNull()
   })
 
   it('is reflected by a subsequent GET', async () => {

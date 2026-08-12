@@ -3,8 +3,8 @@
  * @license   MIT
  */
 
-import { analysisQueue, type DB } from 'db'
-import { eq } from 'drizzle-orm'
+import { analysisQueue, jobs, type DB } from 'db'
+import { eq, sql } from 'drizzle-orm'
 import { build, createTestDb, JOB1, seedJob } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -50,6 +50,46 @@ describe('POST /api/jobs/:jobId/flag', () => {
     expect(row).toBeDefined()
     expect(row?.topic).toBe('fetch_job_details')
     expect(row?.completedAt).toBeNull()
+  })
+
+  it('flips a new job status to discovered after the flag', async () => {
+    const job = seedJob(db, JOB1)
+    expect(job.status).toBe('new')
+
+    const res = await app.inject({ method: 'POST', url: `/${job.id}/flag` })
+    expect(res.statusCode).toBe(202)
+
+    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(row?.status).toBe('discovered')
+    expect(row?.updatedAt).not.toBeNull()
+  })
+
+  it('leaves a skipped job status untouched by the flag', async () => {
+    const job = seedJob(db, JOB1)
+    db.update(jobs)
+      .set({ status: 'skipped', skippedAt: sql`(CURRENT_TIMESTAMP)`, updatedAt: sql`(CURRENT_TIMESTAMP)` })
+      .where(eq(jobs.id, job.id))
+      .run()
+
+    const res = await app.inject({ method: 'POST', url: `/${job.id}/flag` })
+    expect(res.statusCode).toBe(202)
+
+    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(row?.status).toBe('skipped')
+  })
+
+  it('leaves an applied job status untouched by the flag', async () => {
+    const job = seedJob(db, JOB1)
+    db.update(jobs)
+      .set({ status: 'applied', appliedAt: sql`(CURRENT_TIMESTAMP)`, updatedAt: sql`(CURRENT_TIMESTAMP)` })
+      .where(eq(jobs.id, job.id))
+      .run()
+
+    const res = await app.inject({ method: 'POST', url: `/${job.id}/flag` })
+    expect(res.statusCode).toBe(202)
+
+    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(row?.status).toBe('applied')
   })
 
   it('emits kick with topic fetch_job_details on the bus after a successful flag', async () => {

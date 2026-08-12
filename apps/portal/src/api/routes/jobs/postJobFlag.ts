@@ -4,7 +4,7 @@
  */
 
 import { jobs } from 'db'
-import { eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 import type { AnalysisTopic } from 'workers'
 
@@ -27,6 +27,11 @@ const postJobFlag: FastifyPluginAsync = async app => {
       return reply.badRequest('Invalid topic')
     }
     app.publisher.publish(jobId, topic)
+    app.db
+      .update(jobs)
+      .set({ status: 'discovered', updatedAt: sql`(CURRENT_TIMESTAMP)` })
+      .where(and(eq(jobs.id, jobId), eq(jobs.status, 'new')))
+      .run()
     return reply.code(202).send()
   })
 }

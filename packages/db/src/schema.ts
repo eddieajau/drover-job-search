@@ -71,7 +71,7 @@ export const jobs = sqliteTable(
     // Workflow & Application State Tracking
     category: text('category').notNull().default('General'),
     priority: integer('priority').notNull().default(0),
-    status: text('status').notNull().default('discovered'),
+    status: text('status').notNull().default('new'),
 
     // Actor & Decision Tracking
     processedBy: text('processed_by'),
@@ -106,7 +106,7 @@ export const jobs = sqliteTable(
       sql`${table.salaryPeriod} IN ('hourly', 'daily', 'weekly', 'monthly', 'annual') OR ${table.salaryPeriod} IS NULL`
     ),
     check('check_is_salary_estimated', sql`${table.isSalaryEstimated} IN (0, 1)`),
-    check('check_status', sql`${table.status} IN ('discovered', 'bookmarked', 'applied', 'skipped', 'archived')`),
+    check('check_status', sql`${table.status} IN ('new', 'discovered', 'applied', 'skipped')`),
     check('check_processed_by', sql`${table.processedBy} IN ('human', 'ai', 'system') OR ${table.processedBy} IS NULL`),
   ]
 )
@@ -295,8 +295,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     category TEXT NOT NULL DEFAULT 'General',
     priority INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL CHECK (
-        status IN ('discovered', 'bookmarked', 'applied', 'skipped', 'archived')
-    ) DEFAULT 'discovered',
+        status IN ('new', 'discovered', 'applied', 'skipped')
+    ) DEFAULT 'new',
     processed_by TEXT CHECK (
         processed_by IN ('human', 'ai', 'system') OR processed_by IS NULL
     ),

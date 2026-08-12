@@ -3,8 +3,8 @@
  * @license   MIT
  */
 
-import { analysisQueue, jobs, type DB } from 'db'
-import { eq, sql } from 'drizzle-orm'
+import { analysisQueue, jobs, type DB, type Job } from 'db'
+import { eq } from 'drizzle-orm'
 import { build, createTestDb, JOB1, JOB2, JOB3, seedJob, seedSignal } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -166,9 +166,15 @@ describe('GET /api/jobs queued join', () => {
   })
 })
 
-describe('GET /api/jobs status mapping', () => {
+describe('GET /api/jobs status pass-through and filtering', () => {
   let db: DB
   let app: Awaited<ReturnType<typeof build>>
+
+  function seedWith(job: typeof JOB1, status: string): Job {
+    const row = seedJob(db, { ...job, providerJobId: `${job.providerJobId}-${status}` })
+    db.update(jobs).set({ status }).where(eq(jobs.id, row.id)).run()
+    return row
+  }
 
   beforeEach(async () => {
     db = createTestDb()
@@ -180,41 +186,103 @@ describe('GET /api/jobs status mapping', () => {
     db.$client.close()
   })
 
-  it('maps a default-discovered job to the UI status new', async () => {
+  it('passes a default new job status through unchanged', async () => {
     seedJob(db, JOB1)
 
     const res = await app.inject({ method: 'GET', url: '/' })
-    expect(res.json().results[0].status).toBe('new')
+    const results = res.json().results as Array<{ providerJobId: string; status: string }>
+    expect(results[0].status).toBe('new')
   })
 
-  it('maps applied and skipped rows to their UI status', async () => {
-    const applied = seedJob(db, JOB1)
-    const skipped = seedJob(db, JOB2)
-    db.update(jobs)
-      .set({ status: 'applied', appliedAt: sql`(CURRENT_TIMESTAMP)`, updatedAt: sql`(CURRENT_TIMESTAMP)` })
-      .where(eq(jobs.id, applied.id))
-      .run()
-    db.update(jobs)
-      .set({ status: 'skipped', skippedAt: sql`(CURRENT_TIMESTAMP)`, updatedAt: sql`(CURRENT_TIMESTAMP)` })
-      .where(eq(jobs.id, skipped.id))
-      .run()
+  it('passes discovered, applied, and skipped rows through unchanged', async () => {
+    seedWith(JOB1, 'discovered')
+    seedWith(JOB2, 'applied')
+    seedWith(JOB3, 'skipped')
 
     const res = await app.inject({ method: 'GET', url: '/' })
     const results = res.json().results as Array<{ providerJobId: string; status: string }>
-    expect(results.find(j => j.providerJobId === JOB1.providerJobId)?.status).toBe('applied')
-    expect(results.find(j => j.providerJobId === JOB2.providerJobId)?.status).toBe('skipped')
+    expect(results.find(j => j.providerJobId === 'job-1-discovered')?.status).toBe('discovered')
+    expect(results.find(j => j.providerJobId === 'job-2-applied')?.status).toBe('applied')
+    expect(results.find(j => j.providerJobId === 'job-3-skipped')?.status).toBe('skipped')
   })
 
-  it('maps bookmarked and archived rows to new for display', async () => {
-    const bookmarked = seedJob(db, JOB1)
-    const archived = seedJob(db, JOB2)
-    db.update(jobs).set({ status: 'bookmarked' }).where(eq(jobs.id, bookmarked.id)).run()
-    db.update(jobs).set({ status: 'archived' }).where(eq(jobs.id, archived.id)).run()
+  it('filters by status so a status=new request omits the other buckets', async () => {
+    seedWith(JOB1, 'new')
+    seedWith(JOB2, 'discovered')
+    seedWith(JOB3, 'applied')
+    seedWith(JOB1, 'skipped')
 
-    const res = await app.inject({ method: 'GET', url: '/' })
-    const results = res.json().results as Array<{ providerJobId: string; status: string }>
-    expect(results.find(j => j.providerJobId === JOB1.providerJobId)?.status).toBe('new')
-    expect(results.find(j => j.providerJobId === JOB2.providerJobId)?.status).toBe('new')
+    const res = await app.inject({ method: 'GET', url: '/?status=new' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string; status: string }> }
+    expect(body.count).toBe(1)
+    expect(body.results).toHaveLength(1)
+    expect(body.results[0].providerJobId).toBe('job-1-new')
+    expect(body.results[0].status).toBe('new')
+  })
+
+  it('returns only gated jobs when score=blocked and count matches', async () => {
+    const gated = seedJob(db, JOB1)
+    seedSignal(db, { jobId: gated.id, source: 'regex_title', signalType: 'dealbreaker', score: -50 })
+    seedJob(db, JOB2)
+    seedJob(db, JOB3)
+
+    const res = await app.inject({ method: 'GET', url: '/?score=blocked' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string }> }
+    expect(body.count).toBe(1)
+    expect(body.results).toHaveLength(1)
+    expect(body.results[0].providerJobId).toBe(JOB1.providerJobId)
+  })
+
+  it('returns only non-gated hot jobs when score=hot', async () => {
+    const hot = seedJob(db, JOB1)
+    for (const [source, dimension] of [
+      ['llm_deep_eval', 'technical'],
+      ['regex_title', 'experience'],
+      ['regex_company', 'behavioral'],
+      ['regex_description', 'career'],
+    ] as const) {
+      seedSignal(db, {
+        jobId: hot.id,
+        source,
+        signalType: 'skill_match',
+        score: 100,
+        metadata: JSON.stringify({ dimension }),
+      })
+    }
+    const lukewarm = seedJob(db, JOB2)
+    seedSignal(db, { jobId: lukewarm.id, source: 'regex_title', signalType: 'skill_match', score: 10 })
+    const blocked = seedJob(db, JOB3)
+    seedSignal(db, { jobId: blocked.id, source: 'regex_title', signalType: 'dealbreaker', score: -50 })
+
+    const res = await app.inject({ method: 'GET', url: '/?score=hot' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string }> }
+    expect(body.count).toBe(1)
+    expect(body.results[0].providerJobId).toBe(JOB1.providerJobId)
+  })
+
+  it('returns non-gated jobs when score=scorable and matches a filtered page', async () => {
+    seedWith(JOB1, 'new')
+    const blocked = seedWith(JOB2, 'discovered')
+    seedSignal(db, { jobId: blocked.id, source: 'regex_title', signalType: 'dealbreaker', score: -50 })
+
+    const res = await app.inject({ method: 'GET', url: '/?status=new&score=scorable' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string }> }
+    expect(body.count).toBe(1)
+    expect(body.results).toHaveLength(1)
+    expect(body.results[0].providerJobId).toBe('job-1-new')
+  })
+
+  it('keeps count matching the filtered set when the page is smaller than the result set', async () => {
+    for (const n of [1, 2, 3, 4, 5, 6]) {
+      seedJob(db, { ...JOB1, providerJobId: `n${n}`, title: `Job ${n}` })
+    }
+    const blocked = seedJob(db, JOB2)
+    seedSignal(db, { jobId: blocked.id, source: 'regex_title', signalType: 'dealbreaker', score: -50 })
+
+    const res = await app.inject({ method: 'GET', url: '/?score=scorable&limit=5' })
+    const body = res.json() as { count: number; results: unknown[] }
+    expect(body.count).toBe(6)
+    expect(body.results).toHaveLength(5)
   })
 })
 

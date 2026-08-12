@@ -118,6 +118,17 @@ describe('jobs-mediator', () => {
     expect(calls).toEqual(['/api/jobs?limit=50&offset=0'])
   })
 
+  it('passes status and score into the URLSearchParams when present', async () => {
+    window.location.hash = '#jobs?status=applied&score=hot'
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const calls = vi.mocked(fetch).mock.calls.map(([url]) => url)
+    expect(calls).toEqual(['/api/jobs?limit=50&offset=0&status=applied&score=hot'])
+  })
+
   it('reads the joined signal summary and attaches weighted netScore to jobs', async () => {
     mockFetch({
       '/api/jobs': jobsResponse({
@@ -189,62 +200,6 @@ describe('jobs-mediator', () => {
     expect(titles[2]).toBe('Tech Lead')
   })
 
-  it('excludes gated jobs from default list', async () => {
-    mockFetch({
-      '/api/jobs': jobsResponse({
-        'job-1': {
-          signalCount: 2,
-          gated: false,
-          dimensions: { technical: 75, experience: 75, behavioral: 75, career: 75 },
-          baseScore: 0,
-          netScore: 75,
-        },
-        'job-2': {
-          signalCount: 1,
-          gated: false,
-          dimensions: { technical: 10, experience: 10, behavioral: 10, career: 10 },
-          baseScore: 0,
-          netScore: 10,
-        },
-        'job-3': { signalCount: 0, gated: true, dimensions: {}, baseScore: 0, netScore: 0 },
-      }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const cards = document.querySelectorAll('job-card')
-    expect(cards.length).toBe(2)
-    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
-    expect(titles).toContain('Staff Engineer')
-    expect(titles).toContain('Senior Developer')
-    expect(titles).not.toContain('Tech Lead')
-  })
-
-  it('auto-skips a gated job regardless of dimension scores', async () => {
-    mockFetch({
-      '/api/jobs': jobsResponse({
-        'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
-        'job-2': {
-          signalCount: 4,
-          gated: true,
-          dimensions: { technical: 100, experience: 100, behavioral: 100, career: 100 },
-          baseScore: 0,
-          netScore: 100,
-        },
-        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
-      }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const cards = document.querySelectorAll('job-card')
-    expect(cards.length).toBe(2)
-    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
-    expect(titles).not.toContain('Senior Developer')
-  })
-
   it('sorts non-gated jobs by weighted netScore descending', async () => {
     mockFetch({
       '/api/jobs': jobsResponse({
@@ -309,44 +264,6 @@ describe('jobs-mediator', () => {
     expect(cards.length).toBe(3)
     const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
     expect(titles).toEqual(['Staff Engineer', 'Senior Developer', 'Tech Lead'])
-  })
-
-  it('renders auto-skip badge for gated jobs when filter is auto-skip', async () => {
-    mockFetch({
-      '/api/jobs': jobsResponse({
-        'job-1': {
-          signalCount: 3,
-          gated: true,
-          dimensions: { technical: 100, experience: 100, behavioral: 100, career: 100 },
-          baseScore: 0,
-          netScore: 100,
-        },
-        'job-2': {
-          signalCount: 1,
-          gated: false,
-          dimensions: { technical: 10, experience: 10, behavioral: 10, career: 10 },
-          baseScore: 0,
-          netScore: 10,
-        },
-      }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const filterBar = document.querySelector('filter-bar')
-    const scoreSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-score')
-    if (scoreSelect) {
-      scoreSelect.value = 'auto-skip'
-    }
-    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    const cards = document.querySelectorAll('job-card')
-    expect(cards.length).toBe(1)
-    const badge = cards[0].querySelector('.card-chip-blocked')
-    expect(badge?.textContent).toBe('Blocked')
-    expect(cards[0].querySelector('.job-card')?.classList.contains('gated')).toBe(true)
   })
 
   it('handles jobs missing the summary fields gracefully', async () => {
@@ -513,41 +430,6 @@ describe('jobs-mediator', () => {
     expect(window.location.hash).toBe('#jobs?job=1')
   })
 
-  it('excludes skipped jobs from the default view', async () => {
-    mockFetch({
-      '/api/jobs': jobsResponse({}, { 'job-2': 'skipped' }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const cards = document.querySelectorAll('job-card')
-    expect(cards.length).toBe(2)
-    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
-    expect(titles).not.toContain('Senior Developer')
-  })
-
-  it('shows only skipped jobs when the status filter is skipped', async () => {
-    mockFetch({
-      '/api/jobs': jobsResponse({}, { 'job-2': 'skipped' }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const filterBar = document.querySelector('filter-bar')
-    const statusSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-status')
-    if (statusSelect) {
-      statusSelect.value = 'skipped'
-    }
-    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    const cards = document.querySelectorAll('job-card')
-    expect(cards.length).toBe(1)
-    expect(cards[0].querySelector('.job-title')?.textContent).toBe('Senior Developer')
-  })
-
   it('seeds filters from the URL and drives the first render', async () => {
     window.location.hash = '#jobs?status=applied&q=senior'
     const seniorOnlyResponse = {
@@ -614,135 +496,6 @@ describe('jobs-mediator', () => {
     await new Promise(resolve => setTimeout(resolve, 10))
 
     expect(window.location.hash).toBe('#jobs?job=2&status=new')
-  })
-
-  it('shows auto-skip jobs when score filter is all', async () => {
-    mockFetch({
-      '/api/jobs': jobsResponse({
-        'job-1': { signalCount: 0, gated: true, dimensions: {}, baseScore: 0, netScore: 0 },
-        'job-2': { signalCount: 1, gated: false, dimensions: { technical: 50 }, baseScore: 0, netScore: 50 },
-        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
-      }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const filterBar = document.querySelector('filter-bar')
-    const scoreSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-score')
-    if (scoreSelect) {
-      scoreSelect.value = 'all'
-    }
-    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    const cards = document.querySelectorAll('job-card')
-    expect(cards.length).toBe(3)
-  })
-
-  it('hides auto-skip jobs when score filter is relevant (default)', async () => {
-    mockFetch({
-      '/api/jobs': jobsResponse({
-        'job-1': { signalCount: 0, gated: true, dimensions: {}, baseScore: 0, netScore: 0 },
-        'job-2': { signalCount: 1, gated: false, dimensions: { technical: 50 }, baseScore: 0, netScore: 50 },
-        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
-      }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const cards = document.querySelectorAll('job-card')
-    expect(cards.length).toBe(2)
-  })
-
-  it('shows skipped jobs when status filter is all', async () => {
-    mockFetch({
-      '/api/jobs': jobsResponse({}, { 'job-2': 'skipped' }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const filterBar = document.querySelector('filter-bar')
-    const statusSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-status')
-    if (statusSelect) {
-      statusSelect.value = 'all'
-    }
-    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    const cards = document.querySelectorAll('job-card')
-    expect(cards.length).toBe(3)
-  })
-
-  it('hides skipped jobs when status filter is relevant (default)', async () => {
-    mockFetch({
-      '/api/jobs': jobsResponse({}, { 'job-2': 'skipped' }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const cards = document.querySelectorAll('job-card')
-    expect(cards.length).toBe(2)
-    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
-    expect(titles).not.toContain('Senior Developer')
-  })
-
-  it('loads with score=all from deep-link and shows gated jobs', async () => {
-    window.location.hash = '#jobs?score=all'
-    mockFetch({
-      '/api/jobs': jobsResponse({
-        'job-1': { signalCount: 0, gated: true, dimensions: {}, baseScore: 0, netScore: 0 },
-        'job-2': { signalCount: 1, gated: false, dimensions: { technical: 50 }, baseScore: 0, netScore: 50 },
-        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
-      }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const cards = document.querySelectorAll('job-card')
-    expect(cards.length).toBe(3)
-  })
-
-  it('loads with relevant defaults from a bare #jobs deep-link', async () => {
-    window.location.hash = '#jobs'
-    mockFetch({
-      '/api/jobs': jobsResponse({
-        'job-1': { signalCount: 0, gated: true, dimensions: {}, baseScore: 0, netScore: 0 },
-        'job-2': { signalCount: 1, gated: false, dimensions: { technical: 50 }, baseScore: 0, netScore: 50 },
-        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
-      }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const cards = document.querySelectorAll('job-card')
-    expect(cards.length).toBe(2)
-  })
-
-  it('omits status and score from URL when they are relevant', async () => {
-    mockFetch({ '/api/jobs': jobsResponse() })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const filterBar = document.querySelector('filter-bar')
-    const statusSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-status')
-    if (statusSelect) {
-      statusSelect.value = 'relevant'
-    }
-    const scoreSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-score')
-    if (scoreSelect) {
-      scoreSelect.value = 'relevant'
-    }
-    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    expect(window.location.hash).toBe('#jobs')
   })
 
   it('sorts by posted descending when sort filter is posted', async () => {

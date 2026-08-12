@@ -90,6 +90,7 @@ async function main() {
         url: card.url,
         location: card.location ?? '',
         postedAt: card.date ?? null,
+        status: 'new',
       }))
       const inserted = rows.length > 0 ? db.insert(jobs).values(rows).onConflictDoNothing().run().changes : 0
       log.info({ found: rows.length, inserted }, 'search complete')

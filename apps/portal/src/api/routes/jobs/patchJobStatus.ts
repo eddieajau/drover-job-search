@@ -14,7 +14,7 @@ const bodySchema = {
   additionalProperties: false,
   required: ['status'],
   properties: {
-    status: { type: 'string', enum: ['applied', 'skipped'] },
+    status: { type: 'string', enum: ['applied', 'skipped', 'discovered'] },
   },
 } as const
 
@@ -25,7 +25,7 @@ const patchJobStatus: FastifyPluginAsync = async app => {
       return reply.badRequest('Invalid job id')
     }
 
-    const { status } = req.body as { status: 'applied' | 'skipped' }
+    const { status } = req.body as { status: 'applied' | 'skipped' | 'discovered' }
     const now = sql`(CURRENT_TIMESTAMP)`
 
     const row = app.db

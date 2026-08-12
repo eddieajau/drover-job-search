@@ -64,6 +64,43 @@ describe('createDb', () => {
     db.$client.close()
   })
 
+  it('defaults jobs.status to new and accepts the four status values', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare(
+        "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location) VALUES ('linkedin', 'job-1', 'Title', 'Acme', 'https://example.com', 'Remote')"
+      )
+      .run()
+    const row = db.$client.prepare('SELECT status FROM jobs WHERE id = 1').get() as { status: string }
+    expect(row.status).toBe('new')
+
+    for (const status of ['new', 'discovered', 'applied', 'skipped']) {
+      db.$client
+        .prepare(
+          "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location, status) VALUES ('linkedin', ?, 'Title', 'Acme', 'https://example.com', 'Remote', ?)"
+        )
+        .run(`job-${status}`, status)
+    }
+
+    db.$client.close()
+  })
+
+  it('rejects the dormant jobs.status values bookmarked and archived', () => {
+    const db = createDb(':memory:')
+
+    for (const status of ['bookmarked', 'archived']) {
+      expect(() =>
+        db.$client
+          .prepare(
+            "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location, status) VALUES ('linkedin', 'job-x', 'Title', 'Acme', 'https://example.com', 'Remote', ?)"
+          )
+          .run(status)
+      ).toThrow(/CHECK/)
+    }
+
+    db.$client.close()
+  })
+
   it('creates the queries table with all columns', () => {
     const db = createDb(':memory:')
     const columns = db.$client.prepare('PRAGMA table_info(queries)').all() as { name: string }[]

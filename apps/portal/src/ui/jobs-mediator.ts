@@ -17,8 +17,6 @@ interface JobsResponse {
   results: Job[]
 }
 
-const HOT_THRESHOLD = 50
-
 function postedAtMs(postedAt: string | null): number {
   if (!postedAt) {
     return 0
@@ -101,6 +99,12 @@ async function handleSearch(): Promise<void> {
     const params = new URLSearchParams({ limit: String(pageSize), offset: String((page - 1) * pageSize) })
     if (filters.search) {
       params.set('q', filters.search)
+    }
+    if (filters.status && filters.status !== 'relevant') {
+      params.set('status', filters.status)
+    }
+    if (filters.score && filters.score !== 'relevant') {
+      params.set('score', filters.score)
     }
     const response = await fetch(`/api/jobs?${params.toString()}`)
     if (!response.ok) {
@@ -214,27 +218,7 @@ function pushState(): void {
     gated: job.signals?.gated,
   }))
 
-  let jobs = all
-  if (filters.status === 'all') {
-  } else if (filters.status === 'relevant') {
-    jobs = jobs.filter(job => job._status !== 'skipped')
-  } else if (filters.status === 'skipped') {
-    jobs = jobs.filter(job => job._status === 'skipped')
-  } else if (filters.status) {
-    jobs = jobs.filter(job => job._status === filters.status)
-  } else {
-    jobs = jobs.filter(job => job._status !== 'skipped')
-  }
-  if (filters.score === 'all') {
-  } else if (filters.score === 'hot') {
-    jobs = jobs.filter(job => !job.gated && (job.netScore ?? 0) >= HOT_THRESHOLD)
-  } else if (filters.score === 'neutral') {
-    jobs = jobs.filter(job => !job.gated && (job.netScore ?? 0) < HOT_THRESHOLD)
-  } else if (filters.score === 'auto-skip') {
-    jobs = jobs.filter(job => job.gated)
-  } else {
-    jobs = jobs.filter(job => !job.gated)
-  }
+  const jobs = all
 
   jobs.sort((a, b) => {
     const sortKey: JobSortKey = filters.sort ?? 'score'

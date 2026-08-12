@@ -109,18 +109,10 @@ export function toSignalJson(row: JobSignal): SignalResponse {
   return { ...rest, metadata: parseQueryOptions(metadata) }
 }
 
-export function uiStatus(dbStatus: string): string {
-  switch (dbStatus) {
-    case 'applied':
-      return 'applied'
-    case 'skipped':
-      return 'skipped'
-    default:
-      return 'new'
-  }
-}
+export type JobStatusValue = 'new' | 'discovered' | 'applied' | 'skipped'
 
-export interface JobResponse extends Omit<JobRow, 'description'> {
+export interface JobResponse extends Omit<JobRow, 'description' | 'status'> {
+  status: JobStatusValue
   descriptionHtml: string | null
   signals: SignalSummary
   queued: boolean
@@ -130,7 +122,7 @@ export function toJobJson(row: JobRow, summary?: SignalSummary, queued = false):
   const { description, ...rest } = row
   return {
     ...rest,
-    status: uiStatus(row.status),
+    status: row.status as JobStatusValue,
     descriptionHtml: description ? markdownToHtml(description) : null,
     signals: summary ?? { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
     queued,

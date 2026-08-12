@@ -30,7 +30,7 @@ export interface Job {
 
 export interface JobStatus {
   id: number
-  status: 'new' | 'applied' | 'skipped' | 'evaluated'
+  status: 'new' | 'discovered' | 'applied' | 'skipped'
   date: string
 }
 
