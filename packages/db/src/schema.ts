@@ -246,6 +246,24 @@ export const tasks = sqliteTable(
   ]
 )
 
+export const logs = sqliteTable(
+  'logs',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    ts: text('ts')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    level: integer('level').notNull(),
+    body: text('body').notNull(),
+  },
+  table => [
+    index('idx_logs_ts').on(table.ts),
+    index('idx_logs_level').on(table.level),
+    check('check_logs_body', sql`json_valid(${table.body})`),
+    check('check_logs_level', sql`${table.level} IN (10, 20, 30, 40, 50, 60)`),
+  ]
+)
+
 export type Query = InferSelectModel<typeof queries>
 export type Job = InferSelectModel<typeof jobs>
 export type Crawl = InferSelectModel<typeof crawls>
@@ -255,6 +273,7 @@ export type AnalysisQueue = InferSelectModel<typeof analysisQueue>
 export type Fact = InferSelectModel<typeof facts>
 export type Document = InferSelectModel<typeof documents>
 export type Task = InferSelectModel<typeof tasks>
+export type Log = InferSelectModel<typeof logs>
 
 export const TABLE_DDL = `
 CREATE TABLE IF NOT EXISTS queries (
@@ -406,4 +425,14 @@ CREATE TABLE IF NOT EXISTS tasks (
     completed_at TEXT,
     CONSTRAINT check_task_topic CHECK (topic IN ('slice_resume'))
 );
+
+CREATE TABLE IF NOT EXISTS logs (
+    id INTEGER PRIMARY KEY,
+    ts TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    level INTEGER NOT NULL CHECK (level IN (10, 20, 30, 40, 50, 60)),
+    body TEXT NOT NULL CHECK (json_valid(body))
+);
+
+CREATE INDEX IF NOT EXISTS idx_logs_ts ON logs(ts);
+CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
 `
