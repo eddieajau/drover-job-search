@@ -253,11 +253,13 @@ export const logs = sqliteTable(
     ts: text('ts')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
+    scope: text('scope'),
     level: integer('level').notNull(),
     body: text('body').notNull(),
   },
   table => [
     index('idx_logs_ts').on(table.ts),
+    index('idx_logs_scope').on(table.scope),
     index('idx_logs_level').on(table.level),
     check('check_logs_body', sql`json_valid(${table.body})`),
     check('check_logs_level', sql`${table.level} IN (10, 20, 30, 40, 50, 60)`),
@@ -429,10 +431,12 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY,
     ts TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    scope TEXT,
     level INTEGER NOT NULL CHECK (level IN (10, 20, 30, 40, 50, 60)),
     body TEXT NOT NULL CHECK (json_valid(body))
 );
 
 CREATE INDEX IF NOT EXISTS idx_logs_ts ON logs(ts);
+CREATE INDEX IF NOT EXISTS idx_logs_scope ON logs(scope);
 CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
 `

@@ -6,9 +6,8 @@
 import { basename, dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { createDb, crawls, jobs, queries } from 'db'
+import { createDb, createDbLogger, crawls, jobs, queries } from 'db'
 import { desc, eq } from 'drizzle-orm'
-import { pino } from 'pino'
 import { detail, search, selectJobage } from 'provider-linkedin'
 import { fetchJobDetails } from 'workers'
 
@@ -19,8 +18,6 @@ const rootDir = join(__dirname, '..', '..', '..')
 
 process.loadEnvFile(join(rootDir, '.env'))
 
-const log = pino({ base: undefined, level: process.env.LOG_LEVEL ?? 'info' })
-
 async function main() {
   const args = process.argv.slice(2)
   const isDetail = args.includes('--detail')
@@ -30,9 +27,12 @@ async function main() {
   const dbPath = process.env.DATABASE
 
   if (!dbPath) throw new Error('DATABASE path empty')
+
+  const dbFile = isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath)
+  const log = createDbLogger({ dbPath: dbFile, scope: 'crawler', level: process.env.LOG_LEVEL ?? 'info' })
   log.info({ database: basename(dbPath) }, 'DATABASE')
 
-  const db = createDb(isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath))
+  const db = createDb(dbFile)
 
   if (isDetail) {
     const { processed, failed } = await fetchJobDetails.drain(db, {
@@ -45,6 +45,7 @@ async function main() {
           : log.error({ providerJobId: row.providerJobId, err }, 'detail fetch failed; marked done'),
     })
     log.info({ processed, failed }, 'detail crawl complete')
+    await new Promise<void>(resolve => log.flush(() => resolve()))
     db.$client.close()
     return
   }
@@ -106,10 +107,11 @@ async function main() {
     }
   }
 
+  await new Promise<void>(resolve => log.flush(() => resolve()))
   db.$client.close()
 }
 
 main().catch(err => {
-  log.fatal(err, 'fatal error')
+  console.error('fatal error:', err)
   process.exit(1)
 })

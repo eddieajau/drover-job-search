@@ -19,11 +19,12 @@ import { createDb } from './connection.js'
 import createTransport, { toBody } from './logger-transport.js'
 
 describe('toBody', () => {
-  it('keeps time and merge fields but drops level', () => {
+  it('keeps time and merge fields but drops level and scope', () => {
     const body = JSON.parse(
       toBody({
         level: 30,
         time: 1786519013328,
+        scope: 'crawler',
         page: 2,
         url: 'https://example.com/seeMoreJobPostings',
         msg: 'search page',
@@ -55,8 +56,8 @@ describe('logs table', () => {
     const db = createDb(':memory:')
     for (const level of [10, 20, 30, 40, 50, 60]) {
       db.$client
-        .prepare('INSERT INTO logs (level, body) VALUES (?, ?)')
-        .run(level, JSON.stringify({ msg: 'record', time: 1 }))
+        .prepare('INSERT INTO logs (level, scope, body) VALUES (?, ?, ?)')
+        .run(level, 'test', JSON.stringify({ msg: 'record', time: 1 }))
     }
 
     const levels = (db.$client.prepare('SELECT level FROM logs ORDER BY id').all() as { level: number }[]).map(
@@ -68,13 +69,17 @@ describe('logs table', () => {
 
   it('rejects an unknown level', () => {
     const db = createDb(':memory:')
-    expect(() => db.$client.prepare("INSERT INTO logs (level, body) VALUES (25, '{}')").run()).toThrow(/CHECK/)
+    expect(() => db.$client.prepare("INSERT INTO logs (level, scope, body) VALUES (25, 'test', '{}')").run()).toThrow(
+      /CHECK/
+    )
     db.$client.close()
   })
 
   it('rejects a non-JSON body', () => {
     const db = createDb(':memory:')
-    expect(() => db.$client.prepare("INSERT INTO logs (level, body) VALUES (30, 'not-json')").run()).toThrow(/CHECK/)
+    expect(() =>
+      db.$client.prepare("INSERT INTO logs (level, scope, body) VALUES (30, 'test', 'not-json')").run()
+    ).toThrow(/CHECK/)
     db.$client.close()
   })
 })
@@ -86,7 +91,7 @@ describe('db logger transport', () => {
     createDb(dbPath).$client.close()
 
     const sink = await createTransport({ dbPath })
-    const log = pino({ base: undefined }, sink)
+    const log = pino({ base: { scope: 'crawler' } }, sink)
 
     log.info({ page: 2, url: 'https://example.com/seeMoreJobPostings' }, 'search page')
     log.warn({ providerJobId: 'job-1' }, 'throttled')
@@ -95,14 +100,17 @@ describe('db logger transport', () => {
     await new Promise<void>(resolve => sink.once('close', resolve))
 
     const db = createDb(dbPath)
-    const stored = db.$client.prepare('SELECT level, body FROM logs ORDER BY ts, id').all() as {
+    const stored = db.$client.prepare('SELECT level, scope, body FROM logs ORDER BY ts, id').all() as {
       level: number
+      scope: string | null
       body: string
     }[]
     expect(stored).toHaveLength(2)
     expect(stored[0].level).toBe(30)
+    expect(stored[0].scope).toBe('crawler')
     expect(JSON.parse(stored[0].body)).toMatchObject({ page: 2, msg: 'search page' })
     expect(stored[1].level).toBe(40)
+    expect(stored[1].scope).toBe('crawler')
     expect(JSON.parse(stored[1].body)).toMatchObject({ providerJobId: 'job-1', msg: 'throttled' })
 
     db.$client.close()

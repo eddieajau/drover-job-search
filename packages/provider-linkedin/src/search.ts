@@ -89,7 +89,14 @@ export async function search(opts: SearchOpts): Promise<SearchResult> {
     const url = buildUrl(opts, page)
     logger.debug({ url, page }, 'search page')
     const html = await htmlFetch(url, logger)
+    logger.debug({ page, url, html }, 'seeMoreJobPostings response')
     const cards = parseJobCards(html)
+    for (const card of cards) {
+      logger.info(
+        { page, providerJobId: card.id, title: card.title, company: card.company, location: card.location },
+        'job card'
+      )
+    }
     all.push(...cards)
     // Stop early if LinkedIn returned nothing — no more results available
     if (cards.length === 0) break
