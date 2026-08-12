@@ -344,8 +344,8 @@ describe('jobs-mediator', () => {
 
     const cards = document.querySelectorAll('job-card')
     expect(cards.length).toBe(1)
-    const badge = cards[0].querySelector('.score')
-    expect(badge?.textContent).toBe('auto-skip')
+    const badge = cards[0].querySelector('.card-chip-blocked')
+    expect(badge?.textContent).toBe('Blocked')
     expect(cards[0].querySelector('.job-card')?.classList.contains('gated')).toBe(true)
   })
 

@@ -112,11 +112,10 @@ describe('job-list', () => {
     expect(score?.textContent).toBe('-15')
   })
 
-  it('renders auto-skip chip for gated jobs', () => {
+  it('renders a Blocked chip for gated jobs', () => {
     el.setState({ status: 'done', message: '', jobs: [withStatus(job(), 'new', 50, true)], selectedId: null })
-    const score = el.querySelector('.score')
-    expect(score?.textContent).toBe('auto-skip')
-    expect(score?.classList.contains('score-low')).toBe(true)
+    const chip = el.querySelector('.card-chip-blocked')
+    expect(chip?.textContent).toBe('Blocked')
     expect(el.querySelector('.job-card')?.classList.contains('gated')).toBe(true)
   })
 

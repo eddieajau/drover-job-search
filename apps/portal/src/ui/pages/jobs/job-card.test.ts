@@ -42,12 +42,12 @@ describe('job-card', () => {
     expect(inner?.classList.contains('active')).toBe(true)
     expect(inner?.classList.contains('unseen')).toBe(true)
 
-    const score = card.querySelector('.score')
+    const score = card.querySelector('.card-chips .score')
     expect(score?.classList.contains('score-high')).toBe(true)
     expect(score?.textContent).toBe('85')
   })
 
-  it('renders auto-skip for gated jobs', () => {
+  it('renders a Blocked chip for gated jobs', () => {
     const card = createCard({
       'job-id': '2',
       'provider-job-id': 'job-2',
@@ -58,9 +58,51 @@ describe('job-card', () => {
       gated: '',
     })
 
-    const score = card.querySelector('.score')
-    expect(score?.classList.contains('score-low')).toBe(true)
-    expect(score?.textContent).toBe('auto-skip')
+    const chip = card.querySelector('.card-chips .card-chip-blocked')
+    expect(chip?.textContent).toBe('Blocked')
+    expect(card.querySelector('.card-chips .score')).toBeNull()
+  })
+
+  it('renders no chips row when there is no score and not gated', () => {
+    const card = createCard({
+      'job-id': '2',
+      'provider-job-id': 'job-2',
+      title: 'Developer',
+      company: 'Beta',
+      location: 'Sydney',
+      posted: '1d',
+    })
+
+    expect(card.querySelector('.card-chips')).toBeNull()
+  })
+
+  it('renders a filled doc icon when has-description is set', () => {
+    const card = createCard({
+      'job-id': '2',
+      'provider-job-id': 'job-2',
+      title: 'Developer',
+      company: 'Beta',
+      location: 'Sydney',
+      posted: '1d',
+      'has-description': '',
+    })
+
+    expect(card.querySelector('.has-desc-icon')).not.toBeNull()
+    expect(card.querySelector('.no-desc-icon')).toBeNull()
+  })
+
+  it('renders a hollow doc icon when has-description is absent', () => {
+    const card = createCard({
+      'job-id': '2',
+      'provider-job-id': 'job-2',
+      title: 'Developer',
+      company: 'Beta',
+      location: 'Sydney',
+      posted: '1d',
+    })
+
+    expect(card.querySelector('.no-desc-icon')).not.toBeNull()
+    expect(card.querySelector('.has-desc-icon')).toBeNull()
   })
 
   it('dispatches job-card:select on card body click', () => {
