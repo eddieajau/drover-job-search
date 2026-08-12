@@ -29,16 +29,12 @@ export class FilterBar extends HTMLElement {
   setFilters(filters: JobsFilters): void {
     const status = this.querySelector<HTMLSelectElement>('#filter-status')
     const search = this.querySelector<HTMLInputElement>('#filter-search')
-    const score = this.querySelector<HTMLSelectElement>('#filter-score')
     const sort = this.querySelector<HTMLSelectElement>('#filter-sort')
     if (status) {
       status.value = filters.status
     }
     if (search) {
       search.value = filters.search
-    }
-    if (score) {
-      score.value = filters.score
     }
     if (sort) {
       sort.value = filters.sort ?? 'score'
@@ -75,16 +71,14 @@ export class FilterBar extends HTMLElement {
   #dispatchChange(): void {
     const status = this.querySelector<HTMLSelectElement>('#filter-status')
     const search = this.querySelector<HTMLInputElement>('#filter-search')
-    const score = this.querySelector<HTMLSelectElement>('#filter-score')
     const sort = this.querySelector<HTMLSelectElement>('#filter-sort')
     this.dispatchEvent(
       new CustomEvent('filter-bar:change', {
         bubbles: true,
         composed: true,
         detail: {
-          status: status?.value ?? '',
+          status: (status?.value ?? 'new') as JobsFilters['status'],
           search: search?.value ?? '',
-          score: score?.value ?? '',
           sort: (sort?.value ?? 'score') as JobSortKey,
         },
       })
@@ -96,22 +90,13 @@ export class FilterBar extends HTMLElement {
     this.innerHTML = `
       <input type="text" id="filter-search" placeholder="Search titles..." />
       <select id="filter-status" aria-label="Filter by status">
-        <option value="relevant" selected>Active</option>
-        <option value="all">All</option>
-        <option value="new">New</option>
+        <option value="new" selected>New</option>
+        <option value="discovered">Discovered</option>
         <option value="applied">Applied</option>
         <option value="skipped">Skipped</option>
       </select>
-      <select id="filter-score" aria-label="Filter by score bucket">
-        <option value="relevant" selected>Scorable</option>
-        <option value="all">All</option>
-        <option value="hot">Hot (50+)</option>
-        <option value="neutral">Lukewarm</option>
-        <option value="auto-skip">Blocked</option>
-      </select>
       <select id="filter-sort" aria-label="Sort jobs by">
         <option value="score" selected>Score ↓</option>
-        <option value="triage">Triage</option>
         <option value="posted">Posted ↓</option>
         <option value="company">Company A→Z</option>
       </select>

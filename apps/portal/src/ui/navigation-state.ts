@@ -75,14 +75,13 @@ export function parseHash(hash: string): NavigationState | null {
 }
 
 function readFilters(params: URLSearchParams): JobsFilters | undefined {
-  const status = params.get('status') ?? ''
+  const status = (params.get('status') ?? 'new') as JobsFilters['status']
   const search = params.get('q') ?? ''
-  const score = params.get('score') ?? ''
-  const sort = (params.get('sort') ?? '') as JobSortKey | ''
-  if (!status && !search && !score && !sort) {
+  const sort = (params.get('sort') ?? 'score') as JobSortKey
+  if (!params.get('status') && !search && !params.get('sort')) {
     return undefined
   }
-  return { status, search, score, sort: sort || 'score' }
+  return { status, search, sort }
 }
 
 export function toHash(state: NavigationState): string {
@@ -94,11 +93,8 @@ export function toHash(state: NavigationState): string {
       }
       const filters = state.filters
       if (filters) {
-        if (filters.status && filters.status !== 'relevant') {
+        if (filters.status && filters.status !== 'new') {
           params.set('status', filters.status)
-        }
-        if (filters.score && filters.score !== 'relevant') {
-          params.set('score', filters.score)
         }
         if (filters.search) {
           params.set('q', filters.search)

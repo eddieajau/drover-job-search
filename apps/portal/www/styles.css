@@ -1350,6 +1350,16 @@ job-meta-panel {
   color: var(--red);
 }
 
+.chip-new {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.chip-discovered {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
 .chip-recent {
   background: var(--blue-soft);
   color: var(--blue);

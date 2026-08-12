@@ -29,7 +29,7 @@ let registered = false
 
 let results: Job[] = []
 let selectedId: number | null = null
-let filters: JobsFilters = { status: 'relevant', search: '', score: 'relevant', sort: 'score' }
+let filters: JobsFilters = { status: 'new', search: '', sort: 'score' }
 let viewStatus: ViewStatus = 'idle'
 let message = ''
 let page = 1
@@ -69,7 +69,7 @@ export function _resetJobsMediatorForTesting(): void {
   registered = false
   results = []
   selectedId = null
-  filters = { status: 'relevant', search: '', score: 'relevant', sort: 'score' }
+  filters = { status: 'new', search: '', sort: 'score' }
   viewStatus = 'idle'
   message = ''
   page = 1
@@ -100,12 +100,7 @@ async function handleSearch(): Promise<void> {
     if (filters.search) {
       params.set('q', filters.search)
     }
-    if (filters.status && filters.status !== 'relevant') {
-      params.set('status', filters.status)
-    }
-    if (filters.score && filters.score !== 'relevant') {
-      params.set('score', filters.score)
-    }
+    params.set('status', filters.status)
     const response = await fetch(`/api/jobs?${params.toString()}`)
     if (!response.ok) {
       throw new Error('Failed to load jobs')
@@ -186,10 +181,7 @@ function seedFiltersFromHash(): void {
   if (state?.view === 'jobs' && state.filters) {
     filters = { ...filters, ...state.filters }
     if (!filters.status) {
-      filters.status = 'relevant'
-    }
-    if (!filters.score) {
-      filters.score = 'relevant'
+      filters.status = 'new'
     }
   }
 }
@@ -235,17 +227,6 @@ function pushState(): void {
         return byCompany
       }
       return (b.netScore ?? 0) - (a.netScore ?? 0)
-    }
-    if (sortKey === 'triage') {
-      const byUnseen = (a._status !== 'new' ? 1 : 0) - (b._status !== 'new' ? 1 : 0)
-      if (byUnseen !== 0) {
-        return byUnseen
-      }
-      const byScore = (b.netScore ?? 0) - (a.netScore ?? 0)
-      if (byScore !== 0) {
-        return byScore
-      }
-      return postedAtMs(b.postedAt) - postedAtMs(a.postedAt)
     }
     const byScore = (b.netScore ?? 0) - (a.netScore ?? 0)
     if (byScore !== 0) {

@@ -18,101 +18,91 @@ describe('filter-bar', () => {
   })
 
   it('dispatches filter-bar:change with the current values', () => {
-    const received: { status: string; search: string; score: string; sort: string } = {
+    const received: { status: string; search: string; sort: string } = {
       status: '',
       search: '',
-      score: '',
       sort: '',
     }
     el.addEventListener('filter-bar:change', event => {
-      const detail = (event as CustomEvent<{ status: string; search: string; score: string; sort: string }>).detail
+      const detail = (event as CustomEvent<{ status: string; search: string; sort: string }>).detail
       received.status = detail.status
       received.search = detail.search
-      received.score = detail.score
       received.sort = detail.sort
     })
 
     el.dispatchEvent(new Event('change', { bubbles: true }))
 
-    expect(received).toEqual({ status: 'relevant', search: '', score: 'relevant', sort: 'score' })
+    expect(received).toEqual({ status: 'new', search: '', sort: 'score' })
   })
 
   it('restores filter values via setFilters', () => {
-    el.setFilters({ status: 'applied', search: 'engineer', score: 'hot', sort: 'company' })
-    expect(el.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('applied')
+    el.setFilters({ status: 'discovered', search: 'engineer', sort: 'company' })
+    expect(el.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('discovered')
     expect(el.querySelector<HTMLInputElement>('#filter-search')?.value).toBe('engineer')
-    expect(el.querySelector<HTMLSelectElement>('#filter-score')?.value).toBe('hot')
     expect(el.querySelector<HTMLSelectElement>('#filter-sort')?.value).toBe('company')
   })
 
-  it('renders the search input above the three filter selects', () => {
+  it('renders the search input above the two filter selects', () => {
     const elementChildren = Array.from(el.childNodes).filter(
       (node): node is Element => node.nodeType === Node.ELEMENT_NODE
     )
     const ids = elementChildren.map(node => node.id)
-    expect(ids).toEqual(['filter-search', 'filter-status', 'filter-score', 'filter-sort'])
+    expect(ids).toEqual(['filter-search', 'filter-status', 'filter-sort'])
   })
 
-  it('renders the score-bucket select with expected options', () => {
-    const scoreSelect = el.querySelector<HTMLSelectElement>('#filter-score')
-    expect(scoreSelect).not.toBeNull()
-    const options = Array.from(scoreSelect!.querySelectorAll('option')).map(o => o.value)
-    expect(options).toEqual(['relevant', 'all', 'hot', 'neutral', 'auto-skip'])
-  })
-
-  it('labels the score-bucket options with the shortened names', () => {
-    const scoreSelect = el.querySelector<HTMLSelectElement>('#filter-score')
-    expect(scoreSelect).not.toBeNull()
-    const labels = Array.from(scoreSelect!.querySelectorAll('option')).map(o => o.textContent)
-    expect(labels).toEqual(['Scorable', 'All', 'Hot (50+)', 'Lukewarm', 'Blocked'])
-  })
-
-  it('labels the default status option as Active excluding skipped jobs', () => {
+  it('renders the status select with exactly four options in order', () => {
     const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
     expect(statusSelect).not.toBeNull()
-    const defaultOption = statusSelect?.querySelector('option[value="relevant"]')
-    expect(defaultOption?.textContent).toBe('Active')
-    expect(defaultOption?.getAttribute('selected')).not.toBeNull()
+    const options = Array.from(statusSelect!.querySelectorAll('option')).map(o => o.value)
+    expect(options).toEqual(['new', 'discovered', 'applied', 'skipped'])
   })
 
-  it('dispatches score filter value on change', () => {
-    const received: { score: string } = { score: '' }
+  it('labels the status options with the New / Discovered / Applied / Skipped names', () => {
+    const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
+    expect(statusSelect).not.toBeNull()
+    const labels = Array.from(statusSelect!.querySelectorAll('option')).map(o => o.textContent)
+    expect(labels).toEqual(['New', 'Discovered', 'Applied', 'Skipped'])
+  })
+
+  it('defaults the status select to New', () => {
+    const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
+    const defaultOption = statusSelect?.querySelector('option[value="new"]')
+    expect(defaultOption?.textContent).toBe('New')
+    expect(defaultOption?.getAttribute('selected')).not.toBeNull()
+    expect(statusSelect?.value).toBe('new')
+  })
+
+  it('renders no score-bucket select', () => {
+    expect(el.querySelector('#filter-score')).toBeNull()
+  })
+
+  it('dispatches a change without a score field', () => {
+    let received: { score?: string } = {}
     el.addEventListener('filter-bar:change', event => {
-      received.score = (event as CustomEvent<{ score: string }>).detail.score
+      received = (event as CustomEvent<{ score?: string }>).detail
     })
 
-    const score = el.querySelector<HTMLSelectElement>('#filter-score')
-    if (score) {
-      score.value = 'auto-skip'
-    }
     el.dispatchEvent(new Event('change', { bubbles: true }))
 
-    expect(received.score).toBe('auto-skip')
+    expect(received).not.toHaveProperty('score')
   })
 
-  it('defaults both selects to relevant', () => {
-    expect(el.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('relevant')
-    expect(el.querySelector<HTMLSelectElement>('#filter-score')?.value).toBe('relevant')
-  })
-
-  it('renders the sort select after the score select with four options', () => {
+  it('renders the sort select with three options and no triage', () => {
     const sortSelect = el.querySelector<HTMLSelectElement>('#filter-sort')
     expect(sortSelect).not.toBeNull()
     const options = Array.from(sortSelect!.querySelectorAll('option')).map(o => o.value)
-    expect(options).toEqual(['score', 'triage', 'posted', 'company'])
-    const triage = sortSelect?.querySelector('option[value="triage"]')
-    expect(triage?.textContent).toBe('Triage')
+    expect(options).toEqual(['score', 'posted', 'company'])
+    expect(sortSelect?.querySelector('option[value="triage"]')).toBeNull()
   })
 
-  it('setFilters with a triage sort updates the select value', () => {
-    el.setFilters({ status: 'relevant', search: '', score: 'relevant', sort: 'triage' })
-    expect(el.querySelector<HTMLSelectElement>('#filter-sort')?.value).toBe('triage')
+  it('setFilters with a non-default sort updates the select value', () => {
+    el.setFilters({ status: 'new', search: '', sort: 'posted' })
+    expect(el.querySelector<HTMLSelectElement>('#filter-sort')?.value).toBe('posted')
   })
 
-  it('setFilters with relevant does not set any select to placeholder', () => {
-    el.setFilters({ status: 'relevant', search: '', score: 'relevant', sort: 'score' })
-    expect(el.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('relevant')
-    expect(el.querySelector<HTMLSelectElement>('#filter-score')?.value).toBe('relevant')
+  it('setFilters with defaults updates status and sort', () => {
+    el.setFilters({ status: 'new', search: '', sort: 'score' })
+    expect(el.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('new')
     expect(el.querySelector<HTMLSelectElement>('#filter-sort')?.value).toBe('score')
   })
 })

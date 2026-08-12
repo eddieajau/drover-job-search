@@ -60,6 +60,7 @@ describe('job-meta-panel', () => {
     el.showJob(j, sigs, false)
 
     expect(el.querySelector('.meta-section .chip')?.textContent).toBe('New')
+    expect(el.querySelector('.meta-section .chip')?.classList.contains('chip-new')).toBe(true)
 
     const buttons = el.querySelectorAll<HTMLButtonElement>('button[data-action]')
     const actions = Array.from(buttons).map(
@@ -86,6 +87,15 @@ describe('job-meta-panel', () => {
     const flagBtn = el.querySelector<HTMLButtonElement>('[data-action="flag"]')
     expect(flagBtn?.disabled).toBe(false)
     expect(flagBtn?.textContent).toBe('Refetch Details')
+  })
+
+  it('renders a Discovered status chip for a discovered job', () => {
+    const j: JobWithStatus = { ...job(), _status: 'discovered' }
+    el.showJob(j, [], false)
+
+    const chip = el.querySelector('.meta-section .chip')
+    expect(chip?.textContent).toBe('Discovered')
+    expect(chip?.classList.contains('chip-discovered')).toBe(true)
   })
 
   it('disables the flag button when queued is true', () => {

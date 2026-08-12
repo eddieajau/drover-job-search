@@ -18,6 +18,7 @@ export interface JobMetaPanelEventMap {
 
 const STATUS_LABELS: Record<string, string> = {
   new: 'New',
+  discovered: 'Discovered',
   applied: 'Applied',
   skipped: 'Skipped',
   evaluated: 'Evaluated',
@@ -209,7 +210,7 @@ export class JobMetaPanel extends HTMLElement {
       <aside class="meta-panel">
         <div class="meta-section">
           <div class="meta-label">Status</div>
-          <span class="chip">${esc(statusLabel)}</span>
+          <span class="chip chip-${esc(job._status)}">${esc(statusLabel)}</span>
         </div>
         <div class="meta-section actions">
           <button class="btn btn-primary btn-block" type="button" data-action="status" data-status="applied">Mark applied</button>

@@ -115,18 +115,29 @@ describe('jobs-mediator', () => {
     await new Promise(resolve => setTimeout(resolve, 50))
 
     const calls = vi.mocked(fetch).mock.calls.map(([url]) => url)
-    expect(calls).toEqual(['/api/jobs?limit=50&offset=0'])
+    expect(calls).toEqual(['/api/jobs?limit=50&offset=0&status=new'])
   })
 
-  it('passes status and score into the URLSearchParams when present', async () => {
-    window.location.hash = '#jobs?status=applied&score=hot'
+  it('passes the status into the URLSearchParams when present', async () => {
+    window.location.hash = '#jobs?status=applied'
     mockFetch({ '/api/jobs': jobsResponse() })
 
     initJobsMediator()
     await new Promise(resolve => setTimeout(resolve, 50))
 
     const calls = vi.mocked(fetch).mock.calls.map(([url]) => url)
-    expect(calls).toEqual(['/api/jobs?limit=50&offset=0&status=applied&score=hot'])
+    expect(calls).toEqual(['/api/jobs?limit=50&offset=0&status=applied'])
+  })
+
+  it('sends the default status=new and no score param from an empty hash', async () => {
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const calls = vi.mocked(fetch).mock.calls.map(([url]) => url)
+    expect(calls[0]).toContain('status=new')
+    expect(calls[0]).not.toContain('score')
   })
 
   it('reads the joined signal summary and attaches weighted netScore to jobs', async () => {
@@ -310,7 +321,7 @@ describe('jobs-mediator', () => {
     expect(patchUrl).toBe('/api/jobs/1/status')
     expect(JSON.parse(String(patchInit?.body))).toEqual({ status: 'applied' })
 
-    const refreshCalls = calls.filter(([url]) => url === '/api/jobs?limit=50&offset=0')
+    const refreshCalls = calls.filter(([url]) => url === '/api/jobs?limit=50&offset=0&status=new')
     expect(refreshCalls).toHaveLength(2)
 
     expect(document.querySelector('job-card[job-id="1"]')?.hasAttribute('seen')).toBe(true)
@@ -360,7 +371,7 @@ describe('jobs-mediator', () => {
     await new Promise(resolve => setTimeout(resolve, 50))
 
     const calls = vi.mocked(fetch).mock.calls.map(([url]) => url)
-    expect(calls).toContain('/api/jobs?limit=10&offset=10')
+    expect(calls).toContain('/api/jobs?limit=10&offset=10&status=new')
   })
 
   it('updates the pager total from the response envelope', async () => {
@@ -470,15 +481,27 @@ describe('jobs-mediator', () => {
     const filterBar = document.querySelector('filter-bar')
     const statusSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-status')
     if (statusSelect) {
-      statusSelect.value = 'new'
+      statusSelect.value = 'discovered'
     }
     filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
     await new Promise(resolve => setTimeout(resolve, 10))
 
-    expect(window.location.hash).toBe('#jobs?status=new')
+    expect(window.location.hash).toBe('#jobs?status=discovered')
   })
 
-  it('writes job identity and filters together on selection', async () => {
+  it('round-trips status and sort from the URL through seedFiltersFromHash', async () => {
+    window.location.hash = '#jobs?status=discovered&sort=posted'
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    expect(filterBar?.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('discovered')
+    expect(filterBar?.querySelector<HTMLSelectElement>('#filter-sort')?.value).toBe('posted')
+  })
+
+  it('omits the default status from the hash on filter change', async () => {
     mockFetch({ '/api/jobs': jobsResponse() })
 
     initJobsMediator()
@@ -492,10 +515,27 @@ describe('jobs-mediator', () => {
     filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
     await new Promise(resolve => setTimeout(resolve, 10))
 
+    expect(window.location.hash).toBe('#jobs')
+  })
+
+  it('writes job identity and filters together on selection', async () => {
+    mockFetch({ '/api/jobs': jobsResponse() })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    const statusSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-status')
+    if (statusSelect) {
+      statusSelect.value = 'discovered'
+    }
+    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
     window.dispatchEvent(new CustomEvent('job-list:select', { detail: { jobId: 2 } }))
     await new Promise(resolve => setTimeout(resolve, 10))
 
-    expect(window.location.hash).toBe('#jobs?job=2&status=new')
+    expect(window.location.hash).toBe('#jobs?job=2&status=discovered')
   })
 
   it('sorts by posted descending when sort filter is posted', async () => {
@@ -541,63 +581,6 @@ describe('jobs-mediator', () => {
     const sortSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-sort')
     if (sortSelect) {
       sortSelect.value = 'company'
-    }
-    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    const cards = document.querySelectorAll('job-card')
-    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
-    expect(titles[0]).toBe('Staff Engineer')
-    expect(titles[1]).toBe('Senior Developer')
-    expect(titles[2]).toBe('Tech Lead')
-  })
-
-  it('sorts unseen jobs first on triage regardless of score', async () => {
-    mockFetch({
-      '/api/jobs': jobsResponse(
-        {
-          'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 10 },
-          'job-2': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 90 },
-          'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 50 },
-        },
-        { 'job-1': 'applied' }
-      ),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const filterBar = document.querySelector('filter-bar')
-    const sortSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-sort')
-    if (sortSelect) {
-      sortSelect.value = 'triage'
-    }
-    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
-    await new Promise(resolve => setTimeout(resolve, 10))
-
-    const cards = document.querySelectorAll('job-card')
-    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
-    expect(titles[0]).toBe('Senior Developer')
-    expect(titles[1]).toBe('Tech Lead')
-    expect(titles[2]).toBe('Staff Engineer')
-  })
-
-  it('breaks triage ties by netScore then postedAt', async () => {
-    mockFetch({
-      '/api/jobs': jobsResponse({
-        'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 70 },
-        'job-2': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 70 },
-        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 30 },
-      }),
-    })
-
-    initJobsMediator()
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    const filterBar = document.querySelector('filter-bar')
-    const sortSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-sort')
-    if (sortSelect) {
-      sortSelect.value = 'triage'
     }
     filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
     await new Promise(resolve => setTimeout(resolve, 10))

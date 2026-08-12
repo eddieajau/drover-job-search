@@ -89,10 +89,10 @@ describe('parseHash', () => {
   })
 
   it('parses filter params into filters on the jobs view', () => {
-    expect(parseHash('#jobs?job=3&status=applied&score=hot&q=go')).toEqual({
+    expect(parseHash('#jobs?job=3&status=applied&q=go')).toEqual({
       view: 'jobs',
       job: 3,
-      filters: { status: 'applied', search: 'go', score: 'hot', sort: 'score' },
+      filters: { status: 'applied', search: 'go', sort: 'score' },
     })
   })
 
@@ -101,56 +101,53 @@ describe('parseHash', () => {
   })
 
   it('parses the documented round-trip example', () => {
-    expect(parseHash('#jobs?job=3&score=hot&q=go')).toEqual({
+    expect(parseHash('#jobs?job=3&q=go')).toEqual({
       view: 'jobs',
       job: 3,
-      filters: { status: '', search: 'go', score: 'hot', sort: 'score' },
+      filters: { status: 'new', search: 'go', sort: 'score' },
     })
   })
 
   it('parses filters without a job identity', () => {
-    expect(parseHash('#jobs?score=neutral')).toEqual({
+    expect(parseHash('#jobs?status=discovered')).toEqual({
       view: 'jobs',
-      filters: { status: '', search: '', score: 'neutral', sort: 'score' },
+      filters: { status: 'discovered', search: '', sort: 'score' },
     })
   })
 
-  it('parses relevant and all for status and score filters', () => {
-    expect(parseHash('#jobs?status=all&score=relevant')).toEqual({
+  it('parses a status=new param into the default status', () => {
+    expect(parseHash('#jobs?status=new')).toEqual({
       view: 'jobs',
-      filters: { status: 'all', search: '', score: 'relevant', sort: 'score' },
-    })
-    expect(parseHash('#jobs?status=relevant&score=all')).toEqual({
-      view: 'jobs',
-      filters: { status: 'relevant', search: '', score: 'all', sort: 'score' },
+      filters: { status: 'new', search: '', sort: 'score' },
     })
   })
 
-  it('returns empty string for absent status and score keys', () => {
+  it('returns the default status for absent status keys', () => {
     expect(parseHash('#jobs?q=go')).toEqual({
       view: 'jobs',
-      filters: { status: '', search: 'go', score: '', sort: 'score' },
+      filters: { status: 'new', search: 'go', sort: 'score' },
+    })
+  })
+
+  it('ignores score params entirely', () => {
+    expect(parseHash('#jobs?score=hot')).toEqual({ view: 'jobs' })
+    expect(parseHash('#jobs?status=applied&score=hot')).toEqual({
+      view: 'jobs',
+      filters: { status: 'applied', search: '', sort: 'score' },
     })
   })
 
   it('parses sort from the query string', () => {
     expect(parseHash('#jobs?sort=posted')).toEqual({
       view: 'jobs',
-      filters: { status: '', search: '', score: '', sort: 'posted' },
-    })
-  })
-
-  it('parses the triage sort from the query string', () => {
-    expect(parseHash('#jobs?sort=triage')).toEqual({
-      view: 'jobs',
-      filters: { status: '', search: '', score: '', sort: 'triage' },
+      filters: { status: 'new', search: '', sort: 'posted' },
     })
   })
 
   it('defaults sort to score when sort param is absent but other filters exist', () => {
-    expect(parseHash('#jobs?status=all')).toEqual({
+    expect(parseHash('#jobs?status=discovered')).toEqual({
       view: 'jobs',
-      filters: { status: 'all', search: '', score: '', sort: 'score' },
+      filters: { status: 'discovered', search: '', sort: 'score' },
     })
   })
 })
@@ -175,9 +172,9 @@ describe('toHash', () => {
       toHash({
         view: 'jobs',
         job: 3,
-        filters: { status: '', search: 'go', score: 'hot', sort: 'score' },
+        filters: { status: 'discovered', search: 'go', sort: 'score' },
       })
-    ).toBe('#jobs?job=3&score=hot&q=go')
+    ).toBe('#jobs?job=3&status=discovered&q=go')
   })
 
   it('omits empty filter params so the URL stays clean', () => {
@@ -185,34 +182,34 @@ describe('toHash', () => {
       toHash({
         view: 'jobs',
         job: 3,
-        filters: { status: '', search: '', score: '', sort: 'score' },
+        filters: { status: 'new', search: '', sort: 'score' },
       })
     ).toBe('#jobs?job=3')
   })
 
-  it('omits relevant filter values from the URL', () => {
+  it('omits the default status from the URL', () => {
     expect(
       toHash({
         view: 'jobs',
-        filters: { status: 'relevant', search: '', score: 'relevant', sort: 'score' },
+        filters: { status: 'new', search: '', sort: 'score' },
       })
     ).toBe('#jobs')
   })
 
-  it('includes all filter values in the URL', () => {
+  it('includes non-default filters in the URL', () => {
     expect(
       toHash({
         view: 'jobs',
-        filters: { status: 'all', search: '', score: 'all', sort: 'score' },
+        filters: { status: 'discovered', search: '', sort: 'posted' },
       })
-    ).toBe('#jobs?status=all&score=all')
+    ).toBe('#jobs?status=discovered&sort=posted')
   })
 
   it('omits sort when it is the default score', () => {
     expect(
       toHash({
         view: 'jobs',
-        filters: { status: '', search: '', score: '', sort: 'score' },
+        filters: { status: 'new', search: '', sort: 'score' },
       })
     ).toBe('#jobs')
   })
@@ -221,7 +218,7 @@ describe('toHash', () => {
     expect(
       toHash({
         view: 'jobs',
-        filters: { status: '', search: '', score: '', sort: 'posted' },
+        filters: { status: 'new', search: '', sort: 'posted' },
       })
     ).toBe('#jobs?sort=posted')
   })
@@ -230,25 +227,25 @@ describe('toHash', () => {
     expect(
       toHash({
         view: 'jobs',
-        filters: { status: '', search: '', score: '', sort: 'company' },
+        filters: { status: 'new', search: '', sort: 'company' },
       })
     ).toBe('#jobs?sort=company')
     expect(parseHash('#jobs?sort=company')).toEqual({
       view: 'jobs',
-      filters: { status: '', search: '', score: '', sort: 'company' },
+      filters: { status: 'new', search: '', sort: 'company' },
     })
   })
 
-  it('round-trips the triage sort through parseHash and toHash', () => {
+  it('round-trips a non-default status through parseHash and toHash', () => {
     expect(
       toHash({
         view: 'jobs',
-        filters: { status: '', search: '', score: '', sort: 'triage' },
+        filters: { status: 'discovered', search: '', sort: 'score' },
       })
-    ).toBe('#jobs?sort=triage')
-    expect(parseHash('#jobs?sort=triage')).toEqual({
+    ).toBe('#jobs?status=discovered')
+    expect(parseHash('#jobs?status=discovered')).toEqual({
       view: 'jobs',
-      filters: { status: '', search: '', score: '', sort: 'triage' },
+      filters: { status: 'discovered', search: '', sort: 'score' },
     })
   })
 })
