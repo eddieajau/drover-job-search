@@ -64,7 +64,7 @@ describe('createDb', () => {
     db.$client.close()
   })
 
-  it('defaults jobs.status to new and accepts the four status values', () => {
+  it('defaults jobs.status to new and accepts the five status values', () => {
     const db = createDb(':memory:')
     db.$client
       .prepare(
@@ -74,7 +74,7 @@ describe('createDb', () => {
     const row = db.$client.prepare('SELECT status FROM jobs WHERE id = 1').get() as { status: string }
     expect(row.status).toBe('new')
 
-    for (const status of ['new', 'discovered', 'applied', 'skipped']) {
+    for (const status of ['new', 'discovered', 'applied', 'skipped', 'blocked']) {
       db.$client
         .prepare(
           "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location, status) VALUES ('linkedin', ?, 'Title', 'Acme', 'https://example.com', 'Remote', ?)"

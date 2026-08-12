@@ -21,6 +21,7 @@ const STATUS_LABELS: Record<string, string> = {
   discovered: 'Discovered',
   applied: 'Applied',
   skipped: 'Skipped',
+  blocked: 'Blocked',
   evaluated: 'Evaluated',
 }
 
@@ -196,7 +197,7 @@ export class JobMetaPanel extends HTMLElement {
     const hasDescription = !!job.descriptionHtml
     const flagDisabled = this.#queued ? 'disabled' : ''
     const flagLabel = this.#queued ? 'Queued' : hasDescription ? 'Refetch Details' : 'Fetch Details'
-    const rankDisabled = !hasDescription ? 'disabled' : ''
+    const rankDisabled = ''
 
     const signalsHtml = this.#signals
       .filter(s => s.signalType !== 'eval_summary')

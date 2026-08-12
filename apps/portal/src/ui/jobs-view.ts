@@ -10,7 +10,7 @@ export type JobWithStatus = Job & { _status: JobStatus['status']; netScore?: num
 export type JobSortKey = 'score' | 'posted' | 'company'
 
 export interface JobsFilters {
-  status: 'new' | 'discovered' | 'applied' | 'skipped'
+  status: 'new' | 'discovered' | 'applied' | 'skipped' | 'blocked'
   search: string
   sort: JobSortKey
 }

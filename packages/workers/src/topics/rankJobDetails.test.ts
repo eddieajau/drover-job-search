@@ -36,7 +36,8 @@ function seedQueue(
   db: DB,
   providerJobId: string,
   description: string | null = 'A great job',
-  topic: 'fetch_job_details' | 'rank' = 'rank'
+  topic: 'fetch_job_details' | 'rank' = 'rank',
+  status: string = 'new'
 ) {
   db.insert(jobs)
     .values({
@@ -47,6 +48,7 @@ function seedQueue(
       url: `https://example.com/${providerJobId}`,
       location: 'Remote',
       description,
+      status,
     })
     .run()
   const job = db
@@ -432,7 +434,17 @@ describe('rank-job-details drain', () => {
   it('replaces existing llm_deep_eval signals for same job', async () => {
     const { queueId } = seedQueue(db, '123456')
 
-    await drain(db, { client: mockClient(documentedResponse) })
+    const first = JSON.stringify({
+      gates: [
+        { name: 'eligibility', passed: true, score: 0, reason: 'ok' },
+        { name: 'language', passed: true, score: 0, reason: 'ok' },
+        { name: 'location', passed: true, score: 0, reason: 'ok' },
+      ],
+      dimensions: [
+        { name: 'technical', signal_type: 'skill_match', score: 50, matched_keywords: ['old'], reason: 'first eval' },
+      ],
+    })
+    await drain(db, { client: mockClient(first) })
     db.update(analysisQueue).set({ completedAt: null }).where(eq(analysisQueue.id, queueId)).run()
 
     const second = JSON.stringify({
@@ -514,6 +526,95 @@ describe('rank-job-details drain', () => {
     const outcome = await drainOne(db, 999, { client: mockClient('{}') })
 
     expect(outcome).toBe('skipped')
+  })
+
+  it('flips a new job to blocked when LLM writes dealbreaker signals', async () => {
+    const { jobId } = seedQueue(db, '123456')
+
+    const result = await drain(db, { client: mockClient(documentedResponse) })
+    expect(result).toEqual({ written: 1, skipped: 0 })
+
+    const job = db.select().from(jobs).where(eq(jobs.id, jobId)).get()!
+    expect(job.status).toBe('blocked')
+  })
+
+  it('exits early with skipped when job status is already blocked', async () => {
+    seedQueue(db, '123456', 'A great job', 'rank', 'blocked')
+    const generate = vi.fn(async () => documentedResponse)
+
+    const result = await drain(db, { client: { generate } })
+
+    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(generate).not.toHaveBeenCalled()
+    expect(db.select().from(jobSignals).all()).toHaveLength(0)
+
+    const job = db.select().from(jobs).get()!
+    expect(job.status).toBe('blocked')
+  })
+
+  it('exits early with skipped when job description is null', async () => {
+    seedQueue(db, '123456', null)
+    const generate = vi.fn(async () => documentedResponse)
+
+    const result = await drain(db, { client: { generate } })
+
+    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(generate).not.toHaveBeenCalled()
+    expect(db.select().from(jobSignals).all()).toHaveLength(0)
+  })
+
+  it('reconciles blocked status even when job has no description', async () => {
+    const { jobId } = seedQueue(db, '123456', null)
+    db.insert(jobSignals)
+      .values({
+        jobId,
+        ruleId: null,
+        source: 'llm_deep_eval',
+        signalType: 'dealbreaker',
+        score: -100,
+        metadata: JSON.stringify({ gate: 'eligibility', reason: 'test' }),
+      })
+      .run()
+
+    const generate = vi.fn(async () => documentedResponse)
+    const result = await drain(db, { client: { generate } })
+
+    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(generate).not.toHaveBeenCalled()
+    const job = db.select().from(jobs).where(eq(jobs.id, jobId)).get()!
+    expect(job.status).toBe('blocked')
+  })
+
+  it('exits early with skipped when job description is empty after trimming', async () => {
+    seedQueue(db, '123456', '   ')
+    const generate = vi.fn(async () => documentedResponse)
+
+    const result = await drain(db, { client: { generate } })
+
+    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(generate).not.toHaveBeenCalled()
+    expect(db.select().from(jobSignals).all()).toHaveLength(0)
+  })
+
+  it('does not mutate status for a job with only dimension signals (no dealbreakers)', async () => {
+    const { jobId } = seedQueue(db, '123456')
+
+    const response = JSON.stringify({
+      gates: [
+        { name: 'eligibility', passed: true, score: 0, reason: 'ok' },
+        { name: 'language', passed: true, score: 0, reason: 'ok' },
+        { name: 'location', passed: true, score: 0, reason: 'ok' },
+      ],
+      dimensions: [
+        { name: 'technical', signal_type: 'skill_match', score: 75, matched_keywords: ['TypeScript'], reason: 'good' },
+      ],
+    })
+
+    const result = await drain(db, { client: mockClient(response) })
+    expect(result).toEqual({ written: 1, skipped: 0 })
+
+    const job = db.select().from(jobs).where(eq(jobs.id, jobId)).get()!
+    expect(job.status).toBe('new')
   })
 })
 

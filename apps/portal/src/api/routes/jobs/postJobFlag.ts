@@ -27,11 +27,13 @@ const postJobFlag: FastifyPluginAsync = async app => {
       return reply.badRequest('Invalid topic')
     }
     app.publisher.publish(jobId, topic)
-    app.db
-      .update(jobs)
-      .set({ status: 'discovered', updatedAt: sql`(CURRENT_TIMESTAMP)` })
-      .where(and(eq(jobs.id, jobId), eq(jobs.status, 'new')))
-      .run()
+    if (topic === 'fetch_job_details') {
+      app.db
+        .update(jobs)
+        .set({ status: 'discovered', updatedAt: sql`(CURRENT_TIMESTAMP)` })
+        .where(and(eq(jobs.id, jobId), eq(jobs.status, 'new')))
+        .run()
+    }
     return reply.code(202).send()
   })
 }

@@ -1360,6 +1360,11 @@ job-meta-panel {
   color: var(--muted);
 }
 
+.chip-blocked {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
 .chip-recent {
   background: var(--blue-soft);
   color: var(--blue);

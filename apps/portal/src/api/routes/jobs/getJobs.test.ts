@@ -220,6 +220,19 @@ describe('GET /api/jobs status pass-through and filtering', () => {
     expect(body.results[0].status).toBe('new')
   })
 
+  it('filters by status=blocked and returns only rows with stored status blocked', async () => {
+    seedWith(JOB1, 'blocked')
+    seedWith(JOB2, 'new')
+    seedWith(JOB3, 'discovered')
+
+    const res = await app.inject({ method: 'GET', url: '/?status=blocked' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string; status: string }> }
+    expect(body.count).toBe(1)
+    expect(body.results).toHaveLength(1)
+    expect(body.results[0].providerJobId).toBe('job-1-blocked')
+    expect(body.results[0].status).toBe('blocked')
+  })
+
   it('returns only gated jobs when score=blocked and count matches', async () => {
     const gated = seedJob(db, JOB1)
     seedSignal(db, { jobId: gated.id, source: 'regex_title', signalType: 'dealbreaker', score: -50 })

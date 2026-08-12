@@ -1,4 +1,5 @@
 import { createDb, jobSignals, jobs, signalRules } from 'db'
+import { eq } from 'drizzle-orm'
 import { describe, it, expect } from 'vitest'
 
 import { matches, recomputeRule, runEnabledRules } from './rules.js'
@@ -228,6 +229,88 @@ describe('runEnabledRules', () => {
     const signals = db.select().from(jobSignals).all()
     expect(signals).toHaveLength(1)
     expect(signals[0].score).toBe(0)
+    db.$client.close()
+  })
+
+  it('flips a new job to blocked when a dealbreaker regex rule matches', () => {
+    const db = createDb(':memory:')
+    seed(db)
+    db.insert(signalRules)
+      .values({
+        ruleName: 'java-dealbreaker',
+        ruleCategory: 'regex_title',
+        pattern: '(?i)\\b(java|android)\\b',
+        signalType: 'dealbreaker',
+      })
+      .run()
+
+    runEnabledRules(db)
+
+    const job1 = db.select().from(jobs).where(eq(jobs.id, 1)).get()!
+    const job2 = db.select().from(jobs).where(eq(jobs.id, 2)).get()!
+    const job3 = db.select().from(jobs).where(eq(jobs.id, 3)).get()!
+
+    expect(job1.status).toBe('blocked')
+    expect(job2.status).toBe('new')
+    expect(job3.status).toBe('blocked')
+
+    db.$client.close()
+  })
+
+  it('reverts a blocked job to new when the dealbreaker signal no longer exists', () => {
+    const db = createDb(':memory:')
+    seed(db)
+    db.insert(signalRules)
+      .values({
+        ruleName: 'java-dealbreaker',
+        ruleCategory: 'regex_title',
+        pattern: '(?i)\\b(java|android)\\b',
+        signalType: 'dealbreaker',
+      })
+      .run()
+
+    runEnabledRules(db)
+
+    const job1Before = db.select().from(jobs).where(eq(jobs.id, 1)).get()!
+    expect(job1Before.status).toBe('blocked')
+
+    db.delete(signalRules).run()
+
+    runEnabledRules(db)
+
+    const job1After = db.select().from(jobs).where(eq(jobs.id, 1)).get()!
+    expect(job1After.status).toBe('new')
+
+    db.$client.close()
+  })
+
+  it('does not change the status of discovered/applied/skipped jobs even with dealbreaker signals', () => {
+    const db = createDb(':memory:')
+    seed(db)
+
+    db.update(jobs).set({ status: 'discovered' }).where(eq(jobs.id, 1)).run()
+    db.update(jobs).set({ status: 'applied' }).where(eq(jobs.id, 2)).run()
+    db.update(jobs).set({ status: 'skipped' }).where(eq(jobs.id, 3)).run()
+
+    db.insert(signalRules)
+      .values({
+        ruleName: 'java-dealbreaker',
+        ruleCategory: 'regex_title',
+        pattern: '(?i)\\b(java|android)\\b',
+        signalType: 'dealbreaker',
+      })
+      .run()
+
+    runEnabledRules(db)
+
+    const job1 = db.select().from(jobs).where(eq(jobs.id, 1)).get()!
+    const job2 = db.select().from(jobs).where(eq(jobs.id, 2)).get()!
+    const job3 = db.select().from(jobs).where(eq(jobs.id, 3)).get()!
+
+    expect(job1.status).toBe('discovered')
+    expect(job2.status).toBe('applied')
+    expect(job3.status).toBe('skipped')
+
     db.$client.close()
   })
 })

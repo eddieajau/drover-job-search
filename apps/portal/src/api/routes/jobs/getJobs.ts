@@ -15,7 +15,7 @@ const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
 const HOT_THRESHOLD = 50
 
-const VALID_STATUSES = new Set(['new', 'discovered', 'applied', 'skipped'])
+const VALID_STATUSES = new Set(['new', 'discovered', 'applied', 'skipped', 'blocked'])
 const VALID_SCORES = new Set(['scorable', 'hot', 'lukewarm', 'blocked'])
 
 function emptySummary(): SignalSummary {
@@ -64,6 +64,7 @@ const getJobs: FastifyPluginAsync = async app => {
       conditions.push(searchCondition)
     }
     if (status && VALID_STATUSES.has(status)) {
+      // status=blocked filters by stored jobs.status column; score=blocked (below) filters by derived gated summary
       conditions.push(eq(jobs.status, status))
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined

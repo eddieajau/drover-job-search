@@ -94,6 +94,7 @@ export class FilterBar extends HTMLElement {
         <option value="discovered">Discovered</option>
         <option value="applied">Applied</option>
         <option value="skipped">Skipped</option>
+        <option value="blocked">Blocked</option>
       </select>
       <select id="filter-sort" aria-label="Sort jobs by">
         <option value="score" selected>Score ↓</option>

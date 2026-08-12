@@ -98,6 +98,15 @@ describe('job-meta-panel', () => {
     expect(chip?.classList.contains('chip-discovered')).toBe(true)
   })
 
+  it('renders a Blocked status chip with chip-blocked class for a blocked job', () => {
+    const j: JobWithStatus = { ...job(), _status: 'blocked', netScore: -100 }
+    el.showJob(j, [], false)
+
+    const chip = el.querySelector('.meta-section .chip')
+    expect(chip?.textContent).toBe('Blocked')
+    expect(chip?.classList.contains('chip-blocked')).toBe(true)
+  })
+
   it('disables the flag button when queued is true', () => {
     const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
     el.showJob(j, [], true)
@@ -127,22 +136,22 @@ describe('job-meta-panel', () => {
     expect(received).toEqual({ jobId: 1, providerJobId: '4445084022' })
   })
 
-  it('disables the Re-rank button when descriptionHtml is null', () => {
+  it('enables the Re-rank button even without descriptionHtml', () => {
     const j: JobWithStatus = { ...job({ descriptionHtml: null }), _status: 'new', netScore: 50 }
     el.showJob(j, [], false)
     const rankBtn = el.querySelector<HTMLButtonElement>('[data-action="rank"]')
-    expect(rankBtn?.disabled).toBe(true)
+    expect(rankBtn?.disabled).toBe(false)
   })
 
-  it('does not dispatch job-meta:rank when the Re-rank button is disabled', () => {
-    const j: JobWithStatus = { ...job({ descriptionHtml: null }), _status: 'new', netScore: 50 }
+  it('dispatches job-meta:rank when the Re-rank button is clicked for a blocked job', () => {
+    const j: JobWithStatus = { ...job({ descriptionHtml: null }), _status: 'blocked', netScore: -100 }
     el.showJob(j, [], false)
-    let received = false
-    el.addEventListener('job-meta:rank', () => {
-      received = true
+    let received: { jobId: number; providerJobId: string } | undefined
+    el.addEventListener('job-meta:rank', event => {
+      received = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
     })
     el.querySelector<HTMLButtonElement>('[data-action="rank"]')?.click()
-    expect(received).toBe(false)
+    expect(received).toEqual({ jobId: 1, providerJobId: '4445084022' })
   })
 
   it('dispatches job-meta:status when Skip is clicked', () => {

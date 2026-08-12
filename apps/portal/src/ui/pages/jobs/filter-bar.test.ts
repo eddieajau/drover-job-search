@@ -50,18 +50,18 @@ describe('filter-bar', () => {
     expect(ids).toEqual(['filter-search', 'filter-status', 'filter-sort'])
   })
 
-  it('renders the status select with exactly four options in order', () => {
+  it('renders the status select with exactly five options in order', () => {
     const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
     expect(statusSelect).not.toBeNull()
     const options = Array.from(statusSelect!.querySelectorAll('option')).map(o => o.value)
-    expect(options).toEqual(['new', 'discovered', 'applied', 'skipped'])
+    expect(options).toEqual(['new', 'discovered', 'applied', 'skipped', 'blocked'])
   })
 
-  it('labels the status options with the New / Discovered / Applied / Skipped names', () => {
+  it('labels the status options with the New / Discovered / Applied / Skipped / Blocked names', () => {
     const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
     expect(statusSelect).not.toBeNull()
     const labels = Array.from(statusSelect!.querySelectorAll('option')).map(o => o.textContent)
-    expect(labels).toEqual(['New', 'Discovered', 'Applied', 'Skipped'])
+    expect(labels).toEqual(['New', 'Discovered', 'Applied', 'Skipped', 'Blocked'])
   })
 
   it('defaults the status select to New', () => {
@@ -104,6 +104,19 @@ describe('filter-bar', () => {
     el.setFilters({ status: 'new', search: '', sort: 'score' })
     expect(el.querySelector<HTMLSelectElement>('#filter-status')?.value).toBe('new')
     expect(el.querySelector<HTMLSelectElement>('#filter-sort')?.value).toBe('score')
+  })
+
+  it('dispatches filter-bar:change with status blocked when Blocked option is selected', () => {
+    let received: { status: string } | undefined
+    el.addEventListener('filter-bar:change', event => {
+      received = (event as CustomEvent<{ status: string }>).detail
+    })
+
+    const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')!
+    statusSelect.value = 'blocked'
+    el.dispatchEvent(new Event('change', { bubbles: true }))
+
+    expect(received).toEqual({ status: 'blocked', search: '', sort: 'score' })
   })
 })
 

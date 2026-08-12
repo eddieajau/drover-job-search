@@ -139,6 +139,21 @@ describe('POST /api/jobs/:jobId/flag', () => {
     expect(row?.completedAt).toBeNull()
   })
 
+  it('does not change status to discovered when topic is rank', async () => {
+    const job = seedJob(db, JOB1)
+    expect(job.status).toBe('new')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: { topic: 'rank' },
+    })
+    expect(res.statusCode).toBe(202)
+
+    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(row?.status).toBe('new')
+  })
+
   it('emits kick with topic rank on the bus when rank is requested', async () => {
     const job = seedJob(db, JOB1)
     let received: { topic: string } | undefined

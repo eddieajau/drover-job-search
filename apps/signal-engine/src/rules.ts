@@ -4,7 +4,7 @@
  */
 
 import { jobSignals, jobs, signalRules, type DB, type SignalRule } from 'db'
-import { eq } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import type { Logger } from 'pino'
 
 const CATEGORY_FIELD: Record<SignalRule['ruleCategory'], 'title' | 'companyName' | 'description'> = {
@@ -86,5 +86,42 @@ export function runEnabledRules(db: DB, log?: Logger): Record<string, number> {
   for (const rule of rules) {
     summary[rule.ruleName] = recomputeRule(db, rule, log)
   }
+
+  reconcileBlockedStatus(db)
+
   return summary
+}
+
+function reconcileBlockedStatus(db: DB): void {
+  const dealbreakerJobIds = db
+    .select({ jobId: jobSignals.jobId })
+    .from(jobSignals)
+    .where(eq(jobSignals.signalType, 'dealbreaker'))
+    .all()
+    .map(row => row.jobId)
+
+  const uniqueJobIds = [...new Set(dealbreakerJobIds)]
+
+  const blockedJobIds = new Set(uniqueJobIds)
+
+  const candidateJobs = db
+    .select({ id: jobs.id, status: jobs.status })
+    .from(jobs)
+    .where(inArray(jobs.status, ['new', 'blocked']))
+    .all()
+
+  for (const job of candidateJobs) {
+    const hasDealbreaker = blockedJobIds.has(job.id)
+    if (hasDealbreaker && job.status === 'new') {
+      db.update(jobs)
+        .set({ status: 'blocked', updatedAt: sql`(CURRENT_TIMESTAMP)` })
+        .where(eq(jobs.id, job.id))
+        .run()
+    } else if (!hasDealbreaker && job.status === 'blocked') {
+      db.update(jobs)
+        .set({ status: 'new', updatedAt: sql`(CURRENT_TIMESTAMP)` })
+        .where(eq(jobs.id, job.id))
+        .run()
+    }
+  }
 }
