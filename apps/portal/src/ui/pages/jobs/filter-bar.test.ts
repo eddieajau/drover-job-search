@@ -60,11 +60,18 @@ describe('filter-bar', () => {
     expect(options).toEqual(['relevant', 'all', 'hot', 'neutral', 'auto-skip'])
   })
 
-  it('labels the default status option as Relevant excluding skipped jobs', () => {
+  it('labels the score-bucket options with the shortened names', () => {
+    const scoreSelect = el.querySelector<HTMLSelectElement>('#filter-score')
+    expect(scoreSelect).not.toBeNull()
+    const labels = Array.from(scoreSelect!.querySelectorAll('option')).map(o => o.textContent)
+    expect(labels).toEqual(['Scorable', 'All', 'Hot (50+)', 'Lukewarm', 'Blocked'])
+  })
+
+  it('labels the default status option as Active excluding skipped jobs', () => {
     const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
     expect(statusSelect).not.toBeNull()
     const defaultOption = statusSelect?.querySelector('option[value="relevant"]')
-    expect(defaultOption?.textContent).toBe('Relevant (excl. skipped)')
+    expect(defaultOption?.textContent).toBe('Active')
     expect(defaultOption?.getAttribute('selected')).not.toBeNull()
   })
 
@@ -88,11 +95,18 @@ describe('filter-bar', () => {
     expect(el.querySelector<HTMLSelectElement>('#filter-score')?.value).toBe('relevant')
   })
 
-  it('renders the sort select after the score select with three options', () => {
+  it('renders the sort select after the score select with four options', () => {
     const sortSelect = el.querySelector<HTMLSelectElement>('#filter-sort')
     expect(sortSelect).not.toBeNull()
     const options = Array.from(sortSelect!.querySelectorAll('option')).map(o => o.value)
-    expect(options).toEqual(['score', 'posted', 'company'])
+    expect(options).toEqual(['score', 'triage', 'posted', 'company'])
+    const triage = sortSelect?.querySelector('option[value="triage"]')
+    expect(triage?.textContent).toBe('Triage')
+  })
+
+  it('setFilters with a triage sort updates the select value', () => {
+    el.setFilters({ status: 'relevant', search: '', score: 'relevant', sort: 'triage' })
+    expect(el.querySelector<HTMLSelectElement>('#filter-sort')?.value).toBe('triage')
   })
 
   it('setFilters with relevant does not set any select to placeholder', () => {

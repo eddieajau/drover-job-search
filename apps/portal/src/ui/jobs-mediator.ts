@@ -252,6 +252,17 @@ function pushState(): void {
       }
       return (b.netScore ?? 0) - (a.netScore ?? 0)
     }
+    if (sortKey === 'triage') {
+      const byUnseen = (a._status !== 'new' ? 1 : 0) - (b._status !== 'new' ? 1 : 0)
+      if (byUnseen !== 0) {
+        return byUnseen
+      }
+      const byScore = (b.netScore ?? 0) - (a.netScore ?? 0)
+      if (byScore !== 0) {
+        return byScore
+      }
+      return postedAtMs(b.postedAt) - postedAtMs(a.postedAt)
+    }
     const byScore = (b.netScore ?? 0) - (a.netScore ?? 0)
     if (byScore !== 0) {
       return byScore

@@ -140,6 +140,13 @@ describe('parseHash', () => {
     })
   })
 
+  it('parses the triage sort from the query string', () => {
+    expect(parseHash('#jobs?sort=triage')).toEqual({
+      view: 'jobs',
+      filters: { status: '', search: '', score: '', sort: 'triage' },
+    })
+  })
+
   it('defaults sort to score when sort param is absent but other filters exist', () => {
     expect(parseHash('#jobs?status=all')).toEqual({
       view: 'jobs',
@@ -229,6 +236,19 @@ describe('toHash', () => {
     expect(parseHash('#jobs?sort=company')).toEqual({
       view: 'jobs',
       filters: { status: '', search: '', score: '', sort: 'company' },
+    })
+  })
+
+  it('round-trips the triage sort through parseHash and toHash', () => {
+    expect(
+      toHash({
+        view: 'jobs',
+        filters: { status: '', search: '', score: '', sort: 'triage' },
+      })
+    ).toBe('#jobs?sort=triage')
+    expect(parseHash('#jobs?sort=triage')).toEqual({
+      view: 'jobs',
+      filters: { status: '', search: '', score: '', sort: 'triage' },
     })
   })
 })

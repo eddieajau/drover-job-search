@@ -799,6 +799,63 @@ describe('jobs-mediator', () => {
     expect(titles[2]).toBe('Tech Lead')
   })
 
+  it('sorts unseen jobs first on triage regardless of score', async () => {
+    mockFetch({
+      '/api/jobs': jobsResponse(
+        {
+          'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 10 },
+          'job-2': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 90 },
+          'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 50 },
+        },
+        { 'job-1': 'applied' }
+      ),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    const sortSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-sort')
+    if (sortSelect) {
+      sortSelect.value = 'triage'
+    }
+    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    const cards = document.querySelectorAll('job-card')
+    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
+    expect(titles[0]).toBe('Senior Developer')
+    expect(titles[1]).toBe('Tech Lead')
+    expect(titles[2]).toBe('Staff Engineer')
+  })
+
+  it('breaks triage ties by netScore then postedAt', async () => {
+    mockFetch({
+      '/api/jobs': jobsResponse({
+        'job-1': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 70 },
+        'job-2': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 70 },
+        'job-3': { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 30 },
+      }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    const sortSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-sort')
+    if (sortSelect) {
+      sortSelect.value = 'triage'
+    }
+    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    const cards = document.querySelectorAll('job-card')
+    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
+    expect(titles[0]).toBe('Staff Engineer')
+    expect(titles[1]).toBe('Senior Developer')
+    expect(titles[2]).toBe('Tech Lead')
+  })
+
   it('writes sort to the URL when non-default', async () => {
     mockFetch({ '/api/jobs': jobsResponse() })
 

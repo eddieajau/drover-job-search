@@ -96,21 +96,22 @@ export class FilterBar extends HTMLElement {
     this.innerHTML = `
       <input type="text" id="filter-search" placeholder="Search titles..." />
       <select id="filter-status" aria-label="Filter by status">
-        <option value="relevant" selected>Relevant (excl. skipped)</option>
+        <option value="relevant" selected>Active</option>
         <option value="all">All</option>
         <option value="new">New</option>
         <option value="applied">Applied</option>
         <option value="skipped">Skipped</option>
       </select>
       <select id="filter-score" aria-label="Filter by score bucket">
-        <option value="relevant" selected>Relevant (excl. auto-skip)</option>
+        <option value="relevant" selected>Scorable</option>
         <option value="all">All</option>
-        <option value="hot">Hot</option>
-        <option value="neutral">Neutral</option>
-        <option value="auto-skip">Auto-skip</option>
+        <option value="hot">Hot (50+)</option>
+        <option value="neutral">Lukewarm</option>
+        <option value="auto-skip">Blocked</option>
       </select>
       <select id="filter-sort" aria-label="Sort jobs by">
         <option value="score" selected>Score ↓</option>
+        <option value="triage">Triage</option>
         <option value="posted">Posted ↓</option>
         <option value="company">Company A→Z</option>
       </select>
