@@ -17,6 +17,22 @@ import { describe, expect, it } from 'vitest'
 
 import { createDb } from './connection.js'
 import createTransport, { toBody } from './logger-transport.js'
+import { buildTransportTargets } from './logger.js'
+
+describe('buildTransportTargets', () => {
+  it('returns the SQLite target and a stdout target by default', () => {
+    expect(buildTransportTargets({ dbPath: 'x', level: 'info' })).toEqual([
+      { target: './logger-transport.js', level: 'info', options: { dbPath: 'x' } },
+      { target: 'pino/file', level: 'info', options: { destination: 1 } },
+    ])
+  })
+
+  it('omits the stdout target when console is false', () => {
+    expect(buildTransportTargets({ dbPath: 'x', level: 'debug', console: false })).toEqual([
+      { target: './logger-transport.js', level: 'debug', options: { dbPath: 'x' } },
+    ])
+  })
+})
 
 describe('toBody', () => {
   it('keeps time and merge fields but drops level and scope', () => {
