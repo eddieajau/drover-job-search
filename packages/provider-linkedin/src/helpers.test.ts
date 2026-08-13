@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { classifyWorkplaceType, matchesWorkType, normaliseWorkplace, parseJobDetail, workTypeFlag } from './helpers.js'
+import {
+  classifyWorkplaceType,
+  excerpt,
+  matchesWorkType,
+  normaliseWorkplace,
+  parseJobDetail,
+  workTypeFlag,
+} from './helpers.js'
 
 describe('parseJobDetail', () => {
   it('preserves structural tags in the raw description HTML', () => {
@@ -131,6 +138,25 @@ describe('classifyWorkplaceType', () => {
   it('returns null when nothing can be determined', () => {
     expect(classifyWorkplaceType({ workplaceType: null, description: 'A fine place to work' })).toBeNull()
     expect(classifyWorkplaceType({ workplaceType: null, description: null })).toBeNull()
+  })
+})
+
+describe('excerpt', () => {
+  it('returns null for null input', () => {
+    expect(excerpt(null)).toBeNull()
+  })
+
+  it('returns the string unchanged when shorter than n', () => {
+    expect(excerpt('short', 240)).toBe('short')
+  })
+
+  it('slices a prefix of length n when longer', () => {
+    const long = 'x'.repeat(300)
+    expect(excerpt(long, 240)).toBe('x'.repeat(240))
+  })
+
+  it('defaults n to 240', () => {
+    expect(excerpt('y'.repeat(500))).toHaveLength(240)
   })
 })
 

@@ -92,6 +92,7 @@ async function main() {
         url: card.url,
         location: card.location ?? '',
         postedAt: card.date ?? null,
+        workplaceType: card.workplace ?? null,
         status: 'new',
       }))
       const inserted = rows.length > 0 ? db.insert(jobs).values(rows).onConflictDoNothing().run().changes : 0

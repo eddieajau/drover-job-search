@@ -1,8 +1,31 @@
 import { SEARCH_CARDS_HTML } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SEARCH_URL, type SearchLogger } from './helpers.js'
+import { detail } from './detail.js'
+import { SEARCH_URL, type JobDetail, type SearchLogger } from './helpers.js'
 import { search } from './search.js'
+
+vi.mock('./detail.js', () => ({ detail: vi.fn() }))
+
+function jobDetail(id: string, workplaceType: string | null, description: string | null): JobDetail {
+  return {
+    id,
+    title: 'T',
+    company: null,
+    companyUrl: null,
+    location: null,
+    date: null,
+    url: `https://www.linkedin.com/jobs/view/${id}`,
+    description,
+    seniority: null,
+    employmentType: null,
+    jobFunction: null,
+    industries: null,
+    workplaceType,
+    applyUrl: null,
+    closed: false,
+  }
+}
 
 describe('search logging', () => {
   let fetchSpy: ReturnType<typeof vi.fn>
@@ -14,6 +37,7 @@ describe('search logging', () => {
       text: async () => SEARCH_CARDS_HTML,
     })
     vi.stubGlobal('fetch', fetchSpy)
+    vi.mocked(detail).mockReset()
   })
 
   afterEach(() => {
@@ -50,5 +74,95 @@ describe('search logging', () => {
       },
       'job card'
     )
+  })
+})
+
+describe('search verify decision logging', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchSpy = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      text: async () => SEARCH_CARDS_HTML,
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+    vi.mocked(detail).mockReset()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('logs each screened card and keeps only matching workplaces', async () => {
+    vi.mocked(detail).mockImplementation(async ({ id }) =>
+      id === '40001' ? jobDetail('40001', 'onsite', 'CBD office role') : jobDetail('40002', 'remote', null)
+    )
+
+    const logger: SearchLogger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }
+
+    const result = await search({
+      query: 'engineer',
+      location: 'Brisbane',
+      jobage: 14,
+      pages: 1,
+      workType: 'remote',
+      logger,
+    })
+
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        providerJobId: '40001',
+        target: 'remote',
+        criteriaWorkplaceType: 'onsite',
+        classified: 'onsite',
+        kept: false,
+        descriptionExcerpt: 'CBD office role',
+      },
+      'verify decision'
+    )
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        providerJobId: '40002',
+        target: 'remote',
+        criteriaWorkplaceType: 'remote',
+        classified: 'remote',
+        kept: true,
+        descriptionExcerpt: null,
+      },
+      'verify decision'
+    )
+
+    expect(result.results).toHaveLength(1)
+    expect(result.results[0].id).toBe('40002')
+    expect(result.results[0].workplace).toBe('remote')
+  })
+
+  it('logs a null detail as a dropped card', async () => {
+    vi.mocked(detail).mockResolvedValue(null)
+
+    const logger: SearchLogger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }
+
+    const result = await search({
+      query: 'engineer',
+      location: 'Brisbane',
+      jobage: 14,
+      pages: 1,
+      workType: 'remote',
+      logger,
+    })
+
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        providerJobId: '40001',
+        target: 'remote',
+        criteriaWorkplaceType: null,
+        classified: null,
+        kept: false,
+        descriptionExcerpt: null,
+      },
+      'verify decision'
+    )
+    expect(result.results).toHaveLength(0)
   })
 })

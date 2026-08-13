@@ -11,6 +11,7 @@ import {
   jobTypeFlag,
   classifyWorkplaceType,
   matchesWorkType,
+  excerpt,
   silentLogger,
   type JobCard,
   type SearchLogger,
@@ -112,8 +113,23 @@ export async function search(opts: SearchOpts): Promise<SearchResult> {
     for (let i = 0; i < all.length; i++) {
       const card = all[i]
       const parsed = await detail({ id: card.id, logger })
-      const workplace = parsed ? classifyWorkplaceType(parsed) : null
-      if (matchesWorkType(target, workplace)) kept.push(card)
+      const classified = parsed ? classifyWorkplaceType(parsed) : null
+      const match = matchesWorkType(target, classified)
+      logger.info(
+        {
+          providerJobId: card.id,
+          target,
+          criteriaWorkplaceType: parsed?.workplaceType ?? null,
+          classified,
+          kept: match,
+          descriptionExcerpt: excerpt(parsed?.description ?? null, 240),
+        },
+        'verify decision'
+      )
+      if (match) {
+        kept.push(card)
+        card.workplace = classified
+      }
       if ((i + 1) % 10 === 0 || i === all.length - 1) {
         logger.info({ verified: i + 1, kept: kept.length, total: all.length }, 'verify progress')
       }

@@ -73,6 +73,8 @@ export interface JobCard {
   location: string | null
   date: string | null
   url: string
+  /** Classified workplace type, set on kept cards by the search verify loop. Undefined when no verify ran. */
+  workplace?: WorkplaceType | null
 }
 
 export interface JobDetail extends JobCard {
@@ -291,6 +293,12 @@ export function normaliseWorkplace(raw: string | null): WorkplaceType | null {
 }
 
 export type WorkplaceType = 'onsite' | 'hybrid' | 'remote'
+
+/** Return a bounded leading slice of `text`, or null when text is null. */
+export function excerpt(text: string | null, n = 240): string | null {
+  if (text === null) return null
+  return text.length > n ? text.slice(0, n) : text
+}
 
 /**
  * Best-effort workplace classification for a job detail.
