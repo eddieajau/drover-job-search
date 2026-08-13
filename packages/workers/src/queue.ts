@@ -6,7 +6,7 @@
 import { analysisQueue, jobs, type DB } from 'db'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
-export type AnalysisTopic = 'fetch_job_details' | 'rank'
+export type AnalysisTopic = 'fetch_job_details' | 'rank' | 'run_signal_rules'
 
 export interface PendingRow {
   queueId: number
@@ -15,7 +15,26 @@ export interface PendingRow {
   title: string
 }
 
+// Sweep topics (e.g. run_signal_rules) don't carry job data — their rows have
+// jobId = null and the consumer ignores the job-shaped sentinel fields.
+const SWEEP_TOPICS = new Set<AnalysisTopic>(['run_signal_rules'])
+
 export function selectPending(db: DB, topic: AnalysisTopic, limit?: number): PendingRow[] {
+  if (SWEEP_TOPICS.has(topic)) {
+    const query = db
+      .select({ queueId: analysisQueue.id })
+      .from(analysisQueue)
+      .where(and(eq(analysisQueue.topic, topic), isNull(analysisQueue.completedAt)))
+      .orderBy(analysisQueue.id)
+    const rows = (limit !== undefined ? query.limit(limit).all() : query.all()).map(row => ({
+      queueId: row.queueId,
+      jobId: 0,
+      providerJobId: '',
+      title: '',
+    }))
+    return rows
+  }
+
   const query = db
     .select({
       queueId: analysisQueue.id,

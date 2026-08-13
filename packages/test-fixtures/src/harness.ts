@@ -5,10 +5,10 @@ import { type DB } from 'db'
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import Fastify from 'fastify'
 import { vi } from 'vitest'
-import { createPublisher, type Publisher } from 'workers'
+import { createPublisher, type AnalysisTopic, type Publisher } from 'workers'
 
 type BusEventName = 'kick'
-type BusEvents = Record<BusEventName, [payload: { topic: 'fetch_job_details' | 'rank' | 'slice_resume' }]>
+type BusEvents = Record<BusEventName, [payload: { topic: AnalysisTopic | 'slice_resume' }]>
 
 declare module 'fastify' {
   interface FastifyInstance {

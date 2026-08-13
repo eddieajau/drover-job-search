@@ -77,6 +77,23 @@ describe('queue helpers', () => {
       expect(rows).toHaveLength(1)
       expect(rows[0].providerJobId).toBe('first')
     })
+
+    it('returns a sweep row for run_signal_rules with sentinel job fields', () => {
+      db.insert(analysisQueue).values({ jobId: null, topic: 'run_signal_rules' }).run()
+
+      const rows = selectPending(db, 'run_signal_rules')
+
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toEqual({ queueId: expect.any(Number), jobId: 0, providerJobId: '', title: '' })
+    })
+
+    it('does not return completed run_signal_rules rows', () => {
+      db.insert(analysisQueue).values({ jobId: null, topic: 'run_signal_rules', completedAt: '2026-01-01' }).run()
+
+      const rows = selectPending(db, 'run_signal_rules')
+
+      expect(rows).toHaveLength(0)
+    })
   })
 
   describe('completeAndAdvance', () => {

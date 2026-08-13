@@ -107,7 +107,7 @@ const getJobs: FastifyPluginAsync = async app => {
         .where(inArray(analysisQueue.jobId, pageIds))
         .all()
       for (const row of queueRows) {
-        queuedIds.add(row.jobId)
+        if (row.jobId !== null) queuedIds.add(row.jobId)
       }
     }
 

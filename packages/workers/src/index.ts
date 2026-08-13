@@ -20,5 +20,6 @@ export { attachInputDoc, completeTask, enqueueTask, failTask, selectPendingTasks
 export type { Task } from 'db'
 export { createFetchJobDetailsConsumer } from './topics/fetchJobDetails.js'
 export { createRankConsumer } from './topics/rankJobDetails.js'
+export { createRunSignalRulesConsumer } from './topics/runSignalRules.js'
 export { createSliceConsumer } from './topics/sliceResume.js'
 export { chunkResume } from './lib/chunkResume.js'

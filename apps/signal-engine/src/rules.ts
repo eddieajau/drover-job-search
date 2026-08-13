@@ -4,8 +4,13 @@
  */
 
 import { jobSignals, jobs, signalRules, type DB, type SignalRule } from 'db'
-import { eq, inArray, sql } from 'drizzle-orm'
-import type { Logger } from 'pino'
+import { eq } from 'drizzle-orm'
+
+// Structural subset of a pino Logger — enough for rule diagnostics without
+// coupling signal-engine to a specific logger implementation.
+export interface RuleLogger {
+  error?: (obj: object, msg?: string) => void
+}
 
 const CATEGORY_FIELD: Record<SignalRule['ruleCategory'], 'title' | 'companyName' | 'description'> = {
   regex_title: 'title',
@@ -37,12 +42,12 @@ export function matches(pattern: string, text: string): string[] {
   return keywords
 }
 
-export function recomputeRule(db: DB, rule: SignalRule, log?: Logger): number {
+export function recomputeRule(db: DB, rule: SignalRule, log?: RuleLogger): number {
   let compiled: RegExp
   try {
     compiled = compilePattern(rule.pattern)
   } catch (err) {
-    log?.error({ ruleName: rule.ruleName, pattern: rule.pattern, err }, 'invalid regex; skipping rule')
+    log?.error?.({ ruleName: rule.ruleName, pattern: rule.pattern, err }, 'invalid regex; skipping rule')
     return 0
   }
 
@@ -80,48 +85,12 @@ export function recomputeRule(db: DB, rule: SignalRule, log?: Logger): number {
   return matched
 }
 
-export function runEnabledRules(db: DB, log?: Logger): Record<string, number> {
+export function runEnabledRules(db: DB, log?: RuleLogger): Record<string, number> {
   const rules = db.select().from(signalRules).where(eq(signalRules.enabled, true)).all()
   const summary: Record<string, number> = {}
   for (const rule of rules) {
     summary[rule.ruleName] = recomputeRule(db, rule, log)
   }
 
-  reconcileBlockedStatus(db)
-
   return summary
-}
-
-function reconcileBlockedStatus(db: DB): void {
-  const dealbreakerJobIds = db
-    .select({ jobId: jobSignals.jobId })
-    .from(jobSignals)
-    .where(eq(jobSignals.signalType, 'dealbreaker'))
-    .all()
-    .map(row => row.jobId)
-
-  const uniqueJobIds = [...new Set(dealbreakerJobIds)]
-
-  const blockedJobIds = new Set(uniqueJobIds)
-
-  const candidateJobs = db
-    .select({ id: jobs.id, status: jobs.status })
-    .from(jobs)
-    .where(inArray(jobs.status, ['new', 'blocked']))
-    .all()
-
-  for (const job of candidateJobs) {
-    const hasDealbreaker = blockedJobIds.has(job.id)
-    if (hasDealbreaker && job.status === 'new') {
-      db.update(jobs)
-        .set({ status: 'blocked', updatedAt: sql`(CURRENT_TIMESTAMP)` })
-        .where(eq(jobs.id, job.id))
-        .run()
-    } else if (!hasDealbreaker && job.status === 'blocked') {
-      db.update(jobs)
-        .set({ status: 'new', updatedAt: sql`(CURRENT_TIMESTAMP)` })
-        .where(eq(jobs.id, job.id))
-        .run()
-    }
-  }
 }

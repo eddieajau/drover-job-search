@@ -167,9 +167,7 @@ export const analysisQueue = sqliteTable(
   'analysis_queue',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    jobId: integer('job_id')
-      .notNull()
-      .references(() => jobs.id, { onDelete: 'cascade' }),
+    jobId: integer('job_id').references(() => jobs.id, { onDelete: 'cascade' }),
     topic: text('topic').notNull(),
     errorMessage: text('error_message'),
     queuedAt: text('queued_at')
@@ -179,7 +177,7 @@ export const analysisQueue = sqliteTable(
   },
   table => [
     index('idx_analysis_queue_job_id_topic').on(table.jobId, table.topic),
-    check('check_queue_topic', sql`${table.topic} IN ('fetch_job_details', 'rank')`),
+    check('check_queue_topic', sql`${table.topic} IN ('fetch_job_details', 'rank', 'run_signal_rules')`),
   ]
 )
 
@@ -377,12 +375,12 @@ CREATE INDEX IF NOT EXISTS idx_job_signals_rule_id ON job_signals(rule_id);
 
 CREATE TABLE IF NOT EXISTS analysis_queue (
     id INTEGER PRIMARY KEY,
-    job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    job_id INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
     topic TEXT NOT NULL,
     error_message TEXT,
     queued_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     completed_at TEXT,
-    CONSTRAINT check_queue_topic CHECK (topic IN ('fetch_job_details', 'rank'))
+    CONSTRAINT check_queue_topic CHECK (topic IN ('fetch_job_details', 'rank', 'run_signal_rules'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_analysis_queue_job_id_topic ON analysis_queue(job_id, topic);

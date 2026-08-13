@@ -17,6 +17,7 @@ import {
   createFetchJobDetailsConsumer,
   createPublisher,
   createRankConsumer,
+  createRunSignalRulesConsumer,
   createSliceConsumer,
   type Publisher,
 } from 'workers'
@@ -87,6 +88,20 @@ app.addHook('onClose', () => {
   rank.stop()
 })
 bus.emit('kick', { topic: 'rank' })
+
+const signalRules = createRunSignalRulesConsumer({
+  db,
+  log: app.log,
+})
+const onKickSignalRules = ({ topic }: { topic: string }) => {
+  if (topic === 'run_signal_rules') signalRules.kick()
+}
+bus.on('kick', onKickSignalRules)
+app.addHook('onClose', () => {
+  bus.off('kick', onKickSignalRules)
+  signalRules.stop()
+})
+bus.emit('kick', { topic: 'run_signal_rules' })
 
 const slice = createSliceConsumer({
   db,

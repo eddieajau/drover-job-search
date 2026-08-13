@@ -4,11 +4,12 @@
  */
 
 import { analysisQueue, facts, jobSignals, jobs, type DB, type Fact } from 'db'
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import type { FastifyBaseLogger } from 'fastify'
 
 import { createOllamaClient, type OllamaClient } from '../clients/ollama.js'
 import { createConsumer, type Consumer } from '../consumer.js'
+import { reconcileBlockedForJob } from '../lib/reconcileBlocked.js'
 import { sanitise } from '../lib/sanitise.js'
 import { complete, selectPending, type PendingRow } from '../queue.js'
 import { buildPrompt } from './prompt.js'
@@ -220,7 +221,7 @@ async function evaluateJob(
   }
 
   if (!job.description?.trim()) {
-    reconcileBlockedStatus(db, row.jobId)
+    reconcileBlockedForJob(db, row.jobId)
     complete(db, row.queueId)
     opts.onError?.(row, new Error('job has no description'))
     return 'skipped'
@@ -300,25 +301,9 @@ async function evaluateJob(
     db.insert(jobSignals).values(values).run()
   }
 
-  reconcileBlockedStatus(db, row.jobId)
+  reconcileBlockedForJob(db, row.jobId)
 
   complete(db, row.queueId)
   opts.onProgress?.(row)
   return 'written'
-}
-
-function reconcileBlockedStatus(db: DB, jobId: number): void {
-  const dealbreakerCount =
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(jobSignals)
-      .where(and(eq(jobSignals.jobId, jobId), eq(jobSignals.signalType, 'dealbreaker')))
-      .get()?.count ?? 0
-
-  if (dealbreakerCount > 0) {
-    db.update(jobs)
-      .set({ status: 'blocked', updatedAt: sql`(CURRENT_TIMESTAMP)` })
-      .where(and(eq(jobs.id, jobId), eq(jobs.status, 'new')))
-      .run()
-  }
 }

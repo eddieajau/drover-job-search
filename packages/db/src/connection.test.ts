@@ -390,6 +390,16 @@ describe('createDb', () => {
     db.$client.close()
   })
 
+  it('accepts a run_signal_rules sweep row with a null job_id', () => {
+    const db = createDb(':memory:')
+
+    db.$client.prepare("INSERT INTO analysis_queue (job_id, topic) VALUES (NULL, 'run_signal_rules')").run()
+    const row = db.$client.prepare('SELECT topic FROM analysis_queue WHERE id = 1').get() as { topic: string }
+    expect(row.topic).toBe('run_signal_rules')
+
+    db.$client.close()
+  })
+
   it('stores an error_message on an analysis_queue row', () => {
     const db = createDb(':memory:')
     db.$client
