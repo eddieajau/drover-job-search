@@ -51,7 +51,10 @@ describe('search logging', () => {
 
     const url = `${SEARCH_URL}?keywords=engineer&location=Brisbane&f_TPR=r1209600&start=0`
 
-    expect(logger.debug).toHaveBeenCalledWith({ page: 1, url, html: SEARCH_CARDS_HTML }, 'seeMoreJobPostings response')
+    expect(logger.debug).toHaveBeenCalledWith(
+      { page: 1, url, htmlLength: SEARCH_CARDS_HTML.length, htmlPreview: SEARCH_CARDS_HTML.slice(0, 200) },
+      'seeMoreJobPostings response'
+    )
 
     expect(result.count).toBe(2)
     expect(logger.info).toHaveBeenCalledWith(

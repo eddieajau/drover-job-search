@@ -90,7 +90,10 @@ export async function search(opts: SearchOpts): Promise<SearchResult> {
     const url = buildUrl(opts, page)
     logger.debug({ url, page }, 'search page')
     const html = await htmlFetch(url, logger)
-    logger.debug({ page, url, html }, 'seeMoreJobPostings response')
+    logger.debug(
+      { page, url, htmlLength: html.length, htmlPreview: html.slice(0, 200) },
+      'seeMoreJobPostings response'
+    )
     const cards = parseJobCards(html)
     for (const card of cards) {
       logger.info(
