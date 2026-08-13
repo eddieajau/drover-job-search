@@ -38,12 +38,12 @@ async function main() {
     const { processed, failed, skipped } = await fetchJobDetails.drain(db, {
       detailFn: detail,
       limit,
-      onProgress: row => log.info({ providerJobId: row.providerJobId }, 'description saved'),
+      onProgress: row => log.debug({ providerJobId: row.providerJobId }, 'description saved'),
       onError: (row, err) =>
         err === null
           ? log.warn({ providerJobId: row.providerJobId }, 'no description returned; marked done')
           : log.error({ providerJobId: row.providerJobId, err }, 'detail fetch failed; marked done'),
-      onSkip: (row, reason) => log.info({ providerJobId: row.providerJobId, reason }, 'job skipped'),
+      onSkip: (row, reason) => log.debug({ providerJobId: row.providerJobId, reason }, 'job skipped'),
     })
     log.info({ processed, failed, skipped }, 'detail crawl complete')
     await new Promise<void>(resolve => log.flush(() => resolve()))

@@ -29,7 +29,7 @@ async function main() {
 
   const { written, skipped } = await rankJobDetails.drain(db, {
     client,
-    onProgress: row => log.info({ jobId: row.jobId, title: row.title }, 'evaluated'),
+    onProgress: row => log.debug({ jobId: row.jobId, title: row.title }, 'evaluated'),
     onError: (row, err) =>
       log.warn({ jobId: row.jobId, err: err instanceof Error ? err.message : err }, 'inference skipped'),
   })

@@ -33,7 +33,7 @@ export function createRankConsumer(opts: {
     drain: () =>
       drain(opts.db, {
         client,
-        onProgress: row => opts.log.info({ jobId: row.jobId, title: row.title }, 'evaluated'),
+        onProgress: row => opts.log.debug({ jobId: row.jobId, title: row.title }, 'evaluated'),
         onError: (row, err) =>
           opts.log.warn({ jobId: row.jobId, err: err instanceof Error ? err.message : err }, 'inference skipped'),
       }).then(r => ({ total: r.written + r.skipped })),

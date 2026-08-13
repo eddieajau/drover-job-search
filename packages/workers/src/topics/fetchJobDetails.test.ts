@@ -291,7 +291,7 @@ describe('createFetchJobDetailsConsumer', () => {
     expect(detailFn).toHaveBeenCalledWith({ id: '123456' })
     const job = db.select().from(jobs).get()!
     expect(job.description).toBe('A description')
-    expect(log.info).toHaveBeenCalledWith({ providerJobId: '123456' }, 'description saved')
+    expect(log.debug).toHaveBeenCalledWith({ providerJobId: '123456' }, 'description saved')
     db.$client.close()
   })
 
@@ -310,7 +310,7 @@ describe('createFetchJobDetailsConsumer', () => {
     const result = await consumerCaptured.opts?.drain()
 
     expect(result).toEqual({ total: 2 })
-    expect(log.info).toHaveBeenCalledWith(expect.objectContaining({ reason: 'closed' }), 'job skipped')
+    expect(log.debug).toHaveBeenCalledWith(expect.objectContaining({ reason: 'closed' }), 'job skipped')
     db.$client.close()
   })
 })

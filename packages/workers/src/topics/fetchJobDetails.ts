@@ -24,12 +24,12 @@ export function createFetchJobDetailsConsumer(opts: {
     drain: () =>
       drain(opts.db, {
         detailFn: opts.detailFn,
-        onProgress: row => opts.log.info({ providerJobId: row.providerJobId }, 'description saved'),
+        onProgress: row => opts.log.debug({ providerJobId: row.providerJobId }, 'description saved'),
         onError: (row, err) =>
           err === null
             ? opts.log.warn({ providerJobId: row.providerJobId }, 'no description; marked done')
             : opts.log.error({ providerJobId: row.providerJobId, err }, 'detail fetch failed; marked done'),
-        onSkip: (row, reason) => opts.log.info({ providerJobId: row.providerJobId, reason }, 'job skipped'),
+        onSkip: (row, reason) => opts.log.debug({ providerJobId: row.providerJobId, reason }, 'job skipped'),
       }).then(r => ({ total: r.processed + r.failed + r.skipped })),
     onEmpty: () => opts.onDrained?.(),
     log: opts.log,

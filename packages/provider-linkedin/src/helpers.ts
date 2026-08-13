@@ -17,12 +17,14 @@ type LogFn = (obj: unknown, msg?: string) => void
 
 /** Minimal pino-compatible logger surface used across the provider. */
 export interface SearchLogger {
+  trace: LogFn
   debug: LogFn
   info: LogFn
   warn: LogFn
 }
 
 export const silentLogger: SearchLogger = {
+  trace: () => {},
   debug: () => {},
   info: () => {},
   warn: () => {},
@@ -301,22 +303,44 @@ export function excerpt(text: string | null, n = 240): string | null {
 }
 
 /**
+ * Explicit work-arrangement phrases matched against a job description.
+ * Whole-phrase matches only: bare single-word hits ("hybrid", "remote") are
+ * excluded because they produce false positives in real listings — e.g.
+ * "#hybrid" hashtags, "hybrid cloud" platforms, "remote gaming server" (an
+ * out-of-band host), or "Work from Home Equipment" listed as a benefits perk.
+ */
+const HYBRID_DESC_PATTERNS = [
+  /\bhybrid\s+(?:role|position|job|work|working|workplace|model|schedule|arrangement|setup)\b/i,
+] as const
+
+const ONSITE_DESC_PATTERNS = [/\bon[- ]?site\b/i, /\bin[- ]office\b/i, /\boffice[- ]based\b/i] as const
+
+const REMOTE_DESC_PATTERNS = [
+  /\bfully\s+remote\b/i,
+  /\b100%\s+remote\b/i,
+  /\bremote[- ]first\b/i,
+  /\bremote\s+(?:role|position|job|work|working|workplace)\b/i,
+  /\b(?:work|working)\s+(?:from\s+home|remotely)\b(?!\s+(?:equipment|allowance|stipend|reimbursement|policy|program)\b)/i,
+  /\bwfh\b/i,
+] as const
+
+/**
  * Best-effort workplace classification for a job detail.
  * The detail page's "Workplace type" criteria row is authoritative; when it is
- * absent we fall back to scanning the description (LinkedIn does not tag every
- * job, e.g. the iterate Technical Lead that leaks through the remote filter).
+ * absent we fall back to scanning the description for an explicit arrangement
+ * phrase (LinkedIn does not tag every job, e.g. the iterate Technical Lead that
+ * leaks through the remote filter). No phrase match means no signal: the strict
+ * filter rejects rather than guesses.
  */
 export function classifyWorkplaceType(detail: {
   workplaceType: string | null
   description: string | null
 }): WorkplaceType | null {
   if (detail.workplaceType) return detail.workplaceType as WorkplaceType
-  const text = (detail.description ?? '').toLowerCase()
-  if (text.includes('hybrid')) return 'hybrid'
-  if (text.includes('on-site') || text.includes('onsite') || text.includes('in-office') || text.includes('in office')) {
-    return 'onsite'
-  }
-  if (text.includes('remote') || text.includes('work from home') || text.includes('wfh')) return 'remote'
+  const text = detail.description ?? ''
+  if (HYBRID_DESC_PATTERNS.some(re => re.test(text))) return 'hybrid'
+  if (ONSITE_DESC_PATTERNS.some(re => re.test(text))) return 'onsite'
+  if (REMOTE_DESC_PATTERNS.some(re => re.test(text))) return 'remote'
   return null
 }
 

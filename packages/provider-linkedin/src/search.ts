@@ -88,15 +88,12 @@ export async function search(opts: SearchOpts): Promise<SearchResult> {
 
   for (let page = 1; page <= totalPages; page++) {
     const url = buildUrl(opts, page)
-    logger.debug({ url, page }, 'search page')
+    logger.trace({ url, page }, 'search page')
     const html = await htmlFetch(url, logger)
-    logger.debug(
-      { page, url, htmlLength: html.length, htmlPreview: html.slice(0, 200) },
-      'seeMoreJobPostings response'
-    )
+    logger.trace({ page, url, htmlLength: html.length, htmlPreview: html.slice(0, 200) }, 'seeMoreJobPostings response')
     const cards = parseJobCards(html)
     for (const card of cards) {
-      logger.info(
+      logger.debug(
         { page, providerJobId: card.id, title: card.title, company: card.company, location: card.location },
         'job card'
       )
@@ -118,12 +115,14 @@ export async function search(opts: SearchOpts): Promise<SearchResult> {
       const parsed = await detail({ id: card.id, logger })
       const classified = parsed ? classifyWorkplaceType(parsed) : null
       const match = matchesWorkType(target, classified)
-      logger.info(
+      const source = parsed ? (parsed.workplaceType ? 'criteria' : classified !== null ? 'description' : null) : null
+      logger.debug(
         {
           providerJobId: card.id,
           target,
           criteriaWorkplaceType: parsed?.workplaceType ?? null,
           classified,
+          source,
           kept: match,
           descriptionExcerpt: excerpt(parsed?.description ?? null, 240),
         },
@@ -134,7 +133,7 @@ export async function search(opts: SearchOpts): Promise<SearchResult> {
         card.workplace = classified
       }
       if ((i + 1) % 10 === 0 || i === all.length - 1) {
-        logger.info({ verified: i + 1, kept: kept.length, total: all.length }, 'verify progress')
+        logger.trace({ verified: i + 1, kept: kept.length, total: all.length }, 'verify progress')
       }
     }
     logger.info(

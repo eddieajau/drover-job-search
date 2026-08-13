@@ -44,20 +44,20 @@ describe('search logging', () => {
     vi.restoreAllMocks()
   })
 
-  it('emits a per-page response debug log and a per-card info log', async () => {
-    const logger: SearchLogger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }
+  it('emits a per-page response trace log and a per-card debug log', async () => {
+    const logger: SearchLogger = { trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn() }
 
     const result = await search({ query: 'engineer', location: 'Brisbane', jobage: 14, pages: 1, logger })
 
     const url = `${SEARCH_URL}?keywords=engineer&location=Brisbane&f_TPR=r1209600&start=0`
 
-    expect(logger.debug).toHaveBeenCalledWith(
+    expect(logger.trace).toHaveBeenCalledWith(
       { page: 1, url, htmlLength: SEARCH_CARDS_HTML.length, htmlPreview: SEARCH_CARDS_HTML.slice(0, 200) },
       'seeMoreJobPostings response'
     )
 
     expect(result.count).toBe(2)
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       {
         page: 1,
         providerJobId: '40001',
@@ -67,7 +67,7 @@ describe('search logging', () => {
       },
       'job card'
     )
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       {
         page: 1,
         providerJobId: '40002',
@@ -102,7 +102,7 @@ describe('search verify decision logging', () => {
       id === '40001' ? jobDetail('40001', 'onsite', 'CBD office role') : jobDetail('40002', 'remote', null)
     )
 
-    const logger: SearchLogger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }
+    const logger: SearchLogger = { trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn() }
 
     const result = await search({
       query: 'engineer',
@@ -113,23 +113,25 @@ describe('search verify decision logging', () => {
       logger,
     })
 
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       {
         providerJobId: '40001',
         target: 'remote',
         criteriaWorkplaceType: 'onsite',
         classified: 'onsite',
+        source: 'criteria',
         kept: false,
         descriptionExcerpt: 'CBD office role',
       },
       'verify decision'
     )
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       {
         providerJobId: '40002',
         target: 'remote',
         criteriaWorkplaceType: 'remote',
         classified: 'remote',
+        source: 'criteria',
         kept: true,
         descriptionExcerpt: null,
       },
@@ -141,10 +143,14 @@ describe('search verify decision logging', () => {
     expect(result.results[0].workplace).toBe('remote')
   })
 
-  it('logs a null detail as a dropped card', async () => {
-    vi.mocked(detail).mockResolvedValue(null)
+  it('classifies from the description when no criteria row exists and logs the source', async () => {
+    vi.mocked(detail).mockImplementation(async ({ id }) =>
+      id === '40001'
+        ? jobDetail('40001', null, 'This is a fully remote role')
+        : jobDetail('40002', null, 'Work from Home Equipment perk')
+    )
 
-    const logger: SearchLogger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn() }
+    const logger: SearchLogger = { trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn() }
 
     const result = await search({
       query: 'engineer',
@@ -155,12 +161,57 @@ describe('search verify decision logging', () => {
       logger,
     })
 
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
+      {
+        providerJobId: '40001',
+        target: 'remote',
+        criteriaWorkplaceType: null,
+        classified: 'remote',
+        source: 'description',
+        kept: true,
+        descriptionExcerpt: 'This is a fully remote role',
+      },
+      'verify decision'
+    )
+    expect(logger.debug).toHaveBeenCalledWith(
+      {
+        providerJobId: '40002',
+        target: 'remote',
+        criteriaWorkplaceType: null,
+        classified: null,
+        source: null,
+        kept: false,
+        descriptionExcerpt: 'Work from Home Equipment perk',
+      },
+      'verify decision'
+    )
+
+    expect(result.results).toHaveLength(1)
+    expect(result.results[0].id).toBe('40001')
+    expect(result.results[0].workplace).toBe('remote')
+  })
+
+  it('logs a null detail as a dropped card', async () => {
+    vi.mocked(detail).mockResolvedValue(null)
+
+    const logger: SearchLogger = { trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn() }
+
+    const result = await search({
+      query: 'engineer',
+      location: 'Brisbane',
+      jobage: 14,
+      pages: 1,
+      workType: 'remote',
+      logger,
+    })
+
+    expect(logger.debug).toHaveBeenCalledWith(
       {
         providerJobId: '40001',
         target: 'remote',
         criteriaWorkplaceType: null,
         classified: null,
+        source: null,
         kept: false,
         descriptionExcerpt: null,
       },

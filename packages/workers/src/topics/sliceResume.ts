@@ -362,7 +362,7 @@ export function createSliceConsumer(opts: {
         client,
         log: opts.log,
         concurrency: opts.concurrency,
-        onProgress: task => opts.log.info({ taskId: task.id }, 'sliced'),
+        onProgress: task => opts.log.debug({ taskId: task.id }, 'sliced'),
         onError: (task, err) =>
           opts.log.warn({ taskId: task.id, err: err instanceof Error ? err.message : err }, 'slice skipped'),
       }).then(r => ({ total: r.succeeded + r.failed })),

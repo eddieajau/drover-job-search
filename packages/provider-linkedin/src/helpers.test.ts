@@ -135,6 +135,46 @@ describe('classifyWorkplaceType', () => {
     ).toBe('onsite')
   })
 
+  it('ignores weak description mentions that are not work-arrangement statements', () => {
+    expect(
+      classifyWorkplaceType({ workplaceType: null, description: 'Travel discounts, perks and #hybrid' })
+    ).toBeNull()
+    expect(
+      classifyWorkplaceType({ workplaceType: null, description: 'Azure hybrid cloud and on-premise platforms' })
+    ).toBeNull()
+    expect(
+      classifyWorkplaceType({ workplaceType: null, description: 'Work from Home Equipment and a Novated Lease' })
+    ).toBeNull()
+    expect(
+      classifyWorkplaceType({
+        workplaceType: null,
+        description: "'Engine' is the remote gaming server behind the platform",
+      })
+    ).toBeNull()
+  })
+
+  it('matches explicit arrangement phrases anywhere in the description', () => {
+    expect(
+      classifyWorkplaceType({ workplaceType: null, description: 'Permanent, hybrid position in our Brisbane office' })
+    ).toBe('hybrid')
+    expect(
+      classifyWorkplaceType({ workplaceType: null, description: 'Fully REMOTE Mid-level Back-End Developer' })
+    ).toBe('remote')
+    expect(
+      classifyWorkplaceType({ workplaceType: null, description: 'We are remote-first with quarterly meetups' })
+    ).toBe('remote')
+    expect(classifyWorkplaceType({ workplaceType: null, description: 'Work remotely with flexible hours' })).toBe(
+      'remote'
+    )
+    expect(classifyWorkplaceType({ workplaceType: null, description: 'A 100% remote role across Australia' })).toBe(
+      'remote'
+    )
+    expect(classifyWorkplaceType({ workplaceType: null, description: 'WFH is fully supported' })).toBe('remote')
+    expect(classifyWorkplaceType({ workplaceType: null, description: 'This office-based role is in the CBD' })).toBe(
+      'onsite'
+    )
+  })
+
   it('returns null when nothing can be determined', () => {
     expect(classifyWorkplaceType({ workplaceType: null, description: 'A fine place to work' })).toBeNull()
     expect(classifyWorkplaceType({ workplaceType: null, description: null })).toBeNull()

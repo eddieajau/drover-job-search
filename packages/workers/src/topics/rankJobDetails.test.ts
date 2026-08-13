@@ -663,7 +663,7 @@ describe('createRankConsumer', () => {
     expect(mockOllama.generate).toHaveBeenCalledOnce()
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
-    expect(log.info).toHaveBeenCalledWith({ jobId: expect.any(Number), title: 'Test Job' }, 'evaluated')
+    expect(log.debug).toHaveBeenCalledWith({ jobId: expect.any(Number), title: 'Test Job' }, 'evaluated')
     db.$client.close()
   })
 })
