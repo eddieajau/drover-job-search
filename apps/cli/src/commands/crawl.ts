@@ -3,53 +3,20 @@
  * @license   MIT
  */
 
-import { basename, dirname, isAbsolute, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { basename } from 'node:path'
 
-import { createDb, createDbLogger, crawls, jobs, queries } from 'db'
+import { crawls, createDbLogger, jobs, queries } from 'db'
 import { desc, eq } from 'drizzle-orm'
-import { detail, search, selectJobage } from 'provider-linkedin'
-import { fetchJobDetails } from 'workers'
+import { search, selectJobage } from 'provider-linkedin'
 
-// Resolves .env from the root directory relative to this file
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const rootDir = join(__dirname, '..', '..', '..')
+import { openDb, resolveDbPath } from '../env.js'
 
-process.loadEnvFile(join(rootDir, '.env'))
-
-async function main() {
-  const args = process.argv.slice(2)
-  const isDetail = args.includes('--detail')
-  const limitIdx = args.indexOf('--limit')
-  const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : 10
-
-  const dbPath = process.env.DATABASE
-
-  if (!dbPath) throw new Error('DATABASE path empty')
-
-  const dbFile = isAbsolute(dbPath) ? dbPath : join(rootDir, dbPath)
+export async function runCrawl(_args: string[]): Promise<void> {
+  const dbFile = resolveDbPath()
   const log = createDbLogger({ dbPath: dbFile, scope: 'crawler', level: process.env.LOG_LEVEL ?? 'info' })
-  log.info({ database: basename(dbPath) }, 'DATABASE')
+  log.info({ database: basename(dbFile) }, 'DATABASE')
 
-  const db = createDb(dbFile)
-
-  if (isDetail) {
-    const { processed, failed, skipped } = await fetchJobDetails.drain(db, {
-      detailFn: detail,
-      limit,
-      onProgress: row => log.debug({ providerJobId: row.providerJobId }, 'description saved'),
-      onError: (row, err) =>
-        err === null
-          ? log.warn({ providerJobId: row.providerJobId }, 'no description returned; marked done')
-          : log.error({ providerJobId: row.providerJobId, err }, 'detail fetch failed; marked done'),
-      onSkip: (row, reason) => log.debug({ providerJobId: row.providerJobId, reason }, 'job skipped'),
-    })
-    log.info({ processed, failed, skipped }, 'detail crawl complete')
-    await new Promise<void>(resolve => log.flush(() => resolve()))
-    db.$client.close()
-    return
-  }
+  const db = openDb()
 
   const qList = db.select().from(queries).where(eq(queries.enabled, true)).all()
 
@@ -112,8 +79,3 @@ async function main() {
   await new Promise<void>(resolve => log.flush(() => resolve()))
   db.$client.close()
 }
-
-main().catch(err => {
-  console.error('fatal error:', err)
-  process.exit(1)
-})

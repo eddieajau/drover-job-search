@@ -6,7 +6,7 @@
 import { facts, signalRules } from 'db'
 import { and, eq } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
-import { recomputeRule, rulesFromGapFacts } from 'signal-engine'
+import { recomputeRule, rulesFromGapFacts } from 'workers'
 
 const postRulesSeed: FastifyPluginAsync = async app => {
   app.post('/seed-from-facts', async (_req, reply) => {

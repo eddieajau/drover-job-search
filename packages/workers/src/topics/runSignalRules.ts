@@ -5,11 +5,11 @@
 
 import type { DB } from 'db'
 import type { FastifyBaseLogger } from 'fastify'
-import { runEnabledRules } from 'signal-engine'
 
 import { createConsumer, type Consumer } from '../consumer.js'
 import { reconcileBlockedForAllJobs } from '../lib/reconcileBlocked.js'
 import { complete, selectPending } from '../queue.js'
+import { runEnabledRules } from '../signal/rules.js'
 
 export function createRunSignalRulesConsumer(opts: {
   db: DB

@@ -7,7 +7,7 @@ import { jobSignals, jobs, signalRules, type DB, type SignalRule } from 'db'
 import { eq } from 'drizzle-orm'
 
 // Structural subset of a pino Logger — enough for rule diagnostics without
-// coupling signal-engine to a specific logger implementation.
+// coupling the rule layer to a specific logger implementation.
 export interface RuleLogger {
   error?: (obj: object, msg?: string) => void
 }
