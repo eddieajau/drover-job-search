@@ -17,7 +17,7 @@ clean:
 
 one:
 	npm run crawl
-	npm run signal-engine
+	npm run cli -- run-signal-rules
 
 two:
 	npm run crawl -- --detail

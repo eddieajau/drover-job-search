@@ -9,6 +9,7 @@ import type { AnalysisTopic } from './queue.js'
 
 export interface Publisher {
   publish(jobId: number, topic: AnalysisTopic): void
+  publishMany(jobId: number, topics: readonly AnalysisTopic[]): void
 }
 
 export function createPublisher(opts: {
@@ -20,5 +21,10 @@ export function createPublisher(opts: {
     opts.onEnqueue?.(jobId, topic)
   }
 
-  return { publish: (jobId: number, topic: AnalysisTopic) => enqueue(jobId, topic) }
+  return {
+    publish: (jobId: number, topic: AnalysisTopic) => enqueue(jobId, topic),
+    publishMany: (jobId: number, topics: readonly AnalysisTopic[]) => {
+      for (const topic of topics) enqueue(jobId, topic)
+    },
+  }
 }

@@ -216,4 +216,106 @@ describe('POST /api/jobs/:jobId/flag', () => {
     const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).get()
     expect(row?.topic).toBe('fetch_job_details')
   })
+
+  it('publishes one row per topic in body.topics and flips status to discovered', async () => {
+    const job = seedJob(db, JOB1)
+    expect(job.status).toBe('new')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: { topics: ['fetch_job_details', 'rank'] },
+    })
+    expect(res.statusCode).toBe(202)
+
+    const rows = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).all()
+    expect(rows).toHaveLength(2)
+    const topics = rows.map(r => r.topic).sort()
+    expect(topics).toEqual(['fetch_job_details', 'rank'])
+    expect(rows.every(r => r.completedAt === null)).toBe(true)
+
+    const updated = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(updated?.status).toBe('discovered')
+  })
+
+  it('publishes a single topic in body.topics and still flips status to discovered', async () => {
+    const job = seedJob(db, JOB1)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: { topics: ['fetch_job_details'] },
+    })
+    expect(res.statusCode).toBe(202)
+
+    const rows = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).all()
+    expect(rows).toHaveLength(1)
+    expect(rows[0].topic).toBe('fetch_job_details')
+
+    const updated = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(updated?.status).toBe('discovered')
+  })
+
+  it('returns 400 for body.topics containing run_signal_rules', async () => {
+    const job = seedJob(db, JOB1)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: { topics: ['run_signal_rules'] },
+    })
+    expect(res.statusCode).toBe(400)
+
+    const rows = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).all()
+    expect(rows).toHaveLength(0)
+  })
+
+  it('does not flip status to discovered when body.topics contains only rank', async () => {
+    const job = seedJob(db, JOB1)
+    expect(job.status).toBe('new')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: { topics: ['rank'] },
+    })
+    expect(res.statusCode).toBe(202)
+
+    const rows = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).all()
+    expect(rows).toHaveLength(1)
+    expect(rows[0].topic).toBe('rank')
+
+    const updated = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(updated?.status).toBe('new')
+  })
+
+  it('returns 400 when any member of body.topics is unknown and inserts no rows', async () => {
+    const job = seedJob(db, JOB1)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: { topics: ['fetch_job_details', 'bogus'] },
+    })
+    expect(res.statusCode).toBe(400)
+
+    const rows = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).all()
+    expect(rows).toHaveLength(0)
+  })
+
+  it('emits a kick per published topic when body.topics is given', async () => {
+    const job = seedJob(db, JOB1)
+    const received: { topic: string }[] = []
+    app.bus.on('kick', payload => {
+      received.push(payload)
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/${job.id}/flag`,
+      payload: { topics: ['fetch_job_details', 'rank'] },
+    })
+    expect(res.statusCode).toBe(202)
+    expect(received).toEqual([{ topic: 'fetch_job_details' }, { topic: 'rank' }])
+  })
 })

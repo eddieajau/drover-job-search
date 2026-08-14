@@ -59,7 +59,7 @@ describe('fetch-job-details drain', () => {
     db.$client.close()
   })
 
-  it('writes markdown and advances the row to rank', async () => {
+  it('writes markdown and completes the row without advancing to rank', async () => {
     seedQueue(db, '123456')
     const onProgress = vi.fn()
 
@@ -72,14 +72,11 @@ describe('fetch-job-details drain', () => {
     const job = db.select().from(jobs).get()!
     expect(job.description).toBe('## The Team\n\n-   a\n-   b')
 
+    // Caller-owned: the drain completes its row and writes no new queue rows.
     const rows = db.select().from(analysisQueue).all()
-    expect(rows).toHaveLength(2)
-
-    const fetchRow = rows.find(r => r.topic === 'fetch_job_details')!
-    expect(fetchRow.completedAt).not.toBeNull()
-
-    const rankRow = rows.find(r => r.topic === 'rank')!
-    expect(rankRow.completedAt).toBeNull()
+    expect(rows).toHaveLength(1)
+    expect(rows[0].topic).toBe('fetch_job_details')
+    expect(rows[0].completedAt).not.toBeNull()
 
     expect(onProgress).toHaveBeenCalledTimes(1)
   })
@@ -181,9 +178,9 @@ describe('fetch-job-details drain', () => {
     expect(outcome).toBe('written')
     expect(detailFn).toHaveBeenCalledWith({ id: '123456' })
     const rows = db.select().from(analysisQueue).all()
-    expect(rows).toHaveLength(2)
-    const rankRow = rows.find(r => r.topic === 'rank')!
-    expect(rankRow.completedAt).toBeNull()
+    expect(rows).toHaveLength(1)
+    expect(rows[0].topic).toBe('fetch_job_details')
+    expect(rows[0].completedAt).not.toBeNull()
   })
 
   it('drainOne fails a row when detail throws', async () => {

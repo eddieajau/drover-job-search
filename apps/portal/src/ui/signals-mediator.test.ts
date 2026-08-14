@@ -42,7 +42,7 @@ describe('signals-mediator flag wiring', () => {
     document.body.innerHTML = ''
   })
 
-  it('posts to the new flag URL when job-card:flag fires', async () => {
+  it('posts the fetch_job_details + rank topic set when job-card:flag fires', async () => {
     mockFetch(true)
     initSignalsMediator()
 
@@ -51,6 +51,8 @@ describe('signals-mediator flag wiring', () => {
 
     expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/jobs/1/flag', {
       method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ topics: ['fetch_job_details', 'rank'] }),
     })
   })
 

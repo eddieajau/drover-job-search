@@ -162,7 +162,11 @@ async function fetchAndSetJobMeta(providerJobId: string, page: JobsPage): Promis
 async function handleFlag(event: Event): Promise<void> {
   const { jobId, providerJobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
   try {
-    const response = await fetch(`/api/jobs/${jobId}/flag`, { method: 'POST' })
+    const response = await fetch(`/api/jobs/${jobId}/flag`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ topics: ['fetch_job_details', 'rank'] }),
+    })
     if (!response.ok) {
       return
     }

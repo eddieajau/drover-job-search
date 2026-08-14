@@ -14,10 +14,12 @@ import { runEnabledRules } from '../signal/rules.js'
 export function createRunSignalRulesConsumer(opts: {
   db: DB
   log: Pick<FastifyBaseLogger, 'debug' | 'info' | 'warn' | 'error'>
+  onDrained?: () => void
 }): Consumer {
   return createConsumer({
     topic: 'run_signal_rules',
     drain: () => drainSweep(opts.db, opts.log).then(r => ({ total: r.written + r.skipped })),
+    onEmpty: () => opts.onDrained?.(),
     log: opts.log,
   })
 }

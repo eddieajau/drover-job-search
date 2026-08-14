@@ -210,4 +210,15 @@ describe('createRunSignalRulesConsumer', () => {
     expect(queue.completedAt).not.toBeNull()
     db.$client.close()
   })
+
+  it('onDrained fires through the consumer onEmpty so a sweep drain can wake rank', () => {
+    const db = createDb(':memory:')
+    const onDrained = vi.fn()
+    createRunSignalRulesConsumer({ db, log, onDrained })
+
+    consumerCaptured.opts?.onEmpty?.()
+
+    expect(onDrained).toHaveBeenCalledOnce()
+    db.$client.close()
+  })
 })

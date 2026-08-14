@@ -7,7 +7,7 @@ import { analysisQueue, createDb, jobs, type DB } from 'db'
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { complete, completeAndAdvance, fail, selectPending } from './queue.js'
+import { complete, fail, selectPending } from './queue.js'
 
 describe('queue helpers', () => {
   let db: ReturnType<typeof createDb>
@@ -96,26 +96,78 @@ describe('queue helpers', () => {
     })
   })
 
-  describe('completeAndAdvance', () => {
-    it('completes the current row and inserts a new row with the next topic', () => {
-      const jobId = seedJob(db, 'a')
-      db.update(analysisQueue).set({ errorMessage: 'previous failure' }).where(eq(analysisQueue.jobId, jobId)).run()
+  describe('selectPending rank ordering', () => {
+    function seedRankRow(jobId: number): void {
+      db.insert(analysisQueue).values({ jobId, topic: 'rank' }).run()
+    }
 
-      const row = db.select().from(analysisQueue).get()!
-      completeAndAdvance(db, row.id, 'rank')
+    it('blocks a rank row while its job has a pending fetch_job_details row', () => {
+      const a = seedJob(db, 'a')
 
-      const rows = db.select().from(analysisQueue).all()
-      expect(rows).toHaveLength(2)
+      seedRankRow(a)
 
-      const completed = rows.find(r => r.id === row.id)!
-      expect(completed.topic).toBe('fetch_job_details')
-      expect(completed.completedAt).not.toBeNull()
-      expect(completed.errorMessage).toBeNull()
+      const rows = selectPending(db, 'rank')
+      expect(rows).toHaveLength(0)
+    })
 
-      const advanced = rows.find(r => r.id !== row.id)!
-      expect(advanced.topic).toBe('rank')
-      expect(advanced.completedAt).toBeNull()
-      expect(advanced.errorMessage).toBeNull()
+    it('releases a rank row once the fetch_job_details row is completed', () => {
+      const a = seedJob(db, 'a')
+      db.update(analysisQueue).set({ completedAt: '2026-01-01' }).where(eq(analysisQueue.jobId, a)).run()
+
+      seedRankRow(a)
+
+      const rows = selectPending(db, 'rank')
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toEqual({
+        queueId: expect.any(Number),
+        jobId: a,
+        providerJobId: 'a',
+        title: 'Job a',
+      })
+    })
+
+    it('returns a rank row for a job with no fetch_job_details row at all', () => {
+      const a = seedJob(db, 'a')
+      db.delete(analysisQueue).where(eq(analysisQueue.jobId, a)).run()
+
+      seedRankRow(a)
+
+      const rows = selectPending(db, 'rank')
+      expect(rows).toHaveLength(1)
+      expect(rows[0].jobId).toBe(a)
+    })
+
+    it('returns no rank rows while a run_signal_rules sweep row is pending', () => {
+      const a = seedJob(db, 'a')
+      db.delete(analysisQueue).where(eq(analysisQueue.jobId, a)).run()
+      seedRankRow(a)
+      db.insert(analysisQueue).values({ jobId: null, topic: 'run_signal_rules' }).run()
+
+      const rows = selectPending(db, 'rank')
+      expect(rows).toHaveLength(0)
+    })
+
+    it('releases rank rows once the sweep row is completed', () => {
+      const a = seedJob(db, 'a')
+      db.delete(analysisQueue).where(eq(analysisQueue.jobId, a)).run()
+      seedRankRow(a)
+      db.insert(analysisQueue).values({ jobId: null, topic: 'run_signal_rules', completedAt: '2026-01-01' }).run()
+
+      const rows = selectPending(db, 'rank')
+      expect(rows).toHaveLength(1)
+    })
+
+    it('orders rank rows by queue id and respects the limit', () => {
+      const a = seedJob(db, 'a')
+      db.delete(analysisQueue).where(eq(analysisQueue.jobId, a)).run()
+      seedRankRow(a)
+      const b = seedJob(db, 'b')
+      db.delete(analysisQueue).where(eq(analysisQueue.jobId, b)).run()
+      seedRankRow(b)
+
+      const rows = selectPending(db, 'rank', 1)
+      expect(rows).toHaveLength(1)
+      expect(rows[0].jobId).toBe(a)
     })
   })
 

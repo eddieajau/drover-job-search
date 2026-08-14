@@ -4,7 +4,7 @@
  */
 
 import { analysisQueue, jobs, type DB } from 'db'
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, not, sql } from 'drizzle-orm'
 
 export type AnalysisTopic = 'fetch_job_details' | 'rank' | 'run_signal_rules'
 
@@ -35,6 +35,51 @@ export function selectPending(db: DB, topic: AnalysisTopic, limit?: number): Pen
     return rows
   }
 
+  if (topic === 'rank') {
+    // Per-job ordering: a rank row for a job only drains once that job has no
+    // pending fetch_job_details row — rank is caller-owned, not chained by the
+    // fetch worker.
+    // Sweep-first: no rank row drains while a run_signal_rules row is pending.
+    // Sweep rows carry jobId = null so they can't be keyed per-job; the CLI
+    // (ticket 110) keeps them a singleton in the queue, so the stall is bounded
+    // by a single sweep pass.
+    const sweepPending = db
+      .select({ id: analysisQueue.id })
+      .from(analysisQueue)
+      .where(and(eq(analysisQueue.topic, 'run_signal_rules'), isNull(analysisQueue.completedAt)))
+      .get()
+    if (sweepPending) return []
+
+    const query = db
+      .select({
+        queueId: analysisQueue.id,
+        jobId: jobs.id,
+        providerJobId: jobs.providerJobId,
+        title: jobs.title,
+      })
+      .from(analysisQueue)
+      .innerJoin(jobs, eq(analysisQueue.jobId, jobs.id))
+      .where(
+        and(
+          eq(analysisQueue.topic, 'rank'),
+          isNull(analysisQueue.completedAt),
+          not(
+            inArray(
+              analysisQueue.jobId,
+              db
+                .select({ jobId: analysisQueue.jobId })
+                .from(analysisQueue)
+                .where(and(eq(analysisQueue.topic, 'fetch_job_details'), isNull(analysisQueue.completedAt)))
+            )
+          )
+        )
+      )
+      .orderBy(analysisQueue.id)
+
+    if (limit !== undefined) return query.limit(limit).all()
+    return query.all()
+  }
+
   const query = db
     .select({
       queueId: analysisQueue.id,
@@ -49,19 +94,6 @@ export function selectPending(db: DB, topic: AnalysisTopic, limit?: number): Pen
 
   if (limit !== undefined) return query.limit(limit).all()
   return query.all()
-}
-
-export function completeAndAdvance(db: DB, queueId: number, nextTopic: AnalysisTopic): void {
-  db.update(analysisQueue)
-    .set({ completedAt: sql`(CURRENT_TIMESTAMP)`, errorMessage: null })
-    .where(eq(analysisQueue.id, queueId))
-    .run()
-
-  const row = db.select({ jobId: analysisQueue.jobId }).from(analysisQueue).where(eq(analysisQueue.id, queueId)).get()
-
-  if (row) {
-    db.insert(analysisQueue).values({ jobId: row.jobId, topic: nextTopic, completedAt: null }).run()
-  }
 }
 
 export function complete(db: DB, queueId: number): void {

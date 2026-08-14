@@ -9,7 +9,7 @@ import type { FastifyBaseLogger } from 'fastify'
 
 import { createConsumer, type Consumer } from '../consumer.js'
 import { toMarkdown } from '../lib/markdown.js'
-import { complete, completeAndAdvance, fail, selectPending, type PendingRow } from '../queue.js'
+import { complete, fail, selectPending, type PendingRow } from '../queue.js'
 
 export type DetailFn = (opts: { id: string }) => Promise<{ description: string | null; closed?: boolean } | null>
 
@@ -137,7 +137,7 @@ async function processRow(
       .where(eq(jobs.id, row.jobId))
       .run()
 
-    completeAndAdvance(db, row.queueId, 'rank')
+    complete(db, row.queueId)
     opts.onProgress?.(row)
     return 'written'
   } catch (err) {

@@ -92,6 +92,7 @@ bus.emit('kick', { topic: 'rank' })
 const signalRules = createRunSignalRulesConsumer({
   db,
   log: app.log,
+  onDrained: () => bus.emit('kick', { topic: 'rank' }),
 })
 const onKickSignalRules = ({ topic }: { topic: string }) => {
   if (topic === 'run_signal_rules') signalRules.kick()

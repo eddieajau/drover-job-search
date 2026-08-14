@@ -122,4 +122,41 @@ describe('createPublisher', () => {
 
     expect(() => publisher.publish(job.id, 'rank')).not.toThrow()
   })
+
+  it('publishMany publishes one row per topic', () => {
+    const job = seedJob(db, JOB1)
+    const publisher = createPublisher({ db })
+
+    publisher.publishMany(job.id, ['fetch_job_details', 'rank'])
+
+    const rows = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).all()
+    expect(rows).toHaveLength(2)
+    const topics = rows.map(r => r.topic).sort()
+    expect(topics).toEqual(['fetch_job_details', 'rank'])
+    expect(rows.every(r => r.completedAt === null)).toBe(true)
+  })
+
+  it('publishMany calls onEnqueue once per topic after each insert', () => {
+    const job = seedJob(db, JOB1)
+    const onEnqueue = vi.fn()
+    const publisher = createPublisher({ db, onEnqueue })
+
+    publisher.publishMany(job.id, ['fetch_job_details', 'rank'])
+
+    expect(onEnqueue).toHaveBeenCalledTimes(2)
+    expect(onEnqueue).toHaveBeenCalledWith(job.id, 'fetch_job_details')
+    expect(onEnqueue).toHaveBeenCalledWith(job.id, 'rank')
+  })
+
+  it('publishMany with a single topic behaves like publish', () => {
+    const job = seedJob(db, JOB1)
+    const publisher = createPublisher({ db })
+
+    publisher.publishMany(job.id, ['rank'])
+
+    const rows = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, job.id)).all()
+    expect(rows).toHaveLength(1)
+    expect(rows[0].topic).toBe('rank')
+    expect(rows[0].completedAt).toBeNull()
+  })
 })
