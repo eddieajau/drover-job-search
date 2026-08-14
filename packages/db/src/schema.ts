@@ -70,6 +70,7 @@ export const jobs = sqliteTable(
 
     // Workflow & Application State Tracking
     category: text('category').notNull().default('General'),
+    queryId: integer('query_id').references(() => queries.id, { onDelete: 'set null' }),
     priority: integer('priority').notNull().default(0),
     status: text('status').notNull().default('new'),
 
@@ -336,6 +337,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     ),
     salary_raw TEXT,
     category TEXT NOT NULL DEFAULT 'General',
+    query_id INTEGER REFERENCES queries(id) ON DELETE SET NULL,
     priority INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL CHECK (
         status IN ('new', 'discovered', 'applied', 'skipped', 'blocked', 'declined')

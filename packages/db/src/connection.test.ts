@@ -52,6 +52,7 @@ describe('createDb', () => {
       'is_salary_estimated',
       'salary_raw',
       'category',
+      'query_id',
       'priority',
       'status',
       'processed_by',
@@ -106,6 +107,25 @@ describe('createDb', () => {
           .run(status)
       ).toThrow(/CHECK/)
     }
+
+    db.$client.close()
+  })
+
+  it('attributes a job to its query and nulls query_id when the query is deleted', () => {
+    const db = createDb(':memory:')
+    db.$client.prepare("INSERT INTO queries (provider, query_text) VALUES ('linkedin', 'react developer')").run()
+    db.$client
+      .prepare(
+        "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location, query_id) VALUES ('linkedin', 'job-1', 'Title', 'Acme', 'https://example.com', 'Remote', 1)"
+      )
+      .run()
+
+    const row = db.$client.prepare('SELECT query_id FROM jobs WHERE id = 1').get() as { query_id: number | null }
+    expect(row.query_id).toBe(1)
+
+    db.$client.prepare('DELETE FROM queries WHERE id = 1').run()
+    const after = db.$client.prepare('SELECT query_id FROM jobs WHERE id = 1').get() as { query_id: number | null }
+    expect(after.query_id).toBeNull()
 
     db.$client.close()
   })

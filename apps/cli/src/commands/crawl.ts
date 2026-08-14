@@ -61,6 +61,7 @@ export async function runCrawl(_args: string[]): Promise<void> {
         postedAt: card.date ?? null,
         workplaceType: card.workplace ?? null,
         status: 'new',
+        queryId: query.id,
       }))
       const inserted = rows.length > 0 ? db.insert(jobs).values(rows).onConflictDoNothing().run().changes : 0
       log.info({ found: rows.length, inserted }, 'search complete')
