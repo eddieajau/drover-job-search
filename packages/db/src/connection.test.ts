@@ -24,6 +24,7 @@ describe('createDb', () => {
     expect(names).toContain('queries')
     expect(names).toContain('jobs')
     expect(names).toContain('crawls')
+    expect(names).toContain('job_notes')
 
     db.$client.close()
   })
@@ -58,13 +59,14 @@ describe('createDb', () => {
       'created_at',
       'applied_at',
       'skipped_at',
+      'declined_at',
       'updated_at',
     ])
 
     db.$client.close()
   })
 
-  it('defaults jobs.status to new and accepts the five status values', () => {
+  it('defaults jobs.status to new and accepts the six status values', () => {
     const db = createDb(':memory:')
     db.$client
       .prepare(
@@ -74,13 +76,20 @@ describe('createDb', () => {
     const row = db.$client.prepare('SELECT status FROM jobs WHERE id = 1').get() as { status: string }
     expect(row.status).toBe('new')
 
-    for (const status of ['new', 'discovered', 'applied', 'skipped', 'blocked']) {
+    for (const status of ['new', 'discovered', 'applied', 'skipped', 'blocked', 'declined']) {
       db.$client
         .prepare(
           "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location, status) VALUES ('linkedin', ?, 'Title', 'Acme', 'https://example.com', 'Remote', ?)"
         )
         .run(`job-${status}`, status)
     }
+
+    db.$client.prepare("UPDATE jobs SET declined_at = '2026-08-01' WHERE status = 'declined'").run()
+    const declined = db.$client.prepare("SELECT status, declined_at FROM jobs WHERE status = 'declined'").get() as {
+      status: string
+      declined_at: string
+    }
+    expect(declined).toEqual({ status: 'declined', declined_at: '2026-08-01' })
 
     db.$client.close()
   })
@@ -465,6 +474,33 @@ describe('createDb', () => {
     db.$client.prepare('DELETE FROM signal_rules WHERE id = 1').run()
 
     expect(db.$client.prepare('SELECT COUNT(*) AS n FROM job_signals').get()).toEqual({ n: 0 })
+
+    db.$client.close()
+  })
+
+  it('round-trips job_notes rows, enforces the kind CHECK, and cascades deletes with the job', () => {
+    const db = createDb(':memory:')
+    db.$client
+      .prepare(
+        "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location) VALUES ('linkedin', 'job-1', 'Title', 'Acme', 'https://example.com', 'Remote')"
+      )
+      .run()
+    db.$client.prepare("INSERT INTO job_notes (job_id, kind, note) VALUES (1, 'applied', 'Applied on 1 Aug')").run()
+    db.$client.prepare("INSERT INTO job_notes (job_id, kind, note) VALUES (1, 'general', 'Follow up in a week')").run()
+
+    const rows = db.$client.prepare('SELECT kind, note FROM job_notes WHERE job_id = 1').all()
+    expect(rows).toEqual([
+      { kind: 'applied', note: 'Applied on 1 Aug' },
+      { kind: 'general', note: 'Follow up in a week' },
+    ])
+
+    expect(() =>
+      db.$client.prepare("INSERT INTO job_notes (job_id, kind, note) VALUES (1, 'bogus', 'x')").run()
+    ).toThrow(/CHECK/)
+
+    db.$client.prepare('DELETE FROM jobs WHERE id = 1').run()
+
+    expect(db.$client.prepare('SELECT COUNT(*) AS n FROM job_notes').get()).toEqual({ n: 0 })
 
     db.$client.close()
   })

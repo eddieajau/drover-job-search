@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import type { Job, JobStatus } from '../shared/types.js'
+import type { Job, JobNote, JobStatus } from '../shared/types.js'
 import type { JobsFilters, JobsViewState, JobWithStatus, JobSortKey } from './jobs-view.js'
 import type { NavigationState } from './navigation-state.js'
 import { parseHash, toHash } from './navigation-state.js'
@@ -46,6 +46,7 @@ export function initJobsMediator(): void {
   window.addEventListener('job-list:select', handleSelect)
   window.addEventListener('job-list:status', handleStatus)
   window.addEventListener('job-meta:status', handleStatus)
+  window.addEventListener('job-note:save', handleNoteSave)
   window.addEventListener('job-meta:open', handleOpen)
   window.addEventListener('filter-bar:change', handleFilterChange)
   window.addEventListener('pager:change', handlePagerChange)
@@ -61,6 +62,7 @@ export function _resetJobsMediatorForTesting(): void {
     window.removeEventListener('job-list:select', handleSelect)
     window.removeEventListener('job-list:status', handleStatus)
     window.removeEventListener('job-meta:status', handleStatus)
+    window.removeEventListener('job-note:save', handleNoteSave)
     window.removeEventListener('job-meta:open', handleOpen)
     window.removeEventListener('filter-bar:change', handleFilterChange)
     window.removeEventListener('pager:change', handlePagerChange)
@@ -158,6 +160,52 @@ async function persistStatus(id: number, status: JobStatus['status']): Promise<v
   void handleSearch()
 }
 
+function handleNoteSave(event: Event): void {
+  const detail = (event as CustomEvent<{ jobId: number; kind: JobNote['kind']; date?: string; note: string }>).detail
+  void persistNote(detail)
+}
+
+async function persistNote(detail: {
+  jobId: number
+  kind: JobNote['kind']
+  date?: string
+  note: string
+}): Promise<void> {
+  try {
+    const isGeneral = detail.kind === 'general'
+    const response = await fetch(isGeneral ? `/api/jobs/${detail.jobId}/notes` : `/api/jobs/${detail.jobId}/status`, {
+      method: isGeneral ? 'POST' : 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        isGeneral ? { kind: 'general', note: detail.note } : { status: detail.kind, at: detail.date, note: detail.note }
+      ),
+    })
+    if (!response.ok) {
+      throw new Error('Failed to save job note')
+    }
+  } catch {
+    viewStatus = 'error'
+    message = 'Failed to save job note'
+  }
+  void handleSearch()
+}
+
+async function loadNotes(id: number): Promise<void> {
+  try {
+    const response = await fetch(`/api/jobs/${id}/notes`)
+    if (!response.ok) {
+      return
+    }
+    const notes = (await response.json()) as unknown
+    if (!Array.isArray(notes)) {
+      return
+    }
+    document.querySelector('job-meta-panel')?.setNotes(notes as JobNote[])
+  } catch {
+    // Leave the notes section as-is on failure
+  }
+}
+
 function handleOpen(event: Event): void {
   const { url } = (event as CustomEvent<{ url: string }>).detail
   window.open(url, '_blank')
@@ -247,4 +295,8 @@ function pushState(): void {
     total,
   }
   jobsPage.setState(state)
+
+  if (selectedId !== null) {
+    void loadNotes(selectedId)
+  }
 }

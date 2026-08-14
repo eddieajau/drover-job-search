@@ -15,7 +15,7 @@ const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
 const HOT_THRESHOLD = 50
 
-const VALID_STATUSES = new Set(['new', 'discovered', 'applied', 'skipped', 'blocked'])
+const VALID_STATUSES = new Set(['new', 'discovered', 'applied', 'skipped', 'blocked', 'declined'])
 const VALID_SCORES = new Set(['scorable', 'hot', 'lukewarm', 'blocked'])
 
 function emptySummary(): SignalSummary {

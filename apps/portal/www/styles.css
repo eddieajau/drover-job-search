@@ -1365,6 +1365,16 @@ job-meta-panel {
   color: var(--red);
 }
 
+.chip-declined {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.chip-general {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
 .chip-recent {
   background: var(--blue-soft);
   color: var(--blue);
@@ -1471,6 +1481,66 @@ job-meta-panel {
 
 .signal-score.neg {
   color: var(--red);
+}
+
+.note-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  background: var(--field);
+  border: 1px solid var(--border);
+}
+
+.note-text {
+  font-size: 13px;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-date {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.note-dialog {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: min(90vw, 380px);
+}
+
+.note-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.note-title {
+  font-size: 15px;
+  margin-bottom: 14px;
+}
+
+.note-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.note-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 /* Signal rules */

@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import type { Job, JobSignal } from '../../../shared/types.js'
+import type { Job, JobNote, JobSignal } from '../../../shared/types.js'
 import type { JobWithStatus } from '../../jobs-view.js'
 import './job-meta-panel.js'
 import type { JobMetaPanel } from './job-meta-panel.js'
@@ -64,9 +64,11 @@ describe('job-meta-panel', () => {
 
     const buttons = el.querySelectorAll<HTMLButtonElement>('button[data-action]')
     const actions = Array.from(buttons).map(
-      b => `${b.dataset.action}:${b.dataset.status ?? b.dataset.url ?? b.dataset.jobId ?? ''}`
+      b => `${b.dataset.action}:${b.dataset.kind ?? b.dataset.status ?? b.dataset.url ?? b.dataset.jobId ?? ''}`
     )
-    expect(actions).toContain('status:applied')
+    expect(actions).toContain('note:applied')
+    expect(actions).toContain('note:declined')
+    expect(actions).toContain('note:general')
     expect(actions).toContain('status:skipped')
     expect(actions).toContain('open:https://li/job-1')
     expect(actions).toContain('flag:4445084022')
@@ -105,6 +107,75 @@ describe('job-meta-panel', () => {
     const chip = el.querySelector('.meta-section .chip')
     expect(chip?.textContent).toBe('Blocked')
     expect(chip?.classList.contains('chip-blocked')).toBe(true)
+  })
+
+  it('renders a Declined status chip with chip-declined class for a declined job', () => {
+    const j: JobWithStatus = { ...job(), _status: 'declined' }
+    el.showJob(j, [], false)
+
+    const chip = el.querySelector('.meta-section .chip')
+    expect(chip?.textContent).toBe('Declined')
+    expect(chip?.classList.contains('chip-declined')).toBe(true)
+  })
+
+  it('opens the job-note-dialog when Mark applied is clicked', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+
+    el.querySelector<HTMLButtonElement>('[data-action="note"][data-kind="applied"]')?.click()
+
+    const dialog = el.querySelector<HTMLDialogElement>('job-note-dialog dialog')
+    expect(dialog?.hasAttribute('open')).toBe(true)
+    const dateField = el.querySelector<HTMLElement>('job-note-dialog [data-note-date]')
+    expect(dateField?.hasAttribute('hidden')).toBe(false)
+  })
+
+  it('opens the job-note-dialog when Mark declined is clicked', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+
+    el.querySelector<HTMLButtonElement>('[data-action="note"][data-kind="declined"]')?.click()
+
+    const dialog = el.querySelector<HTMLDialogElement>('job-note-dialog dialog')
+    expect(dialog?.hasAttribute('open')).toBe(true)
+  })
+
+  it('opens the job-note-dialog with the date field hidden when Add note is clicked', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+
+    el.querySelector<HTMLButtonElement>('[data-action="note"][data-kind="general"]')?.click()
+
+    const dialog = el.querySelector<HTMLDialogElement>('job-note-dialog dialog')
+    expect(dialog?.hasAttribute('open')).toBe(true)
+    const dateField = el.querySelector<HTMLElement>('job-note-dialog [data-note-date]')
+    expect(dateField?.hasAttribute('hidden')).toBe(true)
+  })
+
+  it('renders the Notes section via setNotes with a kind chip and note text', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+
+    const notes: JobNote[] = [
+      {
+        id: 1,
+        jobId: 1,
+        kind: 'applied',
+        note: 'Sent my CV on the site',
+        createdAt: '2026-08-10 10:00:00',
+        updatedAt: '2026-08-10 10:00:00',
+      },
+    ]
+    el.setNotes(notes)
+
+    const metaLabel = el.querySelector('.meta-section .meta-label')
+    expect(metaLabel).not.toBeNull()
+    expect(el.querySelector('.meta-panel')?.textContent).toContain('Notes')
+    const noteRow = el.querySelector('.note-row')
+    expect(noteRow).not.toBeNull()
+    expect(noteRow?.querySelector('.chip')?.textContent).toBe('Applied')
+    expect(noteRow?.querySelector('.note-text')?.textContent).toBe('Sent my CV on the site')
+    expect(noteRow?.querySelector('.note-date')?.textContent).toBe('2026-08-10 10:00:00')
   })
 
   it('disables the flag button when queued is true', () => {

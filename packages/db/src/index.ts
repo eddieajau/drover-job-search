@@ -10,6 +10,7 @@ export {
   crawls,
   documents,
   facts,
+  jobNotes,
   jobSignals,
   jobs,
   logs,
@@ -18,5 +19,17 @@ export {
   tasks,
   TABLE_DDL,
 } from './schema.js'
-export type { AnalysisQueue, Crawl, Document, Fact, Job, JobSignal, Log, Query, SignalRule, Task } from './schema.js'
+export type {
+  AnalysisQueue,
+  Crawl,
+  Document,
+  Fact,
+  Job,
+  JobNote,
+  JobSignal,
+  Log,
+  Query,
+  SignalRule,
+  Task,
+} from './schema.js'
 export type { DB } from './connection.js'

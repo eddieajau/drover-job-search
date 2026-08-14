@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { jobs } from 'db'
+import { jobNotes, jobs } from 'db'
 import { eq, sql } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
@@ -14,9 +14,17 @@ const bodySchema = {
   additionalProperties: false,
   required: ['status'],
   properties: {
-    status: { type: 'string', enum: ['applied', 'skipped', 'discovered'] },
+    status: { type: 'string', enum: ['applied', 'skipped', 'discovered', 'declined'] },
+    at: { type: 'string', format: 'date' },
+    note: { type: 'string', maxLength: 2000 },
   },
 } as const
+
+type StatusBody = {
+  status: 'applied' | 'skipped' | 'discovered' | 'declined'
+  at?: string
+  note?: string
+}
 
 const patchJobStatus: FastifyPluginAsync = async app => {
   app.patch('/:id/status', { schema: { body: bodySchema } }, async (req, reply) => {
@@ -25,20 +33,30 @@ const patchJobStatus: FastifyPluginAsync = async app => {
       return reply.badRequest('Invalid job id')
     }
 
-    const { status } = req.body as { status: 'applied' | 'skipped' | 'discovered' }
+    const { status, at, note } = req.body as StatusBody
     const now = sql`(CURRENT_TIMESTAMP)`
+    const timestamp = at ? sql`${at}` : now
 
-    const row = app.db
-      .update(jobs)
-      .set({
-        status,
-        appliedAt: status === 'applied' ? now : null,
-        skippedAt: status === 'skipped' ? now : null,
-        updatedAt: now,
-      })
-      .where(eq(jobs.id, id))
-      .returning()
-      .get()
+    const row = app.db.transaction(tx => {
+      const updated = tx
+        .update(jobs)
+        .set({
+          status,
+          appliedAt: status === 'applied' ? timestamp : null,
+          skippedAt: status === 'skipped' ? now : null,
+          declinedAt: status === 'declined' ? timestamp : null,
+          updatedAt: now,
+        })
+        .where(eq(jobs.id, id))
+        .returning()
+        .get()
+
+      if (updated && note && (status === 'applied' || status === 'declined')) {
+        tx.insert(jobNotes).values({ jobId: id, kind: status, note }).run()
+      }
+
+      return updated
+    })
 
     if (!row) {
       return reply.notFound(`Job ${id} not found`)

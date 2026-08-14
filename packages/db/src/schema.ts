@@ -83,6 +83,7 @@ export const jobs = sqliteTable(
       .default(sql`(CURRENT_TIMESTAMP)`),
     appliedAt: text('applied_at'),
     skippedAt: text('skipped_at'),
+    declinedAt: text('declined_at'),
     updatedAt: text('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
@@ -106,7 +107,7 @@ export const jobs = sqliteTable(
       sql`${table.salaryPeriod} IN ('hourly', 'daily', 'weekly', 'monthly', 'annual') OR ${table.salaryPeriod} IS NULL`
     ),
     check('check_is_salary_estimated', sql`${table.isSalaryEstimated} IN (0, 1)`),
-    check('check_status', sql`${table.status} IN ('new', 'discovered', 'applied', 'skipped', 'blocked')`),
+    check('check_status', sql`${table.status} IN ('new', 'discovered', 'applied', 'skipped', 'blocked', 'declined')`),
     check('check_processed_by', sql`${table.processedBy} IN ('human', 'ai', 'system') OR ${table.processedBy} IS NULL`),
   ]
 )
@@ -264,6 +265,28 @@ export const logs = sqliteTable(
   ]
 )
 
+export const jobNotes = sqliteTable(
+  'job_notes',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    jobId: integer('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    note: text('note').notNull(),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  table => [
+    index('idx_job_notes_job_id').on(table.jobId),
+    check('check_job_note_kind', sql`${table.kind} IN ('applied', 'declined', 'general')`),
+  ]
+)
+
 export type Query = InferSelectModel<typeof queries>
 export type Job = InferSelectModel<typeof jobs>
 export type Crawl = InferSelectModel<typeof crawls>
@@ -274,6 +297,7 @@ export type Fact = InferSelectModel<typeof facts>
 export type Document = InferSelectModel<typeof documents>
 export type Task = InferSelectModel<typeof tasks>
 export type Log = InferSelectModel<typeof logs>
+export type JobNote = InferSelectModel<typeof jobNotes>
 
 export const TABLE_DDL = `
 CREATE TABLE IF NOT EXISTS queries (
@@ -314,7 +338,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     category TEXT NOT NULL DEFAULT 'General',
     priority INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL CHECK (
-        status IN ('new', 'discovered', 'applied', 'skipped', 'blocked')
+        status IN ('new', 'discovered', 'applied', 'skipped', 'blocked', 'declined')
     ) DEFAULT 'new',
     processed_by TEXT CHECK (
         processed_by IN ('human', 'ai', 'system') OR processed_by IS NULL
@@ -323,6 +347,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     applied_at TEXT,
     skipped_at TEXT,
+    declined_at TEXT,
     updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     CONSTRAINT uq_provider_job UNIQUE (provider, provider_job_id)
 );
@@ -437,4 +462,15 @@ CREATE TABLE IF NOT EXISTS logs (
 CREATE INDEX IF NOT EXISTS idx_logs_ts ON logs(ts);
 CREATE INDEX IF NOT EXISTS idx_logs_scope ON logs(scope);
 CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
+
+CREATE TABLE IF NOT EXISTS job_notes (
+    id INTEGER PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('applied', 'declined', 'general')),
+    note TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_notes_job_id ON job_notes(job_id);
 `

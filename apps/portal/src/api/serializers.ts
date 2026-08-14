@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import type { AnalysisQueue, Fact, Job as JobRow, JobSignal, Query, SignalRule } from 'db'
+import type { AnalysisQueue, Fact, Job as JobRow, JobNote, JobSignal, Query, SignalRule } from 'db'
 import { marked } from 'marked'
 import sanitizeHtml from 'sanitize-html'
 
@@ -109,7 +109,7 @@ export function toSignalJson(row: JobSignal): SignalResponse {
   return { ...rest, metadata: parseQueryOptions(metadata) }
 }
 
-export type JobStatusValue = 'new' | 'discovered' | 'applied' | 'skipped'
+export type JobStatusValue = 'new' | 'discovered' | 'applied' | 'skipped' | 'blocked' | 'declined'
 
 export interface JobResponse extends Omit<JobRow, 'description' | 'status'> {
   status: JobStatusValue
@@ -127,6 +127,19 @@ export function toJobJson(row: JobRow, summary?: SignalSummary, queued = false):
     signals: summary ?? { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
     queued,
   }
+}
+
+export interface JobNoteResponse {
+  id: number
+  jobId: number
+  kind: 'applied' | 'declined' | 'general'
+  note: string
+  createdAt: string
+  updatedAt: string
+}
+
+export function toJobNoteJson(row: JobNote): JobNoteResponse {
+  return { ...row, kind: row.kind as JobNoteResponse['kind'] }
 }
 
 export interface QueueResponse {

@@ -4,6 +4,7 @@
  */
 
 import { jobs, type DB } from 'db'
+import { jobNotes } from 'db'
 import { eq, sql } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 import { build, createTestDb, JOB1, seedJob } from 'test-fixtures'
@@ -86,6 +87,90 @@ describe('PATCH /api/jobs/:id/status', () => {
     const res = await app.inject({ method: 'GET', url: '/' })
     expect(res.statusCode).toBe(200)
     expect(res.json().results[0].status).toBe('applied')
+  })
+
+  it('persists declined status and timestamps and clears applied and skipped', async () => {
+    const job = seedJob(db, JOB1)
+    db.update(jobs)
+      .set({
+        status: 'applied',
+        appliedAt: sql`(CURRENT_TIMESTAMP)`,
+        skippedAt: sql`(CURRENT_TIMESTAMP)`,
+        updatedAt: sql`(CURRENT_TIMESTAMP)`,
+      })
+      .where(eq(jobs.id, job.id))
+      .run()
+
+    const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'declined' } })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().status).toBe('declined')
+
+    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(row?.status).toBe('declined')
+    expect(row?.declinedAt).not.toBeNull()
+    expect(row?.appliedAt).toBeNull()
+    expect(row?.skippedAt).toBeNull()
+  })
+
+  it('back-captures the applied date when an at body is supplied', async () => {
+    const job = seedJob(db, JOB1)
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/${job.id}/status`,
+      payload: { status: 'applied', at: '2026-07-01' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().status).toBe('applied')
+
+    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(row?.appliedAt).toBe('2026-07-01')
+  })
+
+  it('inserts a job_notes row atomically when applied is saved with a note', async () => {
+    const job = seedJob(db, JOB1)
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/${job.id}/status`,
+      payload: { status: 'applied', at: '2026-08-01', note: 'Sent my CV' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().status).toBe('applied')
+
+    const jobRow = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(jobRow?.appliedAt).toBe('2026-08-01')
+
+    const noteRow = db.select().from(jobNotes).where(eq(jobNotes.jobId, job.id)).get()
+    expect(noteRow).toMatchObject({ jobId: job.id, kind: 'applied', note: 'Sent my CV' })
+  })
+
+  it('inserts a job_notes row atomically when declined is saved with a note', async () => {
+    const job = seedJob(db, JOB1)
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/${job.id}/status`,
+      payload: { status: 'declined', at: '2026-08-02', note: 'Went with another candidate' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().status).toBe('declined')
+
+    const jobRow = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(jobRow?.declinedAt).toBe('2026-08-02')
+
+    const noteRow = db.select().from(jobNotes).where(eq(jobNotes.jobId, job.id)).get()
+    expect(noteRow).toMatchObject({ jobId: job.id, kind: 'declined', note: 'Went with another candidate' })
+  })
+
+  it('rejects a general-kind note on the status route', async () => {
+    const job = seedJob(db, JOB1)
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/${job.id}/status`,
+      payload: { status: 'general', note: 'x' },
+    })
+    expect(res.statusCode).toBe(400)
   })
 
   it('returns 404 for an unknown job', async () => {

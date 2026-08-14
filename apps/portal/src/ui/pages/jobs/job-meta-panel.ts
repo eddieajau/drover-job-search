@@ -3,11 +3,13 @@
  * @license   MIT
  */
 
-import type { JobSignal } from '../../../shared/types.js'
+import type { JobNote, JobSignal } from '../../../shared/types.js'
 import { escapeHtml as esc } from '../../escape.js'
 import type { JobWithStatus } from '../../jobs-view.js'
 import type { EvalWhy } from './ai-eval-box.js'
 import './ai-eval-box.js'
+import './job-note-dialog.js'
+import { todayIso } from './job-note-dialog.js'
 
 export interface JobMetaPanelEventMap {
   'job-meta:status': CustomEvent<{ jobId: number; status: string }>
@@ -22,7 +24,14 @@ const STATUS_LABELS: Record<string, string> = {
   applied: 'Applied',
   skipped: 'Skipped',
   blocked: 'Blocked',
+  declined: 'Declined',
   evaluated: 'Evaluated',
+}
+
+const NOTE_KIND_LABELS: Record<string, string> = {
+  applied: 'Applied',
+  declined: 'Declined',
+  general: 'Note',
 }
 
 function toStringList(value: unknown): string[] {
@@ -89,6 +98,7 @@ function deriveVerdict(job: JobWithStatus): {
 export class JobMetaPanel extends HTMLElement {
   #job: JobWithStatus | null = null
   #signals: JobSignal[] = []
+  #notes: JobNote[] = []
   #queued = false
   #abort: AbortController | null = null
 
@@ -104,7 +114,13 @@ export class JobMetaPanel extends HTMLElement {
   showJob(job: JobWithStatus | null, signals: JobSignal[], queued: boolean): void {
     this.#job = job
     this.#signals = signals
+    this.#notes = []
     this.#queued = queued
+    this.render()
+  }
+
+  setNotes(notes: JobNote[]): void {
+    this.#notes = notes
     this.render()
   }
 
@@ -136,6 +152,18 @@ export class JobMetaPanel extends HTMLElement {
             detail: { jobId, status },
           })
         )
+      }
+      return
+    }
+    if (action === 'note') {
+      const jobId = this.#job?.id
+      const kind = (button.dataset.kind ?? 'general') as JobNote['kind']
+      if (jobId) {
+        this.querySelector('job-note-dialog')?.open({
+          jobId,
+          kind,
+          date: kind === 'general' ? undefined : todayIso(),
+        })
       }
       return
     }
@@ -214,6 +242,17 @@ export class JobMetaPanel extends HTMLElement {
       })
       .join('')
 
+    const notesHtml = this.#notes
+      .map(note => {
+        const kindLabel = NOTE_KIND_LABELS[note.kind] ?? note.kind
+        return `<div class="note-row">
+          <span class="chip chip-${esc(note.kind)}">${esc(kindLabel)}</span>
+          <div class="note-text">${esc(note.note)}</div>
+          <div class="note-date">${esc(note.createdAt)}</div>
+        </div>`
+      })
+      .join('')
+
     this.innerHTML = `
       <aside class="meta-panel">
         <div class="meta-section">
@@ -221,7 +260,9 @@ export class JobMetaPanel extends HTMLElement {
           <span class="chip chip-${esc(job._status)}">${esc(statusLabel)}</span>
         </div>
         <div class="meta-section actions">
-          <button class="btn btn-primary btn-block" type="button" data-action="status" data-status="applied">Mark applied</button>
+          <button class="btn btn-primary btn-block" type="button" data-action="note" data-kind="applied">Mark applied</button>
+          <button class="btn btn-block" type="button" data-action="note" data-kind="declined">Mark declined</button>
+          <button class="btn btn-block" type="button" data-action="note" data-kind="general">Add note</button>
           <button class="btn btn-block" type="button" data-action="status" data-status="skipped">Skip</button>
           <button class="btn btn-block" type="button" data-action="open" data-url="${esc(job.url)}">Open LinkedIn</button>
         </div>
@@ -236,9 +277,18 @@ export class JobMetaPanel extends HTMLElement {
           <div class="meta-label">Signals</div>
           ${signalsHtml}
         </div>
+        ${
+          this.#notes.length > 0
+            ? `<div class="meta-section">
+          <div class="meta-label">Notes</div>
+          ${notesHtml}
+        </div>`
+            : ''
+        }
         <div class="meta-section actions">
           <button class="btn btn-block" type="button" data-action="flag" data-job-id="${esc(job.providerJobId)}" ${flagDisabled}>${flagLabel}</button>
         </div>
+        <job-note-dialog></job-note-dialog>
       </aside>
     `
 

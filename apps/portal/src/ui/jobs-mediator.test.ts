@@ -626,6 +626,116 @@ describe('jobs-mediator', () => {
     expect(filterBar?.querySelector<HTMLSelectElement>('#filter-sort')?.value).toBe('company')
   })
 
+  it('persists an applied note via PATCH status with at and note, then refreshes', async () => {
+    mockFetch({
+      '/api/jobs/1/status': { status: 'applied' },
+      '/api/jobs': jobsResponse({}, { 'job-1': 'applied' }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    window.dispatchEvent(
+      new CustomEvent('job-note:save', {
+        detail: { jobId: 1, kind: 'applied', date: '2026-08-01', note: 'Sent my CV' },
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const calls = vi.mocked(fetch).mock.calls
+    const patchCalls = calls.filter(([, init]) => init?.method === 'PATCH')
+    expect(patchCalls).toHaveLength(1)
+    const [patchUrl, patchInit] = patchCalls[0]
+    expect(patchUrl).toBe('/api/jobs/1/status')
+    expect(JSON.parse(String(patchInit?.body))).toEqual({ status: 'applied', at: '2026-08-01', note: 'Sent my CV' })
+
+    const refreshCalls = calls.filter(([url]) => url === '/api/jobs?limit=50&offset=0&status=new')
+    expect(refreshCalls).toHaveLength(2)
+  })
+
+  it('persists a declined note via PATCH status and refreshes', async () => {
+    mockFetch({
+      '/api/jobs/1/status': { status: 'declined' },
+      '/api/jobs': jobsResponse({}, { 'job-1': 'declined' }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    window.dispatchEvent(
+      new CustomEvent('job-note:save', {
+        detail: { jobId: 1, kind: 'declined', date: '2026-08-02', note: 'Went with another candidate' },
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const calls = vi.mocked(fetch).mock.calls
+    const patchCalls = calls.filter(([, init]) => init?.method === 'PATCH')
+    expect(patchCalls).toHaveLength(1)
+    const [patchUrl, patchInit] = patchCalls[0]
+    expect(patchUrl).toBe('/api/jobs/1/status')
+    expect(JSON.parse(String(patchInit?.body))).toEqual({
+      status: 'declined',
+      at: '2026-08-02',
+      note: 'Went with another candidate',
+    })
+  })
+
+  it('persists a general note via POST /notes without a status, then refreshes', async () => {
+    mockFetch({
+      '/api/jobs/1/notes': {
+        id: 1,
+        jobId: 1,
+        kind: 'general',
+        note: 'Follow up',
+        createdAt: '2026-08-10 10:00:00',
+        updatedAt: '2026-08-10 10:00:00',
+      },
+      '/api/jobs': jobsResponse(),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    window.dispatchEvent(new CustomEvent('job-note:save', { detail: { jobId: 1, kind: 'general', note: 'Follow up' } }))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const calls = vi.mocked(fetch).mock.calls
+    const postCalls = calls.filter(([, init]) => init?.method === 'POST')
+    expect(postCalls).toHaveLength(1)
+    const [postUrl, postInit] = postCalls[0]
+    expect(postUrl).toBe('/api/jobs/1/notes')
+    expect(JSON.parse(String(postInit?.body))).toEqual({ kind: 'general', note: 'Follow up' })
+
+    const refreshCalls = calls.filter(([url]) => url === '/api/jobs?limit=50&offset=0&status=new')
+    expect(refreshCalls).toHaveLength(2)
+  })
+
+  it('loads the selected job notes into the meta panel via setNotes', async () => {
+    mockFetch({
+      '/api/jobs/2/notes': [
+        {
+          id: 1,
+          jobId: 2,
+          kind: 'general',
+          note: 'Follow up',
+          createdAt: '2026-08-10 10:00:00',
+          updatedAt: '2026-08-10 10:00:00',
+        },
+      ],
+      '/api/jobs': jobsResponse(),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    window.dispatchEvent(new CustomEvent('job-list:select', { detail: { jobId: 2, providerJobId: 'job-2' } }))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const panel = document.querySelector('job-meta-panel')
+    expect(panel?.querySelector('.note-row .note-text')?.textContent).toBe('Follow up')
+  })
+
   it('ignores a stray priority URL param without breaking', async () => {
     window.location.hash = '#jobs?priority=1'
     mockFetch({ '/api/jobs': jobsResponse() })
