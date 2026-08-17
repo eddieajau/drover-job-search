@@ -12,7 +12,7 @@
   "scripts": {
     "crawl": "npm run cli -- crawl",
     "portal": "npm run dev -w apps/portal",
-    "verify": "npm run verify -w packages/db -w packages/provider-linkedin -w packages/test-fixtures -w apps/portal -w apps/cli -w packages/workers",
+    "verify": "npm run verify -w packages/db -w packages/provider-linkedin -w packages/test-fixtures -w apps/portal -w apps/cli -w packages/providers -w packages/workers",
     "cli": "npm start -w apps/cli --"
   },
   "devDependencies": {

@@ -1,0 +1,17 @@
+{
+  "name": "providers",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Job listing providers and shared normalisation helpers",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./common": "./src/common/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run --reporter=dot",
+    "verify": "oxfmt check . && oxlint . && npm test"
+  }
+}
