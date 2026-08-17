@@ -88,8 +88,9 @@ export class FilterBar extends HTMLElement {
   render(): void {
     this.classList.add('filters')
     this.innerHTML = `
-      <input type="text" id="filter-search" placeholder="Search titles..." />
+      <input type="text" id="filter-search" placeholder="Search title or company..." />
       <select id="filter-status" aria-label="Filter by status">
+        <option value="all">All</option>
         <option value="new" selected>New</option>
         <option value="discovered">Discovered</option>
         <option value="applied">Applied</option>

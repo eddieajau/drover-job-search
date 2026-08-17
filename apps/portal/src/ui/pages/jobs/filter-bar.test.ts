@@ -50,18 +50,18 @@ describe('filter-bar', () => {
     expect(ids).toEqual(['filter-search', 'filter-status', 'filter-sort'])
   })
 
-  it('renders the status select with exactly six options in order', () => {
+  it('renders the status select with exactly seven options in order', () => {
     const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
     expect(statusSelect).not.toBeNull()
     const options = Array.from(statusSelect!.querySelectorAll('option')).map(o => o.value)
-    expect(options).toEqual(['new', 'discovered', 'applied', 'skipped', 'blocked', 'declined'])
+    expect(options).toEqual(['all', 'new', 'discovered', 'applied', 'skipped', 'blocked', 'declined'])
   })
 
-  it('labels the status options with the New / Discovered / Applied / Skipped / Blocked / Declined names', () => {
+  it('labels the status options with the All / New / Discovered / Applied / Skipped / Blocked / Declined names', () => {
     const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
     expect(statusSelect).not.toBeNull()
     const labels = Array.from(statusSelect!.querySelectorAll('option')).map(o => o.textContent)
-    expect(labels).toEqual(['New', 'Discovered', 'Applied', 'Skipped', 'Blocked', 'Declined'])
+    expect(labels).toEqual(['All', 'New', 'Discovered', 'Applied', 'Skipped', 'Blocked', 'Declined'])
   })
 
   it('defaults the status select to New', () => {
