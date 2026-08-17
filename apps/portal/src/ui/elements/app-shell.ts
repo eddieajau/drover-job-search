@@ -15,6 +15,7 @@ import '../pages/queues/index.js'
 import '../pages/facts/index.js'
 import '../pages/facts/fact-edit-page.js'
 import '../pages/facts/fact-ingest-page.js'
+import '../pages/import/index.js'
 
 type PageTag =
   | 'jobs-page'
@@ -25,6 +26,7 @@ type PageTag =
   | 'facts-page'
   | 'fact-edit-page'
   | 'fact-ingest-page'
+  | 'import-page'
 
 function pageFor(state: NavigationState | null): PageTag {
   if (state?.view === 'queries') {
@@ -48,10 +50,13 @@ function pageFor(state: NavigationState | null): PageTag {
   if (state?.view === 'fact-ingest') {
     return 'fact-ingest-page'
   }
+  if (state?.view === 'import') {
+    return 'import-page'
+  }
   return 'jobs-page'
 }
 
-function navViewFor(state: NavigationState | null): 'jobs' | 'queries' | 'signals' | 'queues' | 'facts' {
+function navViewFor(state: NavigationState | null): 'jobs' | 'queries' | 'signals' | 'queues' | 'facts' | 'import' {
   if (state?.view === 'queries' || state?.view === 'query-edit') {
     return 'queries'
   }
@@ -63,6 +68,9 @@ function navViewFor(state: NavigationState | null): 'jobs' | 'queries' | 'signal
   }
   if (state?.view === 'facts' || state?.view === 'fact-edit' || state?.view === 'fact-ingest') {
     return 'facts'
+  }
+  if (state?.view === 'import') {
+    return 'import'
   }
   return 'jobs'
 }
@@ -113,7 +121,7 @@ export class AppShell extends HTMLElement {
     mount.appendChild(document.createElement(tag))
   }
 
-  syncNav(current: 'jobs' | 'queries' | 'signals' | 'queues' | 'facts'): void {
+  syncNav(current: 'jobs' | 'queries' | 'signals' | 'queues' | 'facts' | 'import'): void {
     for (const link of this.querySelectorAll<HTMLAnchorElement>('.site-nav-link')) {
       if (link.dataset.view === current) {
         link.setAttribute('aria-current', 'page')
@@ -130,6 +138,7 @@ export class AppShell extends HTMLElement {
         <nav class="nav" aria-label="Primary">
           <a class="site-nav-link" href="#jobs" data-view="jobs">Jobs</a>
           <a class="site-nav-link" href="#queries" data-view="queries">Queries</a>
+          <a class="site-nav-link" href="#import" data-view="import">Import</a>
           <a class="site-nav-link" href="#facts" data-view="facts">Facts</a>
           <a class="site-nav-link" href="#signals" data-view="signals">Signals</a>
           <a class="site-nav-link" href="#queues" data-view="queues">Queues</a>

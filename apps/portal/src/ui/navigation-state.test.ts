@@ -36,6 +36,10 @@ describe('parseHash', () => {
     expect(parseHash('#facts/ingest')).toEqual({ view: 'fact-ingest' })
   })
 
+  it('returns import for the import hash', () => {
+    expect(parseHash('#import')).toEqual({ view: 'import' })
+  })
+
   it('returns fact-edit without params for the new fact hash', () => {
     expect(parseHash('#facts/edit')).toEqual({ view: 'fact-edit' })
     expect(parseHash('#facts/edit?')).toEqual({ view: 'fact-edit' })
@@ -161,6 +165,7 @@ describe('toHash', () => {
     expect(toHash({ view: 'queues' })).toBe('#queues')
     expect(toHash({ view: 'facts' })).toBe('#facts')
     expect(toHash({ view: 'fact-ingest' })).toBe('#facts/ingest')
+    expect(toHash({ view: 'import' })).toBe('#import')
     expect(toHash({ view: 'query-edit' })).toBe('#queries/edit')
     expect(toHash({ view: 'query-edit', id: 3 })).toBe('#queries/edit?id=3')
     expect(toHash({ view: 'fact-edit' })).toBe('#facts/edit')

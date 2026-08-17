@@ -25,17 +25,18 @@ describe('app-shell', () => {
     window.location.hash = ''
   })
 
-  it('renders the topnav with brand, five nav links, and a theme-toggle', () => {
+  it('renders the topnav with brand, six nav links, and a theme-toggle', () => {
     const el = createShell()
     expect(el.querySelector('.topnav')).not.toBeNull()
     expect(el.querySelector('.brand')?.textContent).toBe('Drover')
     const links = el.querySelectorAll<HTMLAnchorElement>('.site-nav-link')
-    expect(links.length).toBe(5)
+    expect(links.length).toBe(6)
     expect(links[0]?.getAttribute('href')).toBe('#jobs')
     expect(links[1]?.getAttribute('href')).toBe('#queries')
-    expect(links[2]?.getAttribute('href')).toBe('#facts')
-    expect(links[3]?.getAttribute('href')).toBe('#signals')
-    expect(links[4]?.getAttribute('href')).toBe('#queues')
+    expect(links[2]?.getAttribute('href')).toBe('#import')
+    expect(links[3]?.getAttribute('href')).toBe('#facts')
+    expect(links[4]?.getAttribute('href')).toBe('#signals')
+    expect(links[5]?.getAttribute('href')).toBe('#queues')
     expect(el.querySelectorAll('theme-toggle').length).toBe(1)
     expect(el.querySelector('#page-mount')).not.toBeNull()
   })
