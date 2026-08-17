@@ -144,4 +144,32 @@ describe('import-page', () => {
     const input = el.querySelector<HTMLInputElement>('#import-date')
     expect(input?.value).toBe('2026-08-15')
   })
+
+  it('strips the query string from the URL input when it loses focus', () => {
+    const input = el.querySelector<HTMLInputElement>('#import-url')!
+    input.value = 'https://au.seek.com/job/12345?trk=jobsearch&ref=abc'
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+    expect(input.value).toBe('https://au.seek.com/job/12345')
+  })
+
+  it('strips the query string from a LinkedIn URL on blur', () => {
+    const input = el.querySelector<HTMLInputElement>('#import-url')!
+    input.value = 'https://www.linkedin.com/jobs/view/4448084368/?ref=xyz'
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+    expect(input.value).toBe('https://www.linkedin.com/jobs/view/4448084368/')
+  })
+
+  it('leaves the URL input untouched when it has no query string', () => {
+    const input = el.querySelector<HTMLInputElement>('#import-url')!
+    input.value = 'https://au.seek.com/job/12345'
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+    expect(input.value).toBe('https://au.seek.com/job/12345')
+  })
+
+  it('leaves a blank URL input untouched on blur', () => {
+    const input = el.querySelector<HTMLInputElement>('#import-url')!
+    input.value = ''
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+    expect(input.value).toBe('')
+  })
 })

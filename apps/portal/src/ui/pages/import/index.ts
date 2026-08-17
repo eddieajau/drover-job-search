@@ -66,6 +66,26 @@ export class ImportPage extends HTMLElement {
     this.#abort = new AbortController()
     const opts = { signal: this.#abort.signal }
     this.addEventListener('submit', this.#onSubmit, opts)
+    // Pasted links often carry tracking query params; drop them once the
+    // user moves on from the URL field so the saved link is clean.
+    this.addEventListener('focusout', this.#onUrlBlur, opts)
+  }
+
+  #onUrlBlur = (event: FocusEvent): void => {
+    if (!(event.target instanceof HTMLInputElement) || event.target.id !== 'import-url') {
+      return
+    }
+    const raw = event.target.value
+    if (!raw) {
+      return
+    }
+    try {
+      const url = new URL(raw)
+      url.search = ''
+      event.target.value = url.toString()
+    } catch {
+      // Not a parseable URL — leave it untouched for the user to fix.
+    }
   }
 
   cleanup(): void {
