@@ -109,7 +109,7 @@ export function toSignalJson(row: JobSignal): SignalResponse {
   return { ...rest, metadata: parseQueryOptions(metadata) }
 }
 
-export type JobStatusValue = 'new' | 'discovered' | 'applied' | 'skipped' | 'blocked' | 'declined'
+export type JobStatusValue = 'new' | 'discovered' | 'applied' | 'interviewing' | 'skipped' | 'blocked' | 'declined'
 
 export interface JobResponse extends Omit<JobRow, 'description' | 'status'> {
   status: JobStatusValue
@@ -132,7 +132,7 @@ export function toJobJson(row: JobRow, summary?: SignalSummary, queued = false):
 export interface JobNoteResponse {
   id: number
   jobId: number
-  kind: 'applied' | 'declined' | 'general'
+  kind: 'applied' | 'declined' | 'interviewing' | 'general'
   note: string
   createdAt: string
   updatedAt: string

@@ -61,13 +61,14 @@ describe('createDb', () => {
       'applied_at',
       'skipped_at',
       'declined_at',
+      'interviewing_at',
       'updated_at',
     ])
 
     db.$client.close()
   })
 
-  it('defaults jobs.status to new and accepts the six status values', () => {
+  it('defaults jobs.status to new and accepts the seven status values', () => {
     const db = createDb(':memory:')
     db.$client
       .prepare(
@@ -77,7 +78,7 @@ describe('createDb', () => {
     const row = db.$client.prepare('SELECT status FROM jobs WHERE id = 1').get() as { status: string }
     expect(row.status).toBe('new')
 
-    for (const status of ['new', 'discovered', 'applied', 'skipped', 'blocked', 'declined']) {
+    for (const status of ['new', 'discovered', 'applied', 'interviewing', 'skipped', 'blocked', 'declined']) {
       db.$client
         .prepare(
           "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location, status) VALUES ('linkedin', ?, 'Title', 'Acme', 'https://example.com', 'Remote', ?)"
@@ -91,6 +92,15 @@ describe('createDb', () => {
       declined_at: string
     }
     expect(declined).toEqual({ status: 'declined', declined_at: '2026-08-01' })
+
+    db.$client.prepare("UPDATE jobs SET interviewing_at = '2026-08-02' WHERE status = 'interviewing'").run()
+    const interviewing = db.$client
+      .prepare("SELECT status, interviewing_at FROM jobs WHERE status = 'interviewing'")
+      .get() as {
+      status: string
+      interviewing_at: string
+    }
+    expect(interviewing).toEqual({ status: 'interviewing', interviewing_at: '2026-08-02' })
 
     db.$client.close()
   })
@@ -506,11 +516,15 @@ describe('createDb', () => {
       )
       .run()
     db.$client.prepare("INSERT INTO job_notes (job_id, kind, note) VALUES (1, 'applied', 'Applied on 1 Aug')").run()
+    db.$client
+      .prepare("INSERT INTO job_notes (job_id, kind, note) VALUES (1, 'interviewing', 'Interview on 5 Aug')")
+      .run()
     db.$client.prepare("INSERT INTO job_notes (job_id, kind, note) VALUES (1, 'general', 'Follow up in a week')").run()
 
     const rows = db.$client.prepare('SELECT kind, note FROM job_notes WHERE job_id = 1').all()
     expect(rows).toEqual([
       { kind: 'applied', note: 'Applied on 1 Aug' },
+      { kind: 'interviewing', note: 'Interview on 5 Aug' },
       { kind: 'general', note: 'Follow up in a week' },
     ])
 

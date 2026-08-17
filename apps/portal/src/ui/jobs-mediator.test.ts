@@ -681,6 +681,37 @@ describe('jobs-mediator', () => {
     })
   })
 
+  it('persists an interviewing note via PATCH status and refreshes', async () => {
+    mockFetch({
+      '/api/jobs/1/status': { status: 'interviewing' },
+      '/api/jobs': jobsResponse({}, { 'job-1': 'interviewing' }),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    window.dispatchEvent(
+      new CustomEvent('job-note:save', {
+        detail: { jobId: 1, kind: 'interviewing', date: '2026-08-05', note: 'Phone screen scheduled' },
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const calls = vi.mocked(fetch).mock.calls
+    const patchCalls = calls.filter(([, init]) => init?.method === 'PATCH')
+    expect(patchCalls).toHaveLength(1)
+    const [patchUrl, patchInit] = patchCalls[0]
+    expect(patchUrl).toBe('/api/jobs/1/status')
+    expect(JSON.parse(String(patchInit?.body))).toEqual({
+      status: 'interviewing',
+      at: '2026-08-05',
+      note: 'Phone screen scheduled',
+    })
+
+    const refreshCalls = calls.filter(([url]) => url === '/api/jobs?limit=50&offset=0&status=new')
+    expect(refreshCalls).toHaveLength(2)
+  })
+
   it('persists a general note via POST /notes without a status, then refreshes', async () => {
     mockFetch({
       '/api/jobs/1/notes': {

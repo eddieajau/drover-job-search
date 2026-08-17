@@ -67,6 +67,7 @@ describe('job-meta-panel', () => {
       b => `${b.dataset.action}:${b.dataset.kind ?? b.dataset.status ?? b.dataset.url ?? b.dataset.jobId ?? ''}`
     )
     expect(actions).toContain('note:applied')
+    expect(actions).toContain('note:interviewing')
     expect(actions).toContain('note:declined')
     expect(actions).toContain('note:general')
     expect(actions).toContain('status:skipped')
@@ -118,11 +119,32 @@ describe('job-meta-panel', () => {
     expect(chip?.classList.contains('chip-declined')).toBe(true)
   })
 
+  it('renders an Interviewing status chip with chip-interviewing class', () => {
+    const j: JobWithStatus = { ...job(), _status: 'interviewing' }
+    el.showJob(j, [], false)
+
+    const chip = el.querySelector('.meta-section .chip')
+    expect(chip?.textContent).toBe('Interviewing')
+    expect(chip?.classList.contains('chip-interviewing')).toBe(true)
+  })
+
   it('opens the job-note-dialog when Mark applied is clicked', () => {
     const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
     el.showJob(j, [], false)
 
     el.querySelector<HTMLButtonElement>('[data-action="note"][data-kind="applied"]')?.click()
+
+    const dialog = el.querySelector<HTMLDialogElement>('job-note-dialog dialog')
+    expect(dialog?.hasAttribute('open')).toBe(true)
+    const dateField = el.querySelector<HTMLElement>('job-note-dialog [data-note-date]')
+    expect(dateField?.hasAttribute('hidden')).toBe(false)
+  })
+
+  it('opens the job-note-dialog when Mark interviewing is clicked', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+
+    el.querySelector<HTMLButtonElement>('[data-action="note"][data-kind="interviewing"]')?.click()
 
     const dialog = el.querySelector<HTMLDialogElement>('job-note-dialog dialog')
     expect(dialog?.hasAttribute('open')).toBe(true)
@@ -176,6 +198,27 @@ describe('job-meta-panel', () => {
     expect(noteRow?.querySelector('.chip')?.textContent).toBe('Applied')
     expect(noteRow?.querySelector('.note-text')?.textContent).toBe('Sent my CV on the site')
     expect(noteRow?.querySelector('.note-date')?.textContent).toBe('2026-08-10 10:00:00')
+  })
+
+  it('renders an interviewing note kind with Interviewing chip label', () => {
+    const j: JobWithStatus = { ...job(), _status: 'interviewing', netScore: 50 }
+    el.showJob(j, [], false)
+
+    const notes: JobNote[] = [
+      {
+        id: 1,
+        jobId: 1,
+        kind: 'interviewing',
+        note: 'Phone screen on 5 Aug',
+        createdAt: '2026-08-05 14:00:00',
+        updatedAt: '2026-08-05 14:00:00',
+      },
+    ]
+    el.setNotes(notes)
+
+    const noteRow = el.querySelector('.note-row')
+    expect(noteRow?.querySelector('.chip')?.textContent).toBe('Interviewing')
+    expect(noteRow?.querySelector('.note-text')?.textContent).toBe('Phone screen on 5 Aug')
   })
 
   it('disables the flag button when queued is true', () => {

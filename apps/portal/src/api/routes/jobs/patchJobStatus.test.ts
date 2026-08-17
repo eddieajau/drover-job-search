@@ -89,7 +89,7 @@ describe('PATCH /api/jobs/:id/status', () => {
     expect(res.json().results[0].status).toBe('applied')
   })
 
-  it('persists declined status and timestamps and clears applied and skipped', async () => {
+  it('persists declined status and timestamps and preserves applied_at (pipeline history)', async () => {
     const job = seedJob(db, JOB1)
     db.update(jobs)
       .set({
@@ -108,7 +108,7 @@ describe('PATCH /api/jobs/:id/status', () => {
     const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
     expect(row?.status).toBe('declined')
     expect(row?.declinedAt).not.toBeNull()
-    expect(row?.appliedAt).toBeNull()
+    expect(row?.appliedAt).not.toBeNull()
     expect(row?.skippedAt).toBeNull()
   })
 
@@ -161,6 +161,79 @@ describe('PATCH /api/jobs/:id/status', () => {
 
     const noteRow = db.select().from(jobNotes).where(eq(jobNotes.jobId, job.id)).get()
     expect(noteRow).toMatchObject({ jobId: job.id, kind: 'declined', note: 'Went with another candidate' })
+  })
+
+  it('persists interviewing status and sets interviewing_at while preserving applied_at', async () => {
+    const job = seedJob(db, JOB1)
+    db.update(jobs)
+      .set({ status: 'applied', appliedAt: sql`(CURRENT_TIMESTAMP)`, updatedAt: sql`(CURRENT_TIMESTAMP)` })
+      .where(eq(jobs.id, job.id))
+      .run()
+
+    const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'interviewing' } })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().status).toBe('interviewing')
+
+    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(row?.status).toBe('interviewing')
+    expect(row?.interviewingAt).not.toBeNull()
+    expect(row?.appliedAt).not.toBeNull()
+    expect(row?.declinedAt).toBeNull()
+  })
+
+  it('back-captures the interviewing date when an at body is supplied', async () => {
+    const job = seedJob(db, JOB1)
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/${job.id}/status`,
+      payload: { status: 'interviewing', at: '2026-07-15' },
+    })
+    expect(res.statusCode).toBe(200)
+
+    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(row?.interviewingAt).toBe('2026-07-15')
+  })
+
+  it('inserts a job_notes row atomically when interviewing is saved with a note', async () => {
+    const job = seedJob(db, JOB1)
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/${job.id}/status`,
+      payload: { status: 'interviewing', at: '2026-08-05', note: 'Phone screen scheduled' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().status).toBe('interviewing')
+
+    const jobRow = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(jobRow?.interviewingAt).toBe('2026-08-05')
+
+    const noteRow = db.select().from(jobNotes).where(eq(jobNotes.jobId, job.id)).get()
+    expect(noteRow).toMatchObject({ jobId: job.id, kind: 'interviewing', note: 'Phone screen scheduled' })
+  })
+
+  it('declined after interviewing preserves both applied_at and interviewing_at', async () => {
+    const job = seedJob(db, JOB1)
+    db.update(jobs)
+      .set({
+        status: 'interviewing',
+        appliedAt: sql`(CURRENT_TIMESTAMP)`,
+        interviewingAt: sql`(CURRENT_TIMESTAMP)`,
+        updatedAt: sql`(CURRENT_TIMESTAMP)`,
+      })
+      .where(eq(jobs.id, job.id))
+      .run()
+
+    const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'declined' } })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().status).toBe('declined')
+
+    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
+    expect(row?.status).toBe('declined')
+    expect(row?.declinedAt).not.toBeNull()
+    expect(row?.appliedAt).not.toBeNull()
+    expect(row?.interviewingAt).not.toBeNull()
   })
 
   it('rejects a general-kind note on the status route', async () => {

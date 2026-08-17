@@ -94,6 +94,7 @@ export class FilterBar extends HTMLElement {
         <option value="new" selected>New</option>
         <option value="discovered">Discovered</option>
         <option value="applied">Applied</option>
+        <option value="interviewing">Interviewing</option>
         <option value="skipped">Skipped</option>
         <option value="blocked">Blocked</option>
         <option value="declined">Declined</option>

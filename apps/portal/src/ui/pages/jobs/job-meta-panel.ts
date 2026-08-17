@@ -22,6 +22,7 @@ const STATUS_LABELS: Record<string, string> = {
   new: 'New',
   discovered: 'Discovered',
   applied: 'Applied',
+  interviewing: 'Interviewing',
   skipped: 'Skipped',
   blocked: 'Blocked',
   declined: 'Declined',
@@ -30,6 +31,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const NOTE_KIND_LABELS: Record<string, string> = {
   applied: 'Applied',
+  interviewing: 'Interviewing',
   declined: 'Declined',
   general: 'Note',
 }
@@ -112,9 +114,11 @@ export class JobMetaPanel extends HTMLElement {
   }
 
   showJob(job: JobWithStatus | null, signals: JobSignal[], queued: boolean): void {
+    if (job?.id !== this.#job?.id) {
+      this.#notes = []
+    }
     this.#job = job
     this.#signals = signals
-    this.#notes = []
     this.#queued = queued
     this.render()
   }
@@ -261,6 +265,7 @@ export class JobMetaPanel extends HTMLElement {
         </div>
         <div class="meta-section actions">
           <button class="btn btn-primary btn-block" type="button" data-action="note" data-kind="applied">Mark applied</button>
+          <button class="btn btn-block" type="button" data-action="note" data-kind="interviewing">Mark interviewing</button>
           <button class="btn btn-block" type="button" data-action="note" data-kind="declined">Mark declined</button>
           <button class="btn btn-block" type="button" data-action="note" data-kind="general">Add note</button>
           <button class="btn btn-block" type="button" data-action="status" data-status="skipped">Skip</button>

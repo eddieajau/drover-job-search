@@ -18,6 +18,7 @@ export interface JobNoteDialogDetail {
 
 const KIND_TITLES: Record<JobNote['kind'], string> = {
   applied: 'Mark applied',
+  interviewing: 'Mark interviewing',
   declined: 'Mark declined',
   general: 'Add note',
 }

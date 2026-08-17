@@ -85,6 +85,7 @@ export const jobs = sqliteTable(
     appliedAt: text('applied_at'),
     skippedAt: text('skipped_at'),
     declinedAt: text('declined_at'),
+    interviewingAt: text('interviewing_at'),
     updatedAt: text('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
@@ -108,7 +109,10 @@ export const jobs = sqliteTable(
       sql`${table.salaryPeriod} IN ('hourly', 'daily', 'weekly', 'monthly', 'annual') OR ${table.salaryPeriod} IS NULL`
     ),
     check('check_is_salary_estimated', sql`${table.isSalaryEstimated} IN (0, 1)`),
-    check('check_status', sql`${table.status} IN ('new', 'discovered', 'applied', 'skipped', 'blocked', 'declined')`),
+    check(
+      'check_status',
+      sql`${table.status} IN ('new', 'discovered', 'applied', 'interviewing', 'skipped', 'blocked', 'declined')`
+    ),
     check('check_processed_by', sql`${table.processedBy} IN ('human', 'ai', 'system') OR ${table.processedBy} IS NULL`),
   ]
 )
@@ -284,7 +288,7 @@ export const jobNotes = sqliteTable(
   },
   table => [
     index('idx_job_notes_job_id').on(table.jobId),
-    check('check_job_note_kind', sql`${table.kind} IN ('applied', 'declined', 'general')`),
+    check('check_job_note_kind', sql`${table.kind} IN ('applied', 'declined', 'interviewing', 'general')`),
   ]
 )
 
@@ -340,7 +344,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     query_id INTEGER REFERENCES queries(id) ON DELETE SET NULL,
     priority INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL CHECK (
-        status IN ('new', 'discovered', 'applied', 'skipped', 'blocked', 'declined')
+        status IN ('new', 'discovered', 'applied', 'interviewing', 'skipped', 'blocked', 'declined')
     ) DEFAULT 'new',
     processed_by TEXT CHECK (
         processed_by IN ('human', 'ai', 'system') OR processed_by IS NULL
@@ -350,6 +354,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     applied_at TEXT,
     skipped_at TEXT,
     declined_at TEXT,
+    interviewing_at TEXT,
     updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     CONSTRAINT uq_provider_job UNIQUE (provider, provider_job_id)
 );
@@ -468,7 +473,7 @@ CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
 CREATE TABLE IF NOT EXISTS job_notes (
     id INTEGER PRIMARY KEY,
     job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-    kind TEXT NOT NULL CHECK (kind IN ('applied', 'declined', 'general')),
+    kind TEXT NOT NULL CHECK (kind IN ('applied', 'declined', 'interviewing', 'general')),
     note TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
