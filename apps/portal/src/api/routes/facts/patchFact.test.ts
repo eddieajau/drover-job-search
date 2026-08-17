@@ -73,4 +73,19 @@ describe('PATCH /api/facts/:id', () => {
       confidence: 'inferred',
     })
   })
+
+  it('accepts an empty evidenceType and stores it as null', async () => {
+    const inserted = seedFact(db, { category: 'skill', label: 'TypeScript', evidenceType: 'fast_pivot' })
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/${inserted.id}`,
+      payload: { evidenceType: '' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({
+      id: inserted.id,
+      evidenceType: null,
+    })
+  })
 })

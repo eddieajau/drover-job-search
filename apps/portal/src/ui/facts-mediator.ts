@@ -95,10 +95,11 @@ async function handleSave(event: Event): Promise<void> {
         return
       }
     } else {
+      const { id: _id, ...factBody } = detail
       const response = await fetch(`/api/facts/${detail.id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(detail),
+        body: JSON.stringify(factBody),
       })
       if (!response.ok) {
         return

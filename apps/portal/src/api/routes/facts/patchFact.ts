@@ -32,7 +32,7 @@ const bodySchema = {
     label: { type: 'string', minLength: 1 },
     category: { type: 'string', enum: [...VALID_CATEGORIES] },
     detail: { type: 'string' },
-    evidenceType: { type: 'string', enum: [...VALID_EVIDENCE_TYPES] },
+    evidenceType: { type: 'string', enum: ['', ...VALID_EVIDENCE_TYPES] },
     startedAt: { type: 'string' },
     endedAt: { type: 'string' },
     period: { type: 'string' },
@@ -59,7 +59,7 @@ const patchFact: FastifyPluginAsync = async app => {
     if (body.label !== undefined) values.label = body.label
     if (body.category !== undefined) values.category = body.category
     if (body.detail !== undefined) values.detail = body.detail
-    if (body.evidenceType !== undefined) values.evidenceType = body.evidenceType
+    if (body.evidenceType !== undefined) values.evidenceType = body.evidenceType === '' ? null : body.evidenceType
     if (body.startedAt !== undefined) values.startedAt = body.startedAt
     if (body.endedAt !== undefined) values.endedAt = body.endedAt
     if (body.period !== undefined) values.period = body.period
