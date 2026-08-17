@@ -14,7 +14,7 @@ const bodySchema = {
   additionalProperties: false,
   required: ['kind', 'note'],
   properties: {
-    kind: { type: 'string', enum: ['applied', 'declined', 'interviewing', 'general'] },
+    kind: { type: 'string', enum: ['applied', 'declined', 'interviewing', 'general', 'unsuccessful', 'successful'] },
     note: { type: 'string', minLength: 1, maxLength: 2000 },
   },
 } as const
@@ -31,7 +31,10 @@ const postJobNotes: FastifyPluginAsync = async app => {
       return reply.notFound(`Job ${id} not found`)
     }
 
-    const { kind, note } = req.body as { kind: 'applied' | 'declined' | 'interviewing' | 'general'; note: string }
+    const { kind, note } = req.body as {
+      kind: 'applied' | 'declined' | 'interviewing' | 'general' | 'unsuccessful' | 'successful'
+      note: string
+    }
     const row = app.db.insert(jobNotes).values({ jobId: id, kind, note }).returning().get()
     return reply.status(201).send(toJobNoteJson(row))
   })

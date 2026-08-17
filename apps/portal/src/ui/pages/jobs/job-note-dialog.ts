@@ -21,6 +21,8 @@ const KIND_TITLES: Record<JobNote['kind'], string> = {
   applied: 'Mark applied',
   interviewing: 'Mark interviewing',
   declined: 'Mark declined',
+  unsuccessful: 'Mark unsuccessful',
+  successful: 'Mark successful',
   general: 'Add note',
 }
 
@@ -150,6 +152,8 @@ export class JobNoteDialog extends HTMLElement {
             <option value="applied">Applied</option>
             <option value="interviewing">Interviewing</option>
             <option value="declined">Declined</option>
+            <option value="unsuccessful">Unsuccessful</option>
+            <option value="successful">Successful</option>
           </select>
         </div>
         <div class="note-field" data-note-date>

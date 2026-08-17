@@ -14,14 +14,17 @@ const bodySchema = {
   additionalProperties: false,
   required: ['status'],
   properties: {
-    status: { type: 'string', enum: ['applied', 'interviewing', 'skipped', 'discovered', 'declined'] },
+    status: {
+      type: 'string',
+      enum: ['applied', 'interviewing', 'skipped', 'discovered', 'declined', 'unsuccessful', 'successful'],
+    },
     at: { type: 'string', format: 'date' },
     note: { type: 'string', maxLength: 2000 },
   },
 } as const
 
 type StatusBody = {
-  status: 'applied' | 'interviewing' | 'skipped' | 'discovered' | 'declined'
+  status: 'applied' | 'interviewing' | 'skipped' | 'discovered' | 'declined' | 'unsuccessful' | 'successful'
   at?: string
   note?: string
 }
@@ -41,24 +44,78 @@ function transitionColumns(
   status: StatusBody['status'],
   timestamp: ReturnType<typeof sql>,
   now: ReturnType<typeof sql>,
-  current: { appliedAt: string | null; interviewingAt: string | null; declinedAt: string | null }
+  current: {
+    appliedAt: string | null
+    interviewingAt: string | null
+    declinedAt: string | null
+    unsuccessfulAt: string | null
+    successfulAt: string | null
+  }
 ) {
   switch (status) {
     case 'discovered':
-      return { appliedAt: null, interviewingAt: null, declinedAt: null, skippedAt: null }
+      return {
+        appliedAt: null,
+        interviewingAt: null,
+        declinedAt: null,
+        unsuccessfulAt: null,
+        successfulAt: null,
+        skippedAt: null,
+      }
     case 'applied':
-      return { appliedAt: timestamp, interviewingAt: null, declinedAt: null, skippedAt: null }
+      return {
+        appliedAt: timestamp,
+        interviewingAt: null,
+        declinedAt: null,
+        unsuccessfulAt: null,
+        successfulAt: null,
+        skippedAt: null,
+      }
     case 'interviewing':
-      return { appliedAt: current.appliedAt, interviewingAt: timestamp, declinedAt: null, skippedAt: null }
+      return {
+        appliedAt: current.appliedAt,
+        interviewingAt: timestamp,
+        declinedAt: null,
+        unsuccessfulAt: null,
+        successfulAt: null,
+        skippedAt: null,
+      }
     case 'declined':
       return {
         appliedAt: current.appliedAt,
         interviewingAt: current.interviewingAt,
         declinedAt: timestamp,
+        unsuccessfulAt: null,
+        successfulAt: null,
+        skippedAt: null,
+      }
+    case 'unsuccessful':
+      return {
+        appliedAt: current.appliedAt,
+        interviewingAt: current.interviewingAt,
+        declinedAt: null,
+        unsuccessfulAt: timestamp,
+        successfulAt: null,
+        skippedAt: null,
+      }
+    case 'successful':
+      return {
+        appliedAt: current.appliedAt,
+        interviewingAt: current.interviewingAt,
+        declinedAt: null,
+        unsuccessfulAt: null,
+        successfulAt: timestamp,
         skippedAt: null,
       }
     case 'skipped':
-      return { appliedAt: null, interviewingAt: null, declinedAt: null, skippedAt: now }
+      return {
+        appliedAt: null,
+        interviewingAt: null,
+        declinedAt: null,
+        unsuccessfulAt: null,
+        successfulAt: null,
+        skippedAt: now,
+      }
   }
 }
 
@@ -75,7 +132,13 @@ const patchJobStatus: FastifyPluginAsync = async app => {
 
     const row = app.db.transaction(tx => {
       const current = tx
-        .select({ appliedAt: jobs.appliedAt, interviewingAt: jobs.interviewingAt, declinedAt: jobs.declinedAt })
+        .select({
+          appliedAt: jobs.appliedAt,
+          interviewingAt: jobs.interviewingAt,
+          declinedAt: jobs.declinedAt,
+          unsuccessfulAt: jobs.unsuccessfulAt,
+          successfulAt: jobs.successfulAt,
+        })
         .from(jobs)
         .where(eq(jobs.id, id))
         .get()
@@ -95,7 +158,15 @@ const patchJobStatus: FastifyPluginAsync = async app => {
         .returning()
         .get()
 
-      if (updated && note && (status === 'applied' || status === 'declined' || status === 'interviewing')) {
+      if (
+        updated &&
+        note &&
+        (status === 'applied' ||
+          status === 'declined' ||
+          status === 'interviewing' ||
+          status === 'unsuccessful' ||
+          status === 'successful')
+      ) {
         tx.insert(jobNotes).values({ jobId: id, kind: status, note }).run()
       }
 

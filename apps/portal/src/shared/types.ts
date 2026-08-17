@@ -30,14 +30,23 @@ export interface Job {
 
 export interface JobStatus {
   id: number
-  status: 'new' | 'discovered' | 'applied' | 'interviewing' | 'skipped' | 'blocked' | 'declined'
+  status:
+    | 'new'
+    | 'discovered'
+    | 'applied'
+    | 'interviewing'
+    | 'skipped'
+    | 'blocked'
+    | 'declined'
+    | 'unsuccessful'
+    | 'successful'
   date: string
 }
 
 export interface JobNote {
   id: number
   jobId: number
-  kind: 'applied' | 'declined' | 'interviewing' | 'general'
+  kind: 'applied' | 'declined' | 'interviewing' | 'general' | 'unsuccessful' | 'successful'
   note: string
   createdAt: string
   updatedAt: string

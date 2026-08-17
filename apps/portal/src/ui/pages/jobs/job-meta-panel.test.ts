@@ -69,6 +69,8 @@ describe('job-meta-panel', () => {
     expect(actions).toContain('note:applied')
     expect(actions).toContain('note:interviewing')
     expect(actions).toContain('note:declined')
+    expect(actions).toContain('note:unsuccessful')
+    expect(actions).toContain('note:successful')
     expect(actions).toContain('note:general')
     expect(actions).toContain('status:skipped')
     expect(actions).toContain('open:https://li/job-1')
@@ -119,6 +121,24 @@ describe('job-meta-panel', () => {
     expect(chip?.classList.contains('chip-declined')).toBe(true)
   })
 
+  it('renders an Unsuccessful status chip with chip-unsuccessful class', () => {
+    const j: JobWithStatus = { ...job(), _status: 'unsuccessful' }
+    el.showJob(j, [], false)
+
+    const chip = el.querySelector('.meta-section .chip')
+    expect(chip?.textContent).toBe('Unsuccessful')
+    expect(chip?.classList.contains('chip-unsuccessful')).toBe(true)
+  })
+
+  it('renders a Successful status chip with chip-successful class', () => {
+    const j: JobWithStatus = { ...job(), _status: 'successful' }
+    el.showJob(j, [], false)
+
+    const chip = el.querySelector('.meta-section .chip')
+    expect(chip?.textContent).toBe('Successful')
+    expect(chip?.classList.contains('chip-successful')).toBe(true)
+  })
+
   it('renders an Interviewing status chip with chip-interviewing class', () => {
     const j: JobWithStatus = { ...job(), _status: 'interviewing' }
     el.showJob(j, [], false)
@@ -160,6 +180,30 @@ describe('job-meta-panel', () => {
 
     const dialog = el.querySelector<HTMLDialogElement>('job-note-dialog dialog')
     expect(dialog?.hasAttribute('open')).toBe(true)
+  })
+
+  it('opens the job-note-dialog when Mark unsuccessful is clicked', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+
+    el.querySelector<HTMLButtonElement>('[data-action="note"][data-kind="unsuccessful"]')?.click()
+
+    const dialog = el.querySelector<HTMLDialogElement>('job-note-dialog dialog')
+    expect(dialog?.hasAttribute('open')).toBe(true)
+    const dateField = el.querySelector<HTMLElement>('job-note-dialog [data-note-date]')
+    expect(dateField?.hasAttribute('hidden')).toBe(false)
+  })
+
+  it('opens the job-note-dialog when Mark successful is clicked', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+
+    el.querySelector<HTMLButtonElement>('[data-action="note"][data-kind="successful"]')?.click()
+
+    const dialog = el.querySelector<HTMLDialogElement>('job-note-dialog dialog')
+    expect(dialog?.hasAttribute('open')).toBe(true)
+    const dateField = el.querySelector<HTMLElement>('job-note-dialog [data-note-date]')
+    expect(dateField?.hasAttribute('hidden')).toBe(false)
   })
 
   it('opens the job-note-dialog with the date field hidden when Add note is clicked', () => {

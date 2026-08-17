@@ -1370,6 +1370,21 @@ job-meta-panel {
   color: var(--red);
 }
 
+.chip-unsuccessful {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.chip-successful {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.chip-interviewing {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
 .chip-general {
   background: var(--surface-2);
   color: var(--muted);

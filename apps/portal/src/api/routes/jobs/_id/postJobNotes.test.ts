@@ -71,6 +71,24 @@ describe('POST /api/jobs/:id/notes', () => {
     }
   )
 
+  it.each(['unsuccessful', 'successful'] as const)(
+    'writes a %s note and returns 201 without mutating status',
+    async kind => {
+      const job = seedJob(db, JOB1)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/${job.id}/notes`,
+        payload: { kind, note: `Noted as ${kind}` },
+      })
+      expect(res.statusCode).toBe(201)
+      expect(res.json()).toMatchObject({ jobId: job.id, kind, note: `Noted as ${kind}` })
+
+      const row = db.select().from(jobNotes).where(eq(jobNotes.jobId, job.id)).get()
+      expect(row).toMatchObject({ kind, note: `Noted as ${kind}` })
+    }
+  )
+
   it('returns 404 for an unknown job', async () => {
     const res = await app.inject({
       method: 'POST',

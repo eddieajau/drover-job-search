@@ -40,6 +40,28 @@ describe('job-note-dialog', () => {
     expect(dateField?.hasAttribute('hidden')).toBe(false)
   })
 
+  it('shows the date field defaulting to today for unsuccessful', () => {
+    el.open({ jobId: 7, kind: 'unsuccessful', mode: 'status' })
+
+    const dialog = el.querySelector<HTMLDialogElement>('dialog')
+    expect(dialog?.hasAttribute('open')).toBe(true)
+    const dateField = el.querySelector<HTMLElement>('[data-note-date]')
+    expect(dateField?.hasAttribute('hidden')).toBe(false)
+    const dateInput = el.querySelector<HTMLInputElement>('#note-date')
+    expect(dateInput?.value).toBe(todayIso())
+  })
+
+  it('shows the date field defaulting to today for successful', () => {
+    el.open({ jobId: 7, kind: 'successful', mode: 'status' })
+
+    const dialog = el.querySelector<HTMLDialogElement>('dialog')
+    expect(dialog?.hasAttribute('open')).toBe(true)
+    const dateField = el.querySelector<HTMLElement>('[data-note-date]')
+    expect(dateField?.hasAttribute('hidden')).toBe(false)
+    const dateInput = el.querySelector<HTMLInputElement>('#note-date')
+    expect(dateInput?.value).toBe(todayIso())
+  })
+
   it('shows the date field defaulting to today for interviewing', () => {
     el.open({ jobId: 7, kind: 'interviewing', mode: 'status' })
 

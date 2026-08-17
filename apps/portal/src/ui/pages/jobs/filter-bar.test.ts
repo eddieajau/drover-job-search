@@ -50,18 +50,40 @@ describe('filter-bar', () => {
     expect(ids).toEqual(['filter-search', 'filter-status', 'filter-sort'])
   })
 
-  it('renders the status select with exactly eight options in order', () => {
+  it('renders the status select with exactly ten options in order', () => {
     const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
     expect(statusSelect).not.toBeNull()
     const options = Array.from(statusSelect!.querySelectorAll('option')).map(o => o.value)
-    expect(options).toEqual(['all', 'new', 'discovered', 'applied', 'interviewing', 'skipped', 'blocked', 'declined'])
+    expect(options).toEqual([
+      'all',
+      'new',
+      'discovered',
+      'applied',
+      'interviewing',
+      'skipped',
+      'blocked',
+      'declined',
+      'unsuccessful',
+      'successful',
+    ])
   })
 
-  it('labels the status options with the All / New / Discovered / Applied / Interviewing / Skipped / Blocked / Declined names', () => {
+  it('labels the status options with the All / New / Discovered / Applied / Interviewing / Skipped / Blocked / Declined / Unsuccessful / Successful names', () => {
     const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')
     expect(statusSelect).not.toBeNull()
     const labels = Array.from(statusSelect!.querySelectorAll('option')).map(o => o.textContent)
-    expect(labels).toEqual(['All', 'New', 'Discovered', 'Applied', 'Interviewing', 'Skipped', 'Blocked', 'Declined'])
+    expect(labels).toEqual([
+      'All',
+      'New',
+      'Discovered',
+      'Applied',
+      'Interviewing',
+      'Skipped',
+      'Blocked',
+      'Declined',
+      'Unsuccessful',
+      'Successful',
+    ])
   })
 
   it('defaults the status select to New', () => {
@@ -130,6 +152,32 @@ describe('filter-bar', () => {
     el.dispatchEvent(new Event('change', { bubbles: true }))
 
     expect(received).toEqual({ status: 'declined', search: '', sort: 'score' })
+  })
+
+  it('dispatches filter-bar:change with status unsuccessful when Unsuccessful option is selected', () => {
+    let received: { status: string } | undefined
+    el.addEventListener('filter-bar:change', event => {
+      received = (event as CustomEvent<{ status: string }>).detail
+    })
+
+    const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')!
+    statusSelect.value = 'unsuccessful'
+    el.dispatchEvent(new Event('change', { bubbles: true }))
+
+    expect(received).toEqual({ status: 'unsuccessful', search: '', sort: 'score' })
+  })
+
+  it('dispatches filter-bar:change with status successful when Successful option is selected', () => {
+    let received: { status: string } | undefined
+    el.addEventListener('filter-bar:change', event => {
+      received = (event as CustomEvent<{ status: string }>).detail
+    })
+
+    const statusSelect = el.querySelector<HTMLSelectElement>('#filter-status')!
+    statusSelect.value = 'successful'
+    el.dispatchEvent(new Event('change', { bubbles: true }))
+
+    expect(received).toEqual({ status: 'successful', search: '', sort: 'score' })
   })
 
   it('dispatches filter-bar:change with status interviewing when Interviewing option is selected', () => {

@@ -26,6 +26,8 @@ const STATUS_LABELS: Record<string, string> = {
   skipped: 'Skipped',
   blocked: 'Blocked',
   declined: 'Declined',
+  unsuccessful: 'Unsuccessful',
+  successful: 'Successful',
   evaluated: 'Evaluated',
 }
 
@@ -33,6 +35,8 @@ const NOTE_KIND_LABELS: Record<string, string> = {
   applied: 'Applied',
   interviewing: 'Interviewing',
   declined: 'Declined',
+  unsuccessful: 'Unsuccessful',
+  successful: 'Successful',
   general: 'Note',
 }
 
@@ -269,6 +273,8 @@ export class JobMetaPanel extends HTMLElement {
           <button class="btn btn-primary btn-block" type="button" data-action="note" data-kind="applied">Mark applied</button>
           <button class="btn btn-block" type="button" data-action="note" data-kind="interviewing">Mark interviewing</button>
           <button class="btn btn-block" type="button" data-action="note" data-kind="declined">Mark declined</button>
+          <button class="btn btn-block" type="button" data-action="note" data-kind="unsuccessful">Mark unsuccessful</button>
+          <button class="btn btn-block" type="button" data-action="note" data-kind="successful">Mark successful</button>
           <button class="btn btn-block" type="button" data-action="note" data-kind="general">Add note</button>
           <button class="btn btn-block" type="button" data-action="status" data-status="skipped">Skip</button>
           <button class="btn btn-block" type="button" data-action="open" data-url="${esc(job.url)}">Open LinkedIn</button>

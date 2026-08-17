@@ -62,13 +62,15 @@ describe('createDb', () => {
       'skipped_at',
       'declined_at',
       'interviewing_at',
+      'unsuccessful_at',
+      'successful_at',
       'updated_at',
     ])
 
     db.$client.close()
   })
 
-  it('defaults jobs.status to new and accepts the seven status values', () => {
+  it('defaults jobs.status to new and accepts the nine status values', () => {
     const db = createDb(':memory:')
     db.$client
       .prepare(
@@ -78,7 +80,17 @@ describe('createDb', () => {
     const row = db.$client.prepare('SELECT status FROM jobs WHERE id = 1').get() as { status: string }
     expect(row.status).toBe('new')
 
-    for (const status of ['new', 'discovered', 'applied', 'interviewing', 'skipped', 'blocked', 'declined']) {
+    for (const status of [
+      'new',
+      'discovered',
+      'applied',
+      'interviewing',
+      'skipped',
+      'blocked',
+      'declined',
+      'unsuccessful',
+      'successful',
+    ]) {
       db.$client
         .prepare(
           "INSERT INTO jobs (provider, provider_job_id, title, company_name, url, location, status) VALUES ('linkedin', ?, 'Title', 'Acme', 'https://example.com', 'Remote', ?)"
@@ -101,6 +113,24 @@ describe('createDb', () => {
       interviewing_at: string
     }
     expect(interviewing).toEqual({ status: 'interviewing', interviewing_at: '2026-08-02' })
+
+    db.$client.prepare("UPDATE jobs SET unsuccessful_at = '2026-08-03' WHERE status = 'unsuccessful'").run()
+    const unsuccessful = db.$client
+      .prepare("SELECT status, unsuccessful_at FROM jobs WHERE status = 'unsuccessful'")
+      .get() as {
+      status: string
+      unsuccessful_at: string
+    }
+    expect(unsuccessful).toEqual({ status: 'unsuccessful', unsuccessful_at: '2026-08-03' })
+
+    db.$client.prepare("UPDATE jobs SET successful_at = '2026-08-04' WHERE status = 'successful'").run()
+    const successful = db.$client
+      .prepare("SELECT status, successful_at FROM jobs WHERE status = 'successful'")
+      .get() as {
+      status: string
+      successful_at: string
+    }
+    expect(successful).toEqual({ status: 'successful', successful_at: '2026-08-04' })
 
     db.$client.close()
   })
@@ -520,12 +550,18 @@ describe('createDb', () => {
       .prepare("INSERT INTO job_notes (job_id, kind, note) VALUES (1, 'interviewing', 'Interview on 5 Aug')")
       .run()
     db.$client.prepare("INSERT INTO job_notes (job_id, kind, note) VALUES (1, 'general', 'Follow up in a week')").run()
+    db.$client
+      .prepare("INSERT INTO job_notes (job_id, kind, note) VALUES (1, 'unsuccessful', 'Rejected after interview')")
+      .run()
+    db.$client.prepare("INSERT INTO job_notes (job_id, kind, note) VALUES (1, 'successful', 'Got the offer')").run()
 
     const rows = db.$client.prepare('SELECT kind, note FROM job_notes WHERE job_id = 1').all()
     expect(rows).toEqual([
       { kind: 'applied', note: 'Applied on 1 Aug' },
       { kind: 'interviewing', note: 'Interview on 5 Aug' },
       { kind: 'general', note: 'Follow up in a week' },
+      { kind: 'unsuccessful', note: 'Rejected after interview' },
+      { kind: 'successful', note: 'Got the offer' },
     ])
 
     expect(() =>

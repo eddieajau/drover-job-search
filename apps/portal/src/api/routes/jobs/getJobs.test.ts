@@ -233,6 +233,32 @@ describe('GET /api/jobs status pass-through and filtering', () => {
     expect(body.results[0].status).toBe('blocked')
   })
 
+  it('filters by status=unsuccessful and returns only matching rows', async () => {
+    seedWith(JOB1, 'unsuccessful')
+    seedWith(JOB2, 'new')
+    seedWith(JOB3, 'applied')
+
+    const res = await app.inject({ method: 'GET', url: '/?status=unsuccessful' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string; status: string }> }
+    expect(body.count).toBe(1)
+    expect(body.results).toHaveLength(1)
+    expect(body.results[0].providerJobId).toBe('job-1-unsuccessful')
+    expect(body.results[0].status).toBe('unsuccessful')
+  })
+
+  it('filters by status=successful and returns only matching rows', async () => {
+    seedWith(JOB1, 'successful')
+    seedWith(JOB2, 'new')
+    seedWith(JOB3, 'applied')
+
+    const res = await app.inject({ method: 'GET', url: '/?status=successful' })
+    const body = res.json() as { count: number; results: Array<{ providerJobId: string; status: string }> }
+    expect(body.count).toBe(1)
+    expect(body.results).toHaveLength(1)
+    expect(body.results[0].providerJobId).toBe('job-1-successful')
+    expect(body.results[0].status).toBe('successful')
+  })
+
   it('returns only gated jobs when score=blocked and count matches', async () => {
     const gated = seedJob(db, JOB1)
     seedSignal(db, { jobId: gated.id, source: 'regex_title', signalType: 'dealbreaker', score: -50 })
