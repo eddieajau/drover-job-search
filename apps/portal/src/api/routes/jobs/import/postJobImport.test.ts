@@ -19,15 +19,31 @@ const SEEK_URL = 'https://au.seek.com/job/93971606'
 const NON_SEEK_URL = 'https://example.com/job/123'
 const SEEK_URL_BAD = 'https://au.seek.com/job/abc'
 
-function mockHtmlFetch(returnValue: string): void {
+const LINKEDIN_URL = 'https://www.linkedin.com/jobs/view/4448084368/'
+const LINKEDIN_URL_NO_SLASH = 'https://www.linkedin.com/jobs/view/4448084368'
+
+const LINKEDIN_DETAIL_HTML = `
+<div class="topcard__title">Staff Software Engineer</h1>
+<div class="topcard__org-name-link" href="https://www.linkedin.com/company/globex">Globex Corporation</a>
+<div class="topcard__flavor topcard__flavor--bullet">Sydney, Australia</span>
+<div class="show-more-less-html__markup"><h2>About the role</h2><p>We build <strong>great</strong> things.</p><ul><li>a</li><li>b</li></ul></div>
+<h3 class="description__job-criteria-subheader">Employment type</h3>
+<span class="description__job-criteria-text">Full-time</span>
+`
+
+function mockHtmlFetch(returnValue: string, linkedinDetailHtml: string = LINKEDIN_DETAIL_HTML): void {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => ({
-      ok: true,
-      text: async () => returnValue,
-      status: 200,
-      headers: new Headers({ 'content-type': 'text/html' }),
-    }))
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      const body = url.includes('linkedin.com/jobs-guest') ? linkedinDetailHtml : returnValue
+      return {
+        ok: true,
+        text: async () => body,
+        status: 200,
+        headers: new Headers({ 'content-type': 'text/html' }),
+      }
+    })
   )
 }
 
@@ -237,5 +253,109 @@ describe('POST /api/jobs/import', () => {
       payload: { url: SEEK_URL, status: 'applied' },
     })
     expect(res.statusCode).toBe(422)
+  })
+
+  it('returns 201 with a valid LinkedIn URL and applied status', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: LINKEDIN_URL, status: 'applied' },
+    })
+    expect(res.statusCode).toBe(201)
+    const body = res.json() as { id: number; status: string; title: string }
+    expect(body.status).toBe('applied')
+    expect(body.title).toBe('Staff Software Engineer')
+    expect(body.id).toBeGreaterThan(0)
+  })
+
+  it('inserts a job with provider linkedin for a valid LinkedIn URL', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: LINKEDIN_URL, status: 'applied' },
+    })
+    const { id } = res.json() as { id: number }
+    const row = db.select().from(jobs).where(eq(jobs.id, id)).get()
+    expect(row).toBeDefined()
+    expect(row?.provider).toBe('linkedin')
+    expect(row?.providerJobId).toBe('4448084368')
+    expect(row?.status).toBe('applied')
+    expect(row?.companyName).toBe('Globex Corporation')
+    expect(row?.appliedAt).toBeTruthy()
+    expect(row?.description).toContain('**great**')
+    expect(row?.description).not.toContain('<div')
+    expect(row?.employmentType).toBe('full-time')
+  })
+
+  it('works for a LinkedIn URL without a trailing slash', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: LINKEDIN_URL_NO_SLASH, status: 'skipped' },
+    })
+    expect(res.statusCode).toBe(201)
+    const { id } = res.json() as { id: number }
+    const row = db.select().from(jobs).where(eq(jobs.id, id)).get()
+    expect(row?.provider).toBe('linkedin')
+    expect(row?.providerJobId).toBe('4448084368')
+    expect(row?.status).toBe('skipped')
+    expect(row?.skippedAt).toBeTruthy()
+  })
+
+  it('returns 409 for a duplicate LinkedIn URL', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: LINKEDIN_URL, status: 'applied' },
+    })
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: LINKEDIN_URL, status: 'skipped' },
+    })
+    expect(res.statusCode).toBe(409)
+  })
+
+  it('returns 422 when the LinkedIn page cannot be fetched', async () => {
+    vi.restoreAllMocks()
+    mockHtmlFetch('', '')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: LINKEDIN_URL, status: 'applied' },
+    })
+    expect(res.statusCode).toBe(422)
+  })
+
+  it('returns 422 when the LinkedIn job is closed', async () => {
+    vi.restoreAllMocks()
+    mockHtmlFetch(
+      seekHtml,
+      '<div class="topcard__flavor topcard__flavor--bullet">No longer accepting applications</div>'
+    )
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: LINKEDIN_URL, status: 'applied' },
+    })
+    expect(res.statusCode).toBe(422)
+    expect(res.body).toBe('This job is no longer accepting applications')
+    const row = db.select().from(jobs).where(eq(jobs.providerJobId, '4448084368')).get()
+    expect(row).toBeUndefined()
+  })
+
+  it('enqueues a rank entry in analysis_queue for a LinkedIn URL', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: LINKEDIN_URL, status: 'applied' },
+    })
+    const { id } = res.json() as { id: number }
+    const row = db.select().from(analysisQueue).where(eq(analysisQueue.jobId, id)).get()
+    expect(row).toBeDefined()
+    expect(row?.topic).toBe('rank')
+    expect(row?.completedAt).toBeNull()
   })
 })
