@@ -13,6 +13,7 @@ export interface SignalSummary {
 
 export interface Job {
   id: number
+  provider: string
   providerJobId: string
   title: string
   companyName: string

@@ -7,7 +7,7 @@ import { escapeHtml as esc } from '../../escape.js'
 import { relativeAge } from './posted-age.js'
 
 export interface JobCardEventMap {
-  'job-card:select': CustomEvent<{ jobId: number; providerJobId: string }>
+  'job-card:select': CustomEvent<{ jobId: number; providerJobId: string; provider: string }>
   'job-card:flag': CustomEvent<{ jobId: number; providerJobId: string }>
   'job-card:status': CustomEvent<{ jobId: number; providerJobId: string; status: string }>
 }
@@ -15,6 +15,7 @@ export interface JobCardEventMap {
 type JobCardAttribute =
   | 'job-id'
   | 'provider-job-id'
+  | 'provider'
   | 'title'
   | 'company'
   | 'location'
@@ -48,6 +49,7 @@ export class JobCard extends HTMLElement {
 
   #jobId = 0
   #providerJobId = ''
+  #provider = ''
   #title = ''
   #company = ''
   #location = ''
@@ -79,6 +81,9 @@ export class JobCard extends HTMLElement {
         break
       case 'provider-job-id':
         this.#providerJobId = newValue ?? ''
+        break
+      case 'provider':
+        this.#provider = newValue ?? ''
         break
       case 'title':
         this.#title = newValue ?? ''
@@ -161,7 +166,7 @@ export class JobCard extends HTMLElement {
       new CustomEvent<JobCardEventMap['job-card:select'] extends CustomEvent<infer D> ? D : never>('job-card:select', {
         bubbles: true,
         composed: true,
-        detail: { jobId: this.#jobId, providerJobId: this.#providerJobId },
+        detail: { jobId: this.#jobId, providerJobId: this.#providerJobId, provider: this.#provider },
       })
     )
   }
@@ -178,7 +183,7 @@ export class JobCard extends HTMLElement {
           {
             bubbles: true,
             composed: true,
-            detail: { jobId: this.#jobId, providerJobId: this.#providerJobId },
+            detail: { jobId: this.#jobId, providerJobId: this.#providerJobId, provider: this.#provider },
           }
         )
       )

@@ -9,7 +9,7 @@ import './job-card.js'
 import type { JobCard } from './job-card.js'
 
 export interface JobListEventMap {
-  'job-list:select': CustomEvent<{ jobId: number; providerJobId: string }>
+  'job-list:select': CustomEvent<{ jobId: number; providerJobId: string; provider: string }>
   'job-list:status': CustomEvent<{ jobId: number; status: string }>
 }
 
@@ -52,12 +52,14 @@ export class JobList extends HTMLElement {
   }
 
   #onCardSelect = (event: Event): void => {
-    const { jobId, providerJobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
+    const { jobId, providerJobId, provider } = (
+      event as CustomEvent<{ jobId: number; providerJobId: string; provider: string }>
+    ).detail
     this.dispatchEvent(
       new CustomEvent('job-list:select', {
         bubbles: true,
         composed: true,
-        detail: { jobId, providerJobId },
+        detail: { jobId, providerJobId, provider },
       })
     )
   }
@@ -98,6 +100,9 @@ export class JobList extends HTMLElement {
         const card = document.createElement('job-card') as JobCard
         card.setAttribute('job-id', String(job.id))
         card.setAttribute('provider-job-id', job.providerJobId)
+        if (job.provider) {
+          card.setAttribute('provider', job.provider)
+        }
         card.setAttribute('title', job.title)
         card.setAttribute('company', job.companyName)
         card.setAttribute('location', job.location)

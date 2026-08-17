@@ -119,32 +119,36 @@ async function syncRules(rules: RuleDraft[]): Promise<void> {
 }
 
 async function handleJobSelect(event: Event): Promise<void> {
-  const { providerJobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
+  const { providerJobId, provider } = (event as CustomEvent<{ jobId: number; providerJobId: string; provider: string }>)
+    .detail
   const page = document.querySelector('jobs-page')
   if (!page || !providerJobId) {
     return
   }
-  await fetchAndSetJobMeta(providerJobId, page)
+  await fetchAndSetJobMeta(providerJobId, provider, page)
 }
 
 async function handleInitialSelect(event: Event): Promise<void> {
-  const { providerJobId } = (event as CustomEvent<{ providerJobId: string }>).detail
+  const { providerJobId, provider } = (event as CustomEvent<{ providerJobId: string; provider: string }>).detail
   const page = document.querySelector('jobs-page')
   if (!page || !providerJobId) {
     return
   }
-  await fetchAndSetJobMeta(providerJobId, page)
+  await fetchAndSetJobMeta(providerJobId, provider, page)
 }
 
-async function fetchAndSetJobMeta(providerJobId: string, page: JobsPage): Promise<void> {
+async function fetchAndSetJobMeta(providerJobId: string, provider: string | undefined, page: JobsPage): Promise<void> {
   let signals: JobSignal[] = []
   let queued = false
 
+  const params = new URLSearchParams({ providerJobId })
+  if (provider) {
+    params.set('provider', provider)
+  }
+  const qs = params.toString()
+
   try {
-    const [signalsRes, queueRes] = await Promise.all([
-      fetch(`/api/signals?providerJobId=${encodeURIComponent(providerJobId)}`),
-      fetch(`/api/analysis-queue?providerJobId=${encodeURIComponent(providerJobId)}`),
-    ])
+    const [signalsRes, queueRes] = await Promise.all([fetch(`/api/signals?${qs}`), fetch(`/api/analysis-queue?${qs}`)])
     if (signalsRes.ok) {
       signals = (await signalsRes.json()) as JobSignal[]
     }

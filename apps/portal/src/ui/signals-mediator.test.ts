@@ -224,11 +224,13 @@ describe('signals-mediator deep-link hydration', () => {
     const setJobMeta = vi.fn()
     page!.setJobMeta = setJobMeta
 
-    window.dispatchEvent(new CustomEvent('jobs-page:selected', { detail: { providerJobId: 'job-1' } }))
+    window.dispatchEvent(
+      new CustomEvent('jobs-page:selected', { detail: { providerJobId: 'job-1', provider: 'seek' } })
+    )
     await new Promise(resolve => setTimeout(resolve, 0))
 
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/signals?providerJobId=job-1')
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/analysis-queue?providerJobId=job-1')
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/signals?providerJobId=job-1&provider=seek')
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/analysis-queue?providerJobId=job-1&provider=seek')
     expect(setJobMeta).toHaveBeenCalledWith('job-1', signals, true)
   })
 
@@ -245,7 +247,9 @@ describe('signals-mediator deep-link hydration', () => {
     const setJobMeta = vi.fn()
     page!.setJobMeta = setJobMeta
 
-    window.dispatchEvent(new CustomEvent('jobs-page:selected', { detail: { providerJobId: 'job-1' } }))
+    window.dispatchEvent(
+      new CustomEvent('jobs-page:selected', { detail: { providerJobId: 'job-1', provider: 'seek' } })
+    )
     await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(setJobMeta).toHaveBeenCalledWith('job-1', [], false)

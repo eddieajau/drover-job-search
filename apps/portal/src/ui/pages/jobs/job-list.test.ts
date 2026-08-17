@@ -14,6 +14,7 @@ import type { JobList } from './job-list.js'
 function job(overrides: Partial<Job> = {}): Job {
   return {
     id: 1,
+    provider: 'linkedin',
     providerJobId: '4445084022',
     title: 'Staff Engineer',
     companyName: 'Acme',

@@ -71,7 +71,7 @@ export class JobsPage extends HTMLElement {
             new CustomEvent('jobs-page:selected', {
               bubbles: true,
               composed: true,
-              detail: { providerJobId: selectedJob.providerJobId },
+              detail: { providerJobId: selectedJob.providerJobId, provider: selectedJob.provider },
             })
           )
         }
