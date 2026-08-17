@@ -30,8 +30,17 @@ describe('import-page', () => {
   it('renders the URL input with required pattern', () => {
     const input = el.querySelector<HTMLInputElement>('#import-url')!
     expect(input.required).toBe(true)
-    expect(input.pattern).toBe('https?://au\\.seek\\.com/job/\\d+')
+    expect(input.pattern).toBe(
+      'https?://au\\.seek\\.com/job/\\d+|https?://(?:[a-z]{2,}\\.)?linkedin\\.com/jobs/view/\\d+/?'
+    )
     expect(input.type).toBe('url')
+  })
+
+  it('renders the provider-agnostic label and placeholder', () => {
+    const label = el.querySelector<HTMLLabelElement>('label[for="import-url"]')!
+    expect(label.textContent).toBe('Job URL')
+    const input = el.querySelector<HTMLInputElement>('#import-url')!
+    expect(input.placeholder).toBe('https://au.seek.com/job/… or https://www.linkedin.com/jobs/view/…')
   })
 
   it('renders the status select with all allowed options', () => {
@@ -77,6 +86,23 @@ describe('import-page', () => {
       status: 'interviewing',
       date: '2026-01-15',
     })
+  })
+
+  it('dispatches import-page:save with a LinkedIn URL on submit', () => {
+    const urlInput = el.querySelector<HTMLInputElement>('#import-url')!
+    urlInput.value = 'https://www.linkedin.com/jobs/view/4448084368/'
+
+    const received = { fired: false, detail: {} as { url: string; status: string; date: string } }
+    el.addEventListener('import-page:save', event => {
+      received.fired = true
+      received.detail = (event as CustomEvent).detail
+    })
+
+    el.querySelector<HTMLFormElement>('#import-form')!.dispatchEvent(new Event('submit', { bubbles: true }))
+
+    expect(received.fired).toBe(true)
+    expect(received.detail.url).toBe('https://www.linkedin.com/jobs/view/4448084368/')
+    expect(received.detail.status).toBe('applied')
   })
 
   it('disables the button and shows "Importing\u2026" when setBusy(true)', () => {

@@ -99,9 +99,9 @@ export class ImportPage extends HTMLElement {
         <h1>Import Job</h1>
         <form id="import-form" class="form">
           <div class="field">
-            <label class="field-label req" for="import-url">Seek Job URL</label>
-            <input class="input" type="url" id="import-url" placeholder="https://au.seek.com/job/..."
-                   required pattern="https?://au\\.seek\\.com/job/\\d+" />
+            <label class="field-label req" for="import-url">Job URL</label>
+            <input class="input" type="url" id="import-url" placeholder="https://au.seek.com/job/… or https://www.linkedin.com/jobs/view/…"
+                   required pattern="https?://au\\.seek\\.com/job/\\d+|https?://(?:[a-z]{2,}\\.)?linkedin\\.com/jobs/view/\\d+/?" />
           </div>
           <div class="field">
             <label class="field-label req" for="import-status">Starting Status</label>
