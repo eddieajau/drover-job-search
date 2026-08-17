@@ -53,6 +53,24 @@ describe('POST /api/jobs/:id/notes', () => {
     expect(row?.kind).toBe('general')
   })
 
+  it.each(['applied', 'declined', 'interviewing'] as const)(
+    'writes a %s note and returns 201 without mutating status',
+    async kind => {
+      const job = seedJob(db, JOB1)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/${job.id}/notes`,
+        payload: { kind, note: `Noted as ${kind}` },
+      })
+      expect(res.statusCode).toBe(201)
+      expect(res.json()).toMatchObject({ jobId: job.id, kind, note: `Noted as ${kind}` })
+
+      const row = db.select().from(jobNotes).where(eq(jobNotes.jobId, job.id)).get()
+      expect(row).toMatchObject({ kind, note: `Noted as ${kind}` })
+    }
+  )
+
   it('returns 404 for an unknown job', async () => {
     const res = await app.inject({
       method: 'POST',
@@ -60,16 +78,6 @@ describe('POST /api/jobs/:id/notes', () => {
       payload: { kind: 'general', note: 'Nope' },
     })
     expect(res.statusCode).toBe(404)
-  })
-
-  it('returns 400 for a non-general kind', async () => {
-    const job = seedJob(db, JOB1)
-    const res = await app.inject({
-      method: 'POST',
-      url: `/${job.id}/notes`,
-      payload: { kind: 'applied', note: 'Nope' },
-    })
-    expect(res.statusCode).toBe(400)
   })
 
   it('returns 400 for a missing note', async () => {

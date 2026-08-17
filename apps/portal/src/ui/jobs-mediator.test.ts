@@ -637,7 +637,7 @@ describe('jobs-mediator', () => {
 
     window.dispatchEvent(
       new CustomEvent('job-note:save', {
-        detail: { jobId: 1, kind: 'applied', date: '2026-08-01', note: 'Sent my CV' },
+        detail: { jobId: 1, kind: 'applied', date: '2026-08-01', note: 'Sent my CV', mode: 'status' },
       })
     )
     await new Promise(resolve => setTimeout(resolve, 50))
@@ -664,7 +664,7 @@ describe('jobs-mediator', () => {
 
     window.dispatchEvent(
       new CustomEvent('job-note:save', {
-        detail: { jobId: 1, kind: 'declined', date: '2026-08-02', note: 'Went with another candidate' },
+        detail: { jobId: 1, kind: 'declined', date: '2026-08-02', note: 'Went with another candidate', mode: 'status' },
       })
     )
     await new Promise(resolve => setTimeout(resolve, 50))
@@ -692,7 +692,7 @@ describe('jobs-mediator', () => {
 
     window.dispatchEvent(
       new CustomEvent('job-note:save', {
-        detail: { jobId: 1, kind: 'interviewing', date: '2026-08-05', note: 'Phone screen scheduled' },
+        detail: { jobId: 1, kind: 'interviewing', date: '2026-08-05', note: 'Phone screen scheduled', mode: 'status' },
       })
     )
     await new Promise(resolve => setTimeout(resolve, 50))
@@ -728,7 +728,9 @@ describe('jobs-mediator', () => {
     initJobsMediator()
     await new Promise(resolve => setTimeout(resolve, 50))
 
-    window.dispatchEvent(new CustomEvent('job-note:save', { detail: { jobId: 1, kind: 'general', note: 'Follow up' } }))
+    window.dispatchEvent(
+      new CustomEvent('job-note:save', { detail: { jobId: 1, kind: 'general', note: 'Follow up', mode: 'note' } })
+    )
     await new Promise(resolve => setTimeout(resolve, 50))
 
     const calls = vi.mocked(fetch).mock.calls
@@ -737,6 +739,40 @@ describe('jobs-mediator', () => {
     const [postUrl, postInit] = postCalls[0]
     expect(postUrl).toBe('/api/jobs/1/notes')
     expect(JSON.parse(String(postInit?.body))).toEqual({ kind: 'general', note: 'Follow up' })
+
+    const refreshCalls = calls.filter(([url]) => url === '/api/jobs?limit=50&offset=0&status=new')
+    expect(refreshCalls).toHaveLength(2)
+  })
+
+  it('persists a note-mode interviewing note via POST /notes and refreshes', async () => {
+    mockFetch({
+      '/api/jobs/1/notes': {
+        id: 1,
+        jobId: 1,
+        kind: 'interviewing',
+        note: 'Phone screen on 5 Aug',
+        createdAt: '2026-08-05 14:00:00',
+        updatedAt: '2026-08-05 14:00:00',
+      },
+      '/api/jobs': jobsResponse(),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    window.dispatchEvent(
+      new CustomEvent('job-note:save', {
+        detail: { jobId: 1, kind: 'interviewing', note: 'Phone screen on 5 Aug', mode: 'note' },
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const calls = vi.mocked(fetch).mock.calls
+    const postCalls = calls.filter(([, init]) => init?.method === 'POST')
+    expect(postCalls).toHaveLength(1)
+    const [postUrl, postInit] = postCalls[0]
+    expect(postUrl).toBe('/api/jobs/1/notes')
+    expect(JSON.parse(String(postInit?.body))).toEqual({ kind: 'interviewing', note: 'Phone screen on 5 Aug' })
 
     const refreshCalls = calls.filter(([url]) => url === '/api/jobs?limit=50&offset=0&status=new')
     expect(refreshCalls).toHaveLength(2)

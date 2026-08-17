@@ -174,6 +174,27 @@ describe('job-meta-panel', () => {
     expect(dateField?.hasAttribute('hidden')).toBe(true)
   })
 
+  it('opens the dialog in note mode with the kind select visible when Add note is clicked', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+
+    el.querySelector<HTMLButtonElement>('[data-action="note"][data-kind="general"]')?.click()
+
+    const kindSelect = el.querySelector<HTMLSelectElement>('job-note-dialog #note-kind')
+    expect(kindSelect?.hidden).toBe(false)
+    expect(kindSelect?.value).toBe('general')
+  })
+
+  it('opens the dialog in status mode with the kind select hidden when Mark applied is clicked', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+
+    el.querySelector<HTMLButtonElement>('[data-action="note"][data-kind="applied"]')?.click()
+
+    const kindSelect = el.querySelector<HTMLSelectElement>('job-note-dialog #note-kind')
+    expect(kindSelect?.hidden).toBe(true)
+  })
+
   it('renders the Notes section via setNotes with a kind chip and note text', () => {
     const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
     el.showJob(j, [], false)

@@ -161,7 +161,9 @@ async function persistStatus(id: number, status: JobStatus['status']): Promise<v
 }
 
 function handleNoteSave(event: Event): void {
-  const detail = (event as CustomEvent<{ jobId: number; kind: JobNote['kind']; date?: string; note: string }>).detail
+  const detail = (
+    event as CustomEvent<{ jobId: number; kind: JobNote['kind']; date?: string; note: string; mode: 'status' | 'note' }>
+  ).detail
   void persistNote(detail)
 }
 
@@ -170,16 +172,23 @@ async function persistNote(detail: {
   kind: JobNote['kind']
   date?: string
   note: string
+  mode: 'status' | 'note'
 }): Promise<void> {
   try {
-    const isGeneral = detail.kind === 'general'
-    const response = await fetch(isGeneral ? `/api/jobs/${detail.jobId}/notes` : `/api/jobs/${detail.jobId}/status`, {
-      method: isGeneral ? 'POST' : 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(
-        isGeneral ? { kind: 'general', note: detail.note } : { status: detail.kind, at: detail.date, note: detail.note }
-      ),
-    })
+    let response: Response
+    if (detail.mode === 'status') {
+      response = await fetch(`/api/jobs/${detail.jobId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: detail.kind, at: detail.date, note: detail.note }),
+      })
+    } else {
+      response = await fetch(`/api/jobs/${detail.jobId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: detail.kind, note: detail.note }),
+      })
+    }
     if (!response.ok) {
       throw new Error('Failed to save job note')
     }

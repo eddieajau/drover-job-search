@@ -163,10 +163,12 @@ export class JobMetaPanel extends HTMLElement {
       const jobId = this.#job?.id
       const kind = (button.dataset.kind ?? 'general') as JobNote['kind']
       if (jobId) {
+        const mode = kind === 'general' ? 'note' : 'status'
         this.querySelector('job-note-dialog')?.open({
           jobId,
           kind,
           date: kind === 'general' ? undefined : todayIso(),
+          mode,
         })
       }
       return

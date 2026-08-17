@@ -14,6 +14,7 @@ export interface JobNoteDialogDetail {
   kind: JobNote['kind']
   date?: string
   note: string
+  mode: 'status' | 'note'
 }
 
 const KIND_TITLES: Record<JobNote['kind'], string> = {
@@ -33,6 +34,7 @@ export function todayIso(now: Date = new Date()): string {
 export class JobNoteDialog extends HTMLElement {
   #jobId = 0
   #kind: JobNote['kind'] = 'general'
+  #mode: 'status' | 'note' = 'note'
   #abort: AbortController | null = null
 
   connectedCallback(): void {
@@ -44,23 +46,32 @@ export class JobNoteDialog extends HTMLElement {
     this.cleanup()
   }
 
-  open(options: { jobId: number; kind: JobNote['kind']; date?: string }): void {
+  open(options: { jobId: number; kind: JobNote['kind']; date?: string; mode?: 'status' | 'note' }): void {
     this.#jobId = options.jobId
     this.#kind = options.kind
+    this.#mode = options.mode ?? 'note'
+
+    const isNoteMode = this.#mode === 'note'
 
     const title = this.querySelector<HTMLElement>('#note-title')
     if (title) {
-      title.textContent = KIND_TITLES[options.kind]
+      title.textContent = isNoteMode ? (KIND_TITLES[options.kind] ?? 'Add note') : KIND_TITLES[options.kind]
+    }
+
+    const kindSelect = this.querySelector<HTMLSelectElement>('#note-kind')
+    if (kindSelect) {
+      kindSelect.hidden = !isNoteMode
+      kindSelect.value = options.kind
     }
 
     const dateField = this.querySelector<HTMLElement>('[data-note-date]')
     const dateInput = this.querySelector<HTMLInputElement>('#note-date')
     const noteInput = this.querySelector<HTMLTextAreaElement>('#note-text')
     if (dateField) {
-      dateField.hidden = options.kind === 'general'
+      dateField.hidden = isNoteMode || options.kind === 'general'
     }
     if (dateInput) {
-      dateInput.value = options.kind === 'general' ? '' : (options.date ?? todayIso())
+      dateInput.value = isNoteMode || options.kind === 'general' ? '' : (options.date ?? todayIso())
     }
     if (noteInput) {
       noteInput.value = ''
@@ -77,6 +88,7 @@ export class JobNoteDialog extends HTMLElement {
     const opts = { signal: this.#abort.signal }
     this.addEventListener('click', this.#onClick, opts)
     this.addEventListener('keydown', this.#onKeydown, opts)
+    this.addEventListener('change', this.#onChange, opts)
   }
 
   cleanup(): void {
@@ -101,15 +113,27 @@ export class JobNoteDialog extends HTMLElement {
     }
   }
 
+  #onChange = (event: Event): void => {
+    const target = event.target as HTMLElement
+    if (target.id === 'note-kind') {
+      const select = target as HTMLSelectElement
+      this.#kind = select.value as JobNote['kind']
+      const title = this.querySelector<HTMLElement>('#note-title')
+      if (title) {
+        title.textContent = KIND_TITLES[this.#kind] ?? 'Add note'
+      }
+    }
+  }
+
   #save(): void {
     const noteInput = this.querySelector<HTMLTextAreaElement>('#note-text')
     const dateInput = this.querySelector<HTMLInputElement>('#note-date')
-    const date = this.#kind === 'general' ? undefined : dateInput?.value || undefined
+    const date = this.#mode === 'status' && this.#kind !== 'general' ? dateInput?.value || undefined : undefined
     this.dispatchEvent(
       new CustomEvent<JobNoteDialogDetail>('job-note:save', {
         bubbles: true,
         composed: true,
-        detail: { jobId: this.#jobId, kind: this.#kind, date, note: noteInput?.value ?? '' },
+        detail: { jobId: this.#jobId, kind: this.#kind, date, note: noteInput?.value ?? '', mode: this.#mode },
       })
     )
     this.querySelector<HTMLDialogElement>('dialog')?.close()
@@ -119,6 +143,15 @@ export class JobNoteDialog extends HTMLElement {
     this.innerHTML = `
       <dialog class="note-dialog" aria-label="Job note">
         <h3 class="note-title" id="note-title">Add note</h3>
+        <div class="note-field">
+          <label for="note-kind">Kind</label>
+          <select id="note-kind" class="input" hidden>
+            <option value="general">Note</option>
+            <option value="applied">Applied</option>
+            <option value="interviewing">Interviewing</option>
+            <option value="declined">Declined</option>
+          </select>
+        </div>
         <div class="note-field" data-note-date>
           <label for="note-date">Date</label>
           <input type="date" id="note-date" class="input" />

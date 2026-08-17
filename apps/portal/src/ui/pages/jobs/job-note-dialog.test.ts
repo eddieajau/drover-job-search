@@ -23,7 +23,7 @@ describe('job-note-dialog', () => {
   })
 
   it('shows the date field defaulting to today for applied', () => {
-    el.open({ jobId: 7, kind: 'applied' })
+    el.open({ jobId: 7, kind: 'applied', mode: 'status' })
 
     const dialog = el.querySelector<HTMLDialogElement>('dialog')
     expect(dialog?.hasAttribute('open')).toBe(true)
@@ -34,14 +34,14 @@ describe('job-note-dialog', () => {
   })
 
   it('shows the date field for declined', () => {
-    el.open({ jobId: 7, kind: 'declined' })
+    el.open({ jobId: 7, kind: 'declined', mode: 'status' })
 
     const dateField = el.querySelector<HTMLElement>('[data-note-date]')
     expect(dateField?.hasAttribute('hidden')).toBe(false)
   })
 
   it('shows the date field defaulting to today for interviewing', () => {
-    el.open({ jobId: 7, kind: 'interviewing' })
+    el.open({ jobId: 7, kind: 'interviewing', mode: 'status' })
 
     const dialog = el.querySelector<HTMLDialogElement>('dialog')
     expect(dialog?.hasAttribute('open')).toBe(true)
@@ -52,7 +52,7 @@ describe('job-note-dialog', () => {
   })
 
   it('uses the passed date for back-capture', () => {
-    el.open({ jobId: 7, kind: 'applied', date: '2026-07-01' })
+    el.open({ jobId: 7, kind: 'applied', date: '2026-07-01', mode: 'status' })
 
     const dateInput = el.querySelector<HTMLInputElement>('#note-date')
     expect(dateInput?.value).toBe('2026-07-01')
@@ -67,14 +67,73 @@ describe('job-note-dialog', () => {
     expect(dateInput?.value).toBe('')
   })
 
-  it('moves focus into the note textarea on open', () => {
-    el.open({ jobId: 7, kind: 'general' })
+  it('shows the kind select in note mode and hides it in status mode', () => {
+    el.open({ jobId: 7, kind: 'general', mode: 'note' })
+    const kindSelect = el.querySelector<HTMLSelectElement>('#note-kind')
+    expect(kindSelect?.hidden).toBe(false)
 
-    expect(document.activeElement).toBe(el.querySelector<HTMLTextAreaElement>('#note-text'))
+    el.open({ jobId: 7, kind: 'applied', mode: 'status' })
+    expect(kindSelect?.hidden).toBe(true)
   })
 
-  it('dispatches job-note:save with the typed detail on Save', () => {
-    el.open({ jobId: 7, kind: 'applied', date: '2026-08-01' })
+  it('hides the date field in note mode regardless of kind', () => {
+    el.open({ jobId: 7, kind: 'applied', mode: 'note' })
+    const dateField = el.querySelector<HTMLElement>('[data-note-date]')
+    expect(dateField?.hasAttribute('hidden')).toBe(true)
+  })
+
+  it('defaults the kind select to general in note mode', () => {
+    el.open({ jobId: 7, kind: 'general', mode: 'note' })
+    const kindSelect = el.querySelector<HTMLSelectElement>('#note-kind')
+    expect(kindSelect?.value).toBe('general')
+  })
+
+  it('sets the kind select to the given kind in note mode', () => {
+    el.open({ jobId: 7, kind: 'interviewing', mode: 'note' })
+    const kindSelect = el.querySelector<HTMLSelectElement>('#note-kind')
+    expect(kindSelect?.value).toBe('interviewing')
+  })
+
+  it('updates the title when the kind select changes in note mode', () => {
+    el.open({ jobId: 7, kind: 'general', mode: 'note' })
+    const kindSelect = el.querySelector<HTMLSelectElement>('#note-kind')
+    if (kindSelect) {
+      kindSelect.value = 'interviewing'
+      kindSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+    const title = el.querySelector<HTMLElement>('#note-title')
+    expect(title?.textContent).toBe('Mark interviewing')
+  })
+
+  it('dispatches job-note:save with mode note and the chosen kind', () => {
+    el.open({ jobId: 7, kind: 'general', mode: 'note' })
+    let received: JobNoteDialogDetail | undefined
+    el.addEventListener('job-note:save', event => {
+      received = (event as CustomEvent<JobNoteDialogDetail>).detail
+    })
+
+    const kindSelect = el.querySelector<HTMLSelectElement>('#note-kind')
+    if (kindSelect) {
+      kindSelect.value = 'interviewing'
+      kindSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+    const textarea = el.querySelector<HTMLTextAreaElement>('#note-text')
+    if (textarea) {
+      textarea.value = 'Phone screen on 5 Aug'
+    }
+    el.querySelector<HTMLButtonElement>('#note-save')?.click()
+
+    expect(received).toEqual({
+      jobId: 7,
+      kind: 'interviewing',
+      date: undefined,
+      note: 'Phone screen on 5 Aug',
+      mode: 'note',
+    })
+  })
+
+  it('dispatches job-note:save with mode status for status-mode opens', () => {
+    el.open({ jobId: 7, kind: 'applied', date: '2026-08-01', mode: 'status' })
     let received: JobNoteDialogDetail | undefined
     el.addEventListener('job-note:save', event => {
       received = (event as CustomEvent<JobNoteDialogDetail>).detail
@@ -85,7 +144,40 @@ describe('job-note-dialog', () => {
     }
     el.querySelector<HTMLButtonElement>('#note-save')?.click()
 
-    expect(received).toEqual({ jobId: 7, kind: 'applied', date: '2026-08-01', note: 'Applied via portal' })
+    expect(received).toEqual({
+      jobId: 7,
+      kind: 'applied',
+      date: '2026-08-01',
+      note: 'Applied via portal',
+      mode: 'status',
+    })
+  })
+
+  it('moves focus into the note textarea on open', () => {
+    el.open({ jobId: 7, kind: 'general' })
+
+    expect(document.activeElement).toBe(el.querySelector<HTMLTextAreaElement>('#note-text'))
+  })
+
+  it('dispatches job-note:save with the typed detail on Save', () => {
+    el.open({ jobId: 7, kind: 'applied', date: '2026-08-01', mode: 'status' })
+    let received: JobNoteDialogDetail | undefined
+    el.addEventListener('job-note:save', event => {
+      received = (event as CustomEvent<JobNoteDialogDetail>).detail
+    })
+    const textarea = el.querySelector<HTMLTextAreaElement>('#note-text')
+    if (textarea) {
+      textarea.value = 'Applied via portal'
+    }
+    el.querySelector<HTMLButtonElement>('#note-save')?.click()
+
+    expect(received).toEqual({
+      jobId: 7,
+      kind: 'applied',
+      date: '2026-08-01',
+      note: 'Applied via portal',
+      mode: 'status',
+    })
     const dialog = el.querySelector<HTMLDialogElement>('dialog')
     expect(dialog?.hasAttribute('open')).toBe(false)
   })
@@ -102,7 +194,13 @@ describe('job-note-dialog', () => {
     }
     el.querySelector<HTMLButtonElement>('#note-save')?.click()
 
-    expect(received).toEqual({ jobId: 7, kind: 'general', date: undefined, note: 'Remind me to follow up' })
+    expect(received).toEqual({
+      jobId: 7,
+      kind: 'general',
+      date: undefined,
+      note: 'Remind me to follow up',
+      mode: 'note',
+    })
   })
 
   it('closes on Cancel without dispatching a save event', () => {
