@@ -127,6 +127,31 @@ describe('job-card', () => {
     expect(received.providerJobId).toBe('job-3')
   })
 
+  it('includes provider in the job-card:select detail', () => {
+    const card = createCard({
+      'job-id': '3',
+      'provider-job-id': 'job-3',
+      provider: 'seek',
+      title: 'Engineer',
+      company: 'Gamma',
+      location: 'Melbourne',
+      posted: '3d',
+    })
+
+    const received = { jobId: 0, providerJobId: '', provider: '' }
+    card.addEventListener('job-card:select', event => {
+      const detail = (event as CustomEvent<{ jobId: number; providerJobId: string; provider: string }>).detail
+      received.jobId = detail.jobId
+      received.providerJobId = detail.providerJobId
+      received.provider = detail.provider
+    })
+
+    card.querySelector<HTMLElement>('.job-title')?.click()
+    expect(received.jobId).toBe(3)
+    expect(received.providerJobId).toBe('job-3')
+    expect(received.provider).toBe('seek')
+  })
+
   it('does not render action buttons', () => {
     const card = createCard({
       'job-id': '4',

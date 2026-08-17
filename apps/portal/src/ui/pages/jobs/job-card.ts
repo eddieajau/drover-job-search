@@ -33,6 +33,7 @@ export class JobCard extends HTMLElement {
   static observedAttributes: JobCardAttribute[] = [
     'job-id',
     'provider-job-id',
+    'provider',
     'title',
     'company',
     'location',
