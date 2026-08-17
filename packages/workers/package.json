@@ -13,10 +13,9 @@
   "dependencies": {
     "db": "^0.1.0",
     "drizzle-orm": "^0.45.2",
-    "turndown": "^7.2.4"
+    "providers": "^0.1.0"
   },
   "devDependencies": {
-    "@types/turndown": "^5.0.6",
     "better-sqlite3": "^13.0.3",
     "pino": "^10.3.1",
     "vitest": "^3.2.7"

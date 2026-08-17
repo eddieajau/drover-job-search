@@ -6,3 +6,4 @@
 export * from './fetch.js'
 export * from './workplace.js'
 export * from './employment.js'
+export * from './markdown.js'

@@ -6,9 +6,9 @@
 import { analysisQueue, jobs, type DB } from 'db'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { FastifyBaseLogger } from 'fastify'
+import { toMarkdown } from 'providers/common'
 
 import { createConsumer, type Consumer } from '../consumer.js'
-import { toMarkdown } from '../lib/markdown.js'
 import { complete, fail, selectPending, type PendingRow } from '../queue.js'
 
 export type DetailFn = (opts: { id: string }) => Promise<{ description: string | null; closed?: boolean } | null>

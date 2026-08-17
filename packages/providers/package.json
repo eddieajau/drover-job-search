@@ -13,5 +13,11 @@
   "scripts": {
     "test": "vitest run --reporter=dot",
     "verify": "oxfmt check . && oxlint . && npm test"
+  },
+  "dependencies": {
+    "turndown": "^7.2.4"
+  },
+  "devDependencies": {
+    "@types/turndown": "^5.0.6"
   }
 }
