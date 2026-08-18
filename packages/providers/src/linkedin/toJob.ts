@@ -21,15 +21,45 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export { search, selectJobage, LINKEDIN_WINDOWS, type SearchOpts, type SearchResult } from './search.js'
-export { detail, type DetailOpts } from './detail.js'
-export { toJob } from './toJob.js'
-export {
-  classifyWorkplaceType,
-  matchesWorkType,
-  workTypeFlag,
-  jobTypeFlag,
-  type JobCard,
-  type JobDetail,
-} from './parse.js'
-export { normaliseWorkplace, silentLogger, type SearchLogger, type WorkplaceType } from '../common/index.js'
+import {
+  normaliseEmploymentType,
+  ProviderError,
+  silentLogger,
+  toMarkdown,
+  type ProvidedJob,
+  type SearchLogger,
+} from '../common/index.js'
+import { detail } from './detail.js'
+
+/**
+ * Fetch and parse a LinkedIn job into a `ProvidedJob` with a markdown
+ * description.
+ *
+ * The **dispatcher** (ticket 131) maps `ProviderError` codes to HTTP
+ * status; `toJob` owns the fetch-fail, closed, and map-to-ProvidedJob
+ * paths only.
+ */
+export async function toJob(id: string, logger: SearchLogger = silentLogger): Promise<ProvidedJob> {
+  const d = await detail({ id, logger })
+
+  if (!d) {
+    throw new ProviderError('fetch_failed', 'Could not fetch job page')
+  }
+
+  if (d.closed) {
+    throw new ProviderError('job_closed', 'This job is no longer accepting applications')
+  }
+
+  return {
+    provider: 'linkedin',
+    providerJobId: d.id,
+    title: d.title,
+    companyName: d.company ?? '',
+    url: d.url,
+    location: d.location ?? '',
+    workplaceType: d.workplaceType,
+    employmentType: normaliseEmploymentType(d.employmentType),
+    postedAt: d.date,
+    description: d.description ? toMarkdown(d.description) : null,
+  }
+}
