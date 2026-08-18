@@ -7,7 +7,7 @@ import { basename } from 'node:path'
 
 import { crawls, createDbLogger, jobs, queries } from 'db'
 import { desc, eq } from 'drizzle-orm'
-import { search, selectJobage } from 'provider-linkedin'
+import { search, selectJobage } from 'providers'
 
 import { openDb, resolveDbPath } from '../env.js'
 

@@ -12,7 +12,7 @@ import sensible from '@fastify/sensible'
 import fastifyStatic from '@fastify/static'
 import { type DB } from 'db'
 import fastify from 'fastify'
-import { detail } from 'provider-linkedin'
+import { detail } from 'providers'
 import {
   createFetchJobDetailsConsumer,
   createPublisher,

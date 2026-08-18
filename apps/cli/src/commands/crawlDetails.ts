@@ -6,7 +6,7 @@
 import { basename } from 'node:path'
 
 import { createDbLogger } from 'db'
-import { detail } from 'provider-linkedin'
+import { detail } from 'providers'
 import { fetchJobDetails } from 'workers'
 
 import { openDb, resolveDbPath } from '../env.js'
