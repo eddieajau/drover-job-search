@@ -9,6 +9,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./common": "./src/common/index.ts",
+    "./linkedin": "./src/linkedin/index.ts",
     "./seek": "./src/seek/index.ts"
   },
   "scripts": {
