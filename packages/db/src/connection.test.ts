@@ -65,6 +65,7 @@ describe('createDb', () => {
       'unsuccessful_at',
       'successful_at',
       'updated_at',
+      'closed_at',
     ])
 
     db.$client.close()

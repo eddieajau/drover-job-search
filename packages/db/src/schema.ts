@@ -91,6 +91,7 @@ export const jobs = sqliteTable(
     updatedAt: text('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
+    closedAt: text('closed_at'),
   },
   table => [
     index('uq_provider_job').on(table.provider, table.providerJobId),
@@ -297,6 +298,28 @@ export const jobNotes = sqliteTable(
   ]
 )
 
+export const jobStatusEvents = sqliteTable(
+  'job_status_events',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    jobId: integer('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    status: text('status').notNull(),
+    occurredAt: text('occurred_at').notNull(),
+    actor: text('actor'),
+    note: text('note'),
+  },
+  table => [
+    index('idx_job_status_events_job_id').on(table.jobId),
+    check(
+      'check_job_status_event_status',
+      sql`${table.status} IN ('new', 'discovered', 'applied', 'interviewing', 'skipped', 'blocked', 'declined', 'unsuccessful', 'successful')`
+    ),
+    check('check_job_status_event_actor', sql`${table.actor} IN ('human', 'ai', 'system') OR ${table.actor} IS NULL`),
+  ]
+)
+
 export type Query = InferSelectModel<typeof queries>
 export type Job = InferSelectModel<typeof jobs>
 export type Crawl = InferSelectModel<typeof crawls>
@@ -308,6 +331,7 @@ export type Document = InferSelectModel<typeof documents>
 export type Task = InferSelectModel<typeof tasks>
 export type Log = InferSelectModel<typeof logs>
 export type JobNote = InferSelectModel<typeof jobNotes>
+export type JobStatusEvent = InferSelectModel<typeof jobStatusEvents>
 
 export const TABLE_DDL = `
 CREATE TABLE IF NOT EXISTS queries (
@@ -363,6 +387,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     unsuccessful_at TEXT,
     successful_at TEXT,
     updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    closed_at TEXT,
     CONSTRAINT uq_provider_job UNIQUE (provider, provider_job_id)
 );
 
@@ -487,4 +512,19 @@ CREATE TABLE IF NOT EXISTS job_notes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_job_notes_job_id ON job_notes(job_id);
+
+CREATE TABLE IF NOT EXISTS job_status_events (
+    id INTEGER PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK (
+        status IN ('new', 'discovered', 'applied', 'interviewing', 'skipped', 'blocked', 'declined', 'unsuccessful', 'successful')
+    ),
+    occurred_at TEXT NOT NULL,
+    actor TEXT CHECK (
+        actor IN ('human', 'ai', 'system') OR actor IS NULL
+    ),
+    note TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_status_events_job_id ON job_status_events(job_id);
 `

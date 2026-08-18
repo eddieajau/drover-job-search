@@ -12,6 +12,7 @@ import {
   documents,
   jobNotes,
   jobSignals,
+  jobStatusEvents,
   jobs,
   queries,
   signalRules,
@@ -19,7 +20,18 @@ import {
   TABLE_DDL,
 } from './schema.js'
 
-const SCHEMA = { queries, jobs, crawls, signalRules, jobSignals, analysisQueue, documents, tasks, jobNotes }
+const SCHEMA = {
+  queries,
+  jobs,
+  crawls,
+  signalRules,
+  jobSignals,
+  analysisQueue,
+  documents,
+  tasks,
+  jobNotes,
+  jobStatusEvents,
+}
 
 export type DB = ReturnType<typeof drizzle<typeof SCHEMA>>
 
