@@ -79,4 +79,7 @@ element names, and the exact test/seed fixture identifiers.
 - State wire-shape decisions explicitly (flat `sections` array, not a nested
   tree — "tree shape is a UI concern").
 - Flag anything deliberately deferred so a follow-up is easy to find.
+- **Migration safety**: Migration tickets must not drop or delete source/copy
+  tables. Leave them in place as a safety net in case the migration fails or
+  needs re-running.
 - Don't implement. Minting ends with the ticket files and README rows.
