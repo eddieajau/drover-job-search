@@ -49,7 +49,7 @@ export interface JobDetail extends JobCard {
   employmentType: string | null
   jobFunction: string | null
   industries: string | null
-  workplaceType: string | null
+  workplaceType: WorkplaceType | null
   applyUrl: string | null
   closed: boolean
 }
