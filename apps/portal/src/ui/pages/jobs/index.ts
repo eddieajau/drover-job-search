@@ -71,7 +71,7 @@ export class JobsPage extends HTMLElement {
             new CustomEvent('jobs-page:selected', {
               bubbles: true,
               composed: true,
-              detail: { providerJobId: selectedJob.providerJobId, provider: selectedJob.provider },
+              detail: { jobId: selectedJob.id },
             })
           )
         }
@@ -79,9 +79,9 @@ export class JobsPage extends HTMLElement {
     }
   }
 
-  setJobMeta(providerJobId: string, signals: import('../../../shared/types.js').JobSignal[], queued: boolean): void {
+  setJobMeta(jobId: number, signals: import('../../../shared/types.js').JobSignal[], queued: boolean): void {
     const selectedJob = this.#findSelectedJob()
-    if (selectedJob && selectedJob.providerJobId === providerJobId) {
+    if (selectedJob && selectedJob.id === jobId) {
       this.#metaPanel()?.showJob(selectedJob, signals, queued)
     }
   }

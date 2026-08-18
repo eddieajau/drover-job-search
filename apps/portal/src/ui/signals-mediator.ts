@@ -119,36 +119,32 @@ async function syncRules(rules: RuleDraft[]): Promise<void> {
 }
 
 async function handleJobSelect(event: Event): Promise<void> {
-  const { providerJobId, provider } = (event as CustomEvent<{ jobId: number; providerJobId: string; provider: string }>)
-    .detail
+  const { jobId } = (event as CustomEvent<{ jobId: number }>).detail
   const page = document.querySelector('jobs-page')
-  if (!page || !providerJobId) {
+  if (!page || !jobId) {
     return
   }
-  await fetchAndSetJobMeta(providerJobId, provider, page)
+  await fetchAndSetJobMeta(jobId, page)
 }
 
 async function handleInitialSelect(event: Event): Promise<void> {
-  const { providerJobId, provider } = (event as CustomEvent<{ providerJobId: string; provider: string }>).detail
+  const { jobId } = (event as CustomEvent<{ jobId: number }>).detail
   const page = document.querySelector('jobs-page')
-  if (!page || !providerJobId) {
+  if (!page || !jobId) {
     return
   }
-  await fetchAndSetJobMeta(providerJobId, provider, page)
+  await fetchAndSetJobMeta(jobId, page)
 }
 
-async function fetchAndSetJobMeta(providerJobId: string, provider: string | undefined, page: JobsPage): Promise<void> {
+async function fetchAndSetJobMeta(jobId: number, page: JobsPage): Promise<void> {
   let signals: JobSignal[] = []
   let queued = false
 
-  const params = new URLSearchParams({ providerJobId })
-  if (provider) {
-    params.set('provider', provider)
-  }
-  const qs = params.toString()
-
   try {
-    const [signalsRes, queueRes] = await Promise.all([fetch(`/api/signals?${qs}`), fetch(`/api/analysis-queue?${qs}`)])
+    const [signalsRes, queueRes] = await Promise.all([
+      fetch(`/api/jobs/${jobId}/signals`),
+      fetch(`/api/jobs/${jobId}/queue`),
+    ])
     if (signalsRes.ok) {
       signals = (await signalsRes.json()) as JobSignal[]
     }
@@ -160,11 +156,11 @@ async function fetchAndSetJobMeta(providerJobId: string, provider: string | unde
     // Show empty state on failure
   }
 
-  page.setJobMeta(providerJobId, signals, queued)
+  page.setJobMeta(jobId, signals, queued)
 }
 
 async function handleFlag(event: Event): Promise<void> {
-  const { jobId, providerJobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
+  const { jobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
   try {
     const response = await fetch(`/api/jobs/${jobId}/flag`, {
       method: 'POST',
@@ -179,13 +175,13 @@ async function handleFlag(event: Event): Promise<void> {
   }
   const page = document.querySelector('jobs-page')
   if (page) {
-    page.setJobMeta(providerJobId, [], true)
+    page.setJobMeta(jobId, [], true)
   }
   window.dispatchEvent(new CustomEvent('jobs:refresh-request'))
 }
 
 async function handleRank(event: Event): Promise<void> {
-  const { jobId, providerJobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
+  const { jobId } = (event as CustomEvent<{ jobId: number; providerJobId: string }>).detail
   try {
     const response = await fetch(`/api/jobs/${jobId}/flag`, {
       method: 'POST',
@@ -200,7 +196,7 @@ async function handleRank(event: Event): Promise<void> {
   }
   const page = document.querySelector('jobs-page')
   if (page) {
-    page.setJobMeta(providerJobId, [], true)
+    page.setJobMeta(jobId, [], true)
   }
   window.dispatchEvent(new CustomEvent('jobs:refresh-request'))
 }

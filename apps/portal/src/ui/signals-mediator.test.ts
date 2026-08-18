@@ -209,10 +209,10 @@ describe('signals-mediator deep-link hydration', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
-        if (url.startsWith('/api/signals')) {
+        if (url.startsWith('/api/jobs/1/signals')) {
           return { ok: true, json: async () => signals }
         }
-        if (url.startsWith('/api/analysis-queue')) {
+        if (url.startsWith('/api/jobs/1/queue')) {
           return { ok: true, json: async () => ({ queued: true }) }
         }
         return { ok: false, status: 404 }
@@ -224,14 +224,12 @@ describe('signals-mediator deep-link hydration', () => {
     const setJobMeta = vi.fn()
     page!.setJobMeta = setJobMeta
 
-    window.dispatchEvent(
-      new CustomEvent('jobs-page:selected', { detail: { providerJobId: 'job-1', provider: 'seek' } })
-    )
+    window.dispatchEvent(new CustomEvent('jobs-page:selected', { detail: { jobId: 1 } }))
     await new Promise(resolve => setTimeout(resolve, 0))
 
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/signals?providerJobId=job-1&provider=seek')
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/analysis-queue?providerJobId=job-1&provider=seek')
-    expect(setJobMeta).toHaveBeenCalledWith('job-1', signals, true)
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/jobs/1/signals')
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/jobs/1/queue')
+    expect(setJobMeta).toHaveBeenCalledWith(1, signals, true)
   })
 
   it('calls setJobMeta with empty signals when fetches fail', async () => {
@@ -247,11 +245,9 @@ describe('signals-mediator deep-link hydration', () => {
     const setJobMeta = vi.fn()
     page!.setJobMeta = setJobMeta
 
-    window.dispatchEvent(
-      new CustomEvent('jobs-page:selected', { detail: { providerJobId: 'job-1', provider: 'seek' } })
-    )
+    window.dispatchEvent(new CustomEvent('jobs-page:selected', { detail: { jobId: 1 } }))
     await new Promise(resolve => setTimeout(resolve, 0))
 
-    expect(setJobMeta).toHaveBeenCalledWith('job-1', [], false)
+    expect(setJobMeta).toHaveBeenCalledWith(1, [], false)
   })
 })

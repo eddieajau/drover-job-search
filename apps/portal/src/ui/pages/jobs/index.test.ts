@@ -104,7 +104,7 @@ describe('jobs-page', () => {
   it('forwards selected job and signals to the meta panel via setJobMeta', () => {
     const j: JobWithStatus = { ...job(), _status: 'new', netScore: 85 }
     el.setState(state({ all: [j], jobs: [j], selectedId: 1 }))
-    el.setJobMeta('4445084022', [], false)
+    el.setJobMeta(1, [], false)
     const metaPanel = el.querySelector('job-meta-panel')
     expect(metaPanel?.querySelector('.meta-panel')).not.toBeNull()
     expect(metaPanel?.querySelector('.meta-empty')).toBeNull()
@@ -126,24 +126,24 @@ describe('jobs-page', () => {
     expect(metaPanel?.querySelector('.meta-empty')).not.toBeNull()
   })
 
-  it('dispatches jobs-page:selected with providerJobId on first setState with selectedId', () => {
-    const received: string[] = []
+  it('dispatches jobs-page:selected with jobId on first setState with selectedId', () => {
+    const received: number[] = []
     document.addEventListener('jobs-page:selected', ((e: CustomEvent) => {
-      received.push(e.detail.providerJobId)
+      received.push(e.detail.jobId)
     }) as EventListener)
     const j: JobWithStatus = { ...job(), _status: 'new' }
     el.setState(state({ all: [j], jobs: [j], selectedId: 1 }))
-    expect(received).toEqual(['4445084022'])
+    expect(received).toEqual([1])
   })
 
   it('does not re-dispatch jobs-page:selected on subsequent setState with the same selectedId', () => {
-    const received: string[] = []
+    const received: number[] = []
     document.addEventListener('jobs-page:selected', ((e: CustomEvent) => {
-      received.push(e.detail.providerJobId)
+      received.push(e.detail.jobId)
     }) as EventListener)
     const j: JobWithStatus = { ...job(), _status: 'new' }
     el.setState(state({ all: [j], jobs: [j], selectedId: 1 }))
     el.setState(state({ all: [j], jobs: [j], selectedId: 1 }))
-    expect(received).toEqual(['4445084022'])
+    expect(received).toEqual([1])
   })
 })
