@@ -3,27 +3,12 @@
  * @license   MIT
  */
 
-import { jobs } from 'db'
+import { jobs, jobStatusEvents } from 'db'
 import { eq, and } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 import { importJob, ProviderError, type ProvidedJob } from 'providers'
 
-type JobStatusValue = 'applied' | 'interviewing' | 'skipped' | 'blocked' | 'declined' | 'unsuccessful' | 'successful'
-
-const ALLOWED_STATUSES: ReadonlySet<string> = new Set<JobStatusValue>([
-  'applied',
-  'interviewing',
-  'skipped',
-  'blocked',
-  'declined',
-  'unsuccessful',
-  'successful',
-])
-
-// TODO(ticket-140): Rewrite to use job_status_events
-function timestampColumn(_status: JobStatusValue): string | null {
-  return null
-}
+const VALID_STATUSES = ['applied', 'interviewing', 'skipped', 'declined', 'unsuccessful', 'successful'] as const
 
 const postJobImport: FastifyPluginAsync = async app => {
   app.post('/', async (req, reply) => {
@@ -35,7 +20,7 @@ const postJobImport: FastifyPluginAsync = async app => {
     }
 
     const status = body.status
-    if (typeof status !== 'string' || !ALLOWED_STATUSES.has(status)) {
+    if (typeof status !== 'string' || !(VALID_STATUSES as readonly string[]).includes(status)) {
       return reply.badRequest('status is required and must be a valid status')
     }
 
@@ -67,12 +52,30 @@ const postJobImport: FastifyPluginAsync = async app => {
       return reply.conflict('Job already imported')
     }
 
-    const tsCol = timestampColumn(status as JobStatusValue)
-    const atValue = body.at ?? new Date().toISOString()
+    const atValue = body.at ?? new Date().toISOString().slice(0, 10)
+    const isTerminal = status === 'successful' || status === 'unsuccessful' || status === 'skipped'
 
-    const values = tsCol ? { ...job, status, [tsCol]: atValue } : { ...job, status }
+    const values = {
+      ...job,
+      status,
+      ...(isTerminal ? { closedAt: atValue } : {}),
+    }
 
-    const inserted = app.db.insert(jobs).values(values).returning().get()
+    const inserted = app.db.transaction(tx => {
+      const row = tx.insert(jobs).values(values).returning().get()
+
+      tx.insert(jobStatusEvents)
+        .values({
+          jobId: row.id,
+          status,
+          occurredAt: atValue,
+          actor: 'human',
+          note: null,
+        })
+        .run()
+
+      return row
+    })
 
     app.publisher.publish(inserted.id, 'rank')
 

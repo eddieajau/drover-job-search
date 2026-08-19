@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { analysisQueue, jobs, type DB } from 'db'
+import { analysisQueue, jobs, jobStatusEvents, type DB } from 'db'
 import { eq } from 'drizzle-orm'
 import { build, createTestDb } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -162,15 +162,13 @@ describe('POST /api/jobs/import', () => {
     expect(row?.status).toBe('skipped')
   })
 
-  it('does not set a timestamp column for blocked status', async () => {
+  it('returns 400 when status is "blocked"', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/',
       payload: { url: SEEK_URL, status: 'blocked' },
     })
-    const { id } = res.json() as { id: number }
-    const row = db.select().from(jobs).where(eq(jobs.id, id)).get()
-    expect(row?.status).toBe('blocked')
+    expect(res.statusCode).toBe(400)
   })
 
   it('uses the provided at date for the timestamp', async () => {
@@ -349,5 +347,54 @@ describe('POST /api/jobs/import', () => {
     expect(row).toBeDefined()
     expect(row?.topic).toBe('rank')
     expect(row?.completedAt).toBeNull()
+  })
+
+  it('creates a job_status_events row after import', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: SEEK_URL, status: 'applied', at: '2026-01-15' },
+    })
+    const { id } = res.json() as { id: number }
+    const event = db.select().from(jobStatusEvents).where(eq(jobStatusEvents.jobId, id)).get()
+    expect(event).toBeDefined()
+    expect(event?.status).toBe('applied')
+    expect(event?.occurredAt).toBe('2026-01-15')
+    expect(event?.actor).toBe('human')
+    expect(event?.note).toBeNull()
+  })
+
+  it('sets closed_at on the job when importing with a terminal status', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: SEEK_URL, status: 'skipped', at: '2026-02-20' },
+    })
+    const { id } = res.json() as { id: number }
+    const row = db.select().from(jobs).where(eq(jobs.id, id)).get()
+    expect(row?.closedAt).toBe('2026-02-20')
+  })
+
+  it('does not set closed_at when importing with a non-terminal status', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: SEEK_URL, status: 'applied', at: '2026-03-10' },
+    })
+    const { id } = res.json() as { id: number }
+    const row = db.select().from(jobs).where(eq(jobs.id, id)).get()
+    expect(row?.closedAt).toBeNull()
+  })
+
+  it('defaults occurred_at to today when at is not provided', async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: SEEK_URL, status: 'applied' },
+    })
+    const { id } = res.json() as { id: number }
+    const event = db.select().from(jobStatusEvents).where(eq(jobStatusEvents.jobId, id)).get()
+    expect(event?.occurredAt).toBe(today)
   })
 })
