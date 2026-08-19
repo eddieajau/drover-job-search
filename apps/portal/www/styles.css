@@ -566,6 +566,35 @@ job-card:focus-visible {
   background: var(--red-soft);
 }
 
+.card-chip-status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+.card-chip-status-applied,
+.card-chip-status-successful {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.card-chip-status-interviewing {
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.card-chip-status-skipped,
+.card-chip-status-blocked,
+.card-chip-status-declined,
+.card-chip-status-unsuccessful {
+  color: var(--red);
+  background: var(--red-soft);
+}
+
 .has-desc-icon {
   display: inline-flex;
   align-items: center;

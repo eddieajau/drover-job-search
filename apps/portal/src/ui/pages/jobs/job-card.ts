@@ -6,6 +6,18 @@
 import { escapeHtml as esc } from '../../escape.js'
 import { relativeAge } from './posted-age.js'
 
+const STATUS_LABELS: Record<string, string> = {
+  new: 'New',
+  discovered: 'Discovered',
+  applied: 'Applied',
+  interviewing: 'Interviewing',
+  skipped: 'Skipped',
+  blocked: 'Blocked',
+  declined: 'Declined',
+  unsuccessful: 'Unsuccessful',
+  successful: 'Successful',
+}
+
 export interface JobCardEventMap {
   'job-card:select': CustomEvent<{ jobId: number; providerJobId: string; provider: string }>
   'job-card:flag': CustomEvent<{ jobId: number; providerJobId: string }>
@@ -27,6 +39,7 @@ type JobCardAttribute =
   | 'seen'
   | 'queued'
   | 'skipped'
+  | 'status'
   | 'has-description'
 
 export class JobCard extends HTMLElement {
@@ -45,6 +58,7 @@ export class JobCard extends HTMLElement {
     'seen',
     'queued',
     'skipped',
+    'status',
     'has-description',
   ]
 
@@ -61,6 +75,7 @@ export class JobCard extends HTMLElement {
   #seen = false
   #queued = false
   #skipped = false
+  #status = 'new'
   #hasDescription = false
   #abort: AbortController | null = null
 
@@ -115,6 +130,9 @@ export class JobCard extends HTMLElement {
         break
       case 'skipped':
         this.#skipped = newValue !== null
+        break
+      case 'status':
+        this.#status = newValue ?? 'new'
         break
       case 'has-description':
         this.#hasDescription = newValue !== null
@@ -197,7 +215,12 @@ export class JobCard extends HTMLElement {
         ? `<span class="score ${(this.#score ?? 0) >= 50 ? 'score-high' : 'score-mid'}">${esc(`${this.#score}`)}</span>`
         : ''
     const blockedChip = this.#gated ? '<span class="card-chip-blocked">Blocked</span>' : ''
-    const chipsHtml = blockedChip || scoreHtml ? `<div class="card-chips">${scoreHtml}${blockedChip}</div>` : ''
+    const statusLabel = STATUS_LABELS[this.#status] ?? this.#status
+    const statusChip = `<span class="card-chip-status card-chip-status-${esc(this.#status)}">${esc(statusLabel)}</span>`
+    const chipsHtml =
+      blockedChip || scoreHtml || statusChip
+        ? `<div class="card-chips">${scoreHtml}${blockedChip}${statusChip}</div>`
+        : ''
     const docIcon = this.#hasDescription
       ? '<svg class="has-desc-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9 1.5z"/><path d="M9 1.5V5.5h4"/><path d="M6 8.5h4M6 11h2"/></svg>'
       : '<svg class="no-desc-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9 1.5z"/><path d="M9 1.5V5.5h4"/></svg>'

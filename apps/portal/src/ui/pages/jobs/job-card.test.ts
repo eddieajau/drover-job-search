@@ -63,7 +63,7 @@ describe('job-card', () => {
     expect(card.querySelector('.card-chips .score')).toBeNull()
   })
 
-  it('renders no chips row when there is no score and not gated', () => {
+  it('renders no score/blocked chips when there is no score and not gated', () => {
     const card = createCard({
       'job-id': '2',
       'provider-job-id': 'job-2',
@@ -73,7 +73,58 @@ describe('job-card', () => {
       posted: '1d',
     })
 
-    expect(card.querySelector('.card-chips')).toBeNull()
+    expect(card.querySelector('.card-chips .score')).toBeNull()
+    expect(card.querySelector('.card-chips .card-chip-blocked')).toBeNull()
+  })
+
+  it('renders a status chip with default new status', () => {
+    const card = createCard({
+      'job-id': '2',
+      'provider-job-id': 'job-2',
+      title: 'Developer',
+      company: 'Beta',
+      location: 'Sydney',
+      posted: '1d',
+    })
+
+    const chip = card.querySelector('.card-chip-status')
+    expect(chip?.textContent).toBe('New')
+    expect(chip?.classList.contains('card-chip-status-new')).toBe(true)
+  })
+
+  it('renders the correct label for applied status', () => {
+    const card = createCard({
+      'job-id': '2',
+      'provider-job-id': 'job-2',
+      title: 'Developer',
+      company: 'Beta',
+      location: 'Sydney',
+      posted: '1d',
+      status: 'applied',
+    })
+
+    const chip = card.querySelector('.card-chip-status')
+    expect(chip?.textContent).toBe('Applied')
+    expect(chip?.classList.contains('card-chip-status-applied')).toBe(true)
+  })
+
+  it('re-renders status chip when status attribute changes', () => {
+    const card = createCard({
+      'job-id': '2',
+      'provider-job-id': 'job-2',
+      title: 'Developer',
+      company: 'Beta',
+      location: 'Sydney',
+      posted: '1d',
+    })
+
+    let chip = card.querySelector('.card-chip-status')
+    expect(chip?.textContent).toBe('New')
+
+    card.setAttribute('status', 'interviewing')
+    chip = card.querySelector('.card-chip-status')
+    expect(chip?.textContent).toBe('Interviewing')
+    expect(chip?.classList.contains('card-chip-status-interviewing')).toBe(true)
   })
 
   it('renders a filled doc icon when has-description is set', () => {
