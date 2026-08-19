@@ -16,6 +16,7 @@ import '../pages/facts/index.js'
 import '../pages/facts/fact-edit-page.js'
 import '../pages/facts/fact-ingest-page.js'
 import '../pages/import/index.js'
+import '../pages/dashboard/index.js'
 
 type PageTag =
   | 'jobs-page'
@@ -27,6 +28,7 @@ type PageTag =
   | 'fact-edit-page'
   | 'fact-ingest-page'
   | 'import-page'
+  | 'dashboard-page'
 
 function pageFor(state: NavigationState | null): PageTag {
   if (state?.view === 'queries') {
@@ -53,10 +55,15 @@ function pageFor(state: NavigationState | null): PageTag {
   if (state?.view === 'import') {
     return 'import-page'
   }
+  if (state?.view === 'dashboard') {
+    return 'dashboard-page'
+  }
   return 'jobs-page'
 }
 
-function navViewFor(state: NavigationState | null): 'jobs' | 'queries' | 'signals' | 'queues' | 'facts' | 'import' {
+function navViewFor(
+  state: NavigationState | null
+): 'jobs' | 'queries' | 'signals' | 'queues' | 'facts' | 'import' | 'dashboard' {
   if (state?.view === 'queries' || state?.view === 'query-edit') {
     return 'queries'
   }
@@ -71,6 +78,9 @@ function navViewFor(state: NavigationState | null): 'jobs' | 'queries' | 'signal
   }
   if (state?.view === 'import') {
     return 'import'
+  }
+  if (state?.view === 'dashboard') {
+    return 'dashboard'
   }
   return 'jobs'
 }
@@ -121,7 +131,7 @@ export class AppShell extends HTMLElement {
     mount.appendChild(document.createElement(tag))
   }
 
-  syncNav(current: 'jobs' | 'queries' | 'signals' | 'queues' | 'facts' | 'import'): void {
+  syncNav(current: 'jobs' | 'queries' | 'signals' | 'queues' | 'facts' | 'import' | 'dashboard'): void {
     for (const link of this.querySelectorAll<HTMLAnchorElement>('.site-nav-link')) {
       if (link.dataset.view === current) {
         link.setAttribute('aria-current', 'page')
@@ -136,6 +146,7 @@ export class AppShell extends HTMLElement {
       <header class="topnav">
         <a class="brand" href="#jobs">Drover</a>
         <nav class="nav" aria-label="Primary">
+          <a class="site-nav-link" href="#dashboard" data-view="dashboard">Dashboard</a>
           <a class="site-nav-link" href="#jobs" data-view="jobs">Jobs</a>
           <a class="site-nav-link" href="#queries" data-view="queries">Queries</a>
           <a class="site-nav-link" href="#import" data-view="import">Import</a>

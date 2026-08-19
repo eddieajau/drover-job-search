@@ -1850,6 +1850,14 @@ job-meta-panel {
 
 /* ── Chart ────────────────────────────────────────────────────── */
 
+applications-chart {
+  display: block;
+}
+
+.chart {
+  height: 160px;
+}
+
 .chart svg {
   width: 100%;
   height: 160px;

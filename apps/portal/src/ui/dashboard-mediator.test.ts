@@ -49,11 +49,12 @@ describe('dashboard-mediator', () => {
     document.body.innerHTML = ''
   })
 
-  it('fetches the chart when dashboard-page becomes ready and pushes it in', async () => {
-    mockFetch({ '/api/applications/chart': chart })
-    initDashboardMediator()
+  it('catches up when the page already exists before init', async () => {
     const page = document.createElement('dashboard-page') as DashboardPage
     document.body.appendChild(page)
+
+    mockFetch({ '/api/applications/chart': chart })
+    initDashboardMediator()
 
     await new Promise(resolve => setTimeout(resolve, 0))
 
@@ -61,15 +62,29 @@ describe('dashboard-mediator', () => {
     expect(page.querySelectorAll('.chart svg rect').length).toBe(14)
   })
 
-  it('renders an empty chart when the fetch fails', async () => {
-    mockFetch({})
-    initDashboardMediator()
+  it('catches up and renders an empty chart when the fetch fails', async () => {
     const page = document.createElement('dashboard-page') as DashboardPage
     document.body.appendChild(page)
+
+    mockFetch({})
+    initDashboardMediator()
 
     await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(page.querySelectorAll('.chart svg rect').length).toBe(14)
     expect(page.querySelector('applications-chart')?.hasAttribute('data-empty')).toBe(true)
+  })
+
+  it('fetches the chart when the page appears after init', async () => {
+    mockFetch({ '/api/applications/chart': chart })
+    initDashboardMediator()
+
+    const page = document.createElement('dashboard-page') as DashboardPage
+    document.body.appendChild(page)
+
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/applications/chart')
+    expect(page.querySelectorAll('.chart svg rect').length).toBe(14)
   })
 })
