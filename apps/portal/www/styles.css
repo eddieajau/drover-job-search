@@ -1847,3 +1847,15 @@ job-meta-panel {
     display: none;
   }
 }
+
+/* ── Chart ────────────────────────────────────────────────────── */
+
+.chart svg {
+  width: 100%;
+  height: 160px;
+  display: block;
+}
+
+.applications-chart[data-empty] svg rect {
+  opacity: 0.15;
+}
