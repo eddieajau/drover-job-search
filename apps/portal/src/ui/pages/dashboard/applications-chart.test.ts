@@ -43,8 +43,7 @@ describe('applications-chart', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders the page shell with head', () => {
-    expect(el.querySelector('.page > .page-head h1')?.textContent).toBe('Applications this month')
+  it('renders the chart container with svg', () => {
     expect(el.querySelector('.chart svg')).not.toBeNull()
   })
 

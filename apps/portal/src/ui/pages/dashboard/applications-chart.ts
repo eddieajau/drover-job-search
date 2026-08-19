@@ -28,15 +28,10 @@ export class ApplicationsChart extends HTMLElement {
 
   render(): void {
     this.innerHTML = `
-      <main class="page">
-        <div class="page-head">
-          <h1>Applications this month</h1>
-        </div>
-        <div class="chart">
-          <svg viewBox="0 0 600 160" preserveAspectRatio="none" role="img" aria-label="Applications per day, last 14 days">
-          </svg>
-        </div>
-      </main>
+      <div class="chart">
+        <svg viewBox="0 0 600 160" preserveAspectRatio="none" role="img" aria-label="Applications per day, last 14 days">
+        </svg>
+      </div>
     `
     this.#draw()
   }
