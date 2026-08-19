@@ -800,6 +800,7 @@ describe('jobs-mediator', () => {
     await new Promise(resolve => setTimeout(resolve, 50))
 
     const panel = document.querySelector('job-meta-panel')
+    panel?.querySelector<HTMLButtonElement>('[data-tab="notes"]')?.click()
     expect(panel?.querySelector('.note-row .note-text')?.textContent).toBe('Follow up')
   })
 

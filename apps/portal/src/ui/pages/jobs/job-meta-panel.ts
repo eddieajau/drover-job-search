@@ -105,7 +105,9 @@ export class JobMetaPanel extends HTMLElement {
   #job: JobWithStatus | null = null
   #signals: JobSignal[] = []
   #notes: JobNote[] = []
+  #events: Array<{ status: string; occurredAt: string; actor: string | null; note: string | null }> = []
   #queued = false
+  #activeTab: 'details' | 'history' | 'notes' = 'details'
   #abort: AbortController | null = null
 
   connectedCallback(): void {
@@ -120,6 +122,10 @@ export class JobMetaPanel extends HTMLElement {
   showJob(job: JobWithStatus | null, signals: JobSignal[], queued: boolean): void {
     if (job?.id !== this.#job?.id) {
       this.#notes = []
+      this.#events = []
+      if (job) {
+        this.fetchEvents(job.id)
+      }
     }
     this.#job = job
     this.#signals = signals
@@ -130,6 +136,18 @@ export class JobMetaPanel extends HTMLElement {
   setNotes(notes: JobNote[]): void {
     this.#notes = notes
     this.render()
+  }
+
+  private async fetchEvents(jobId: number): Promise<void> {
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/events`)
+      if (res.ok) {
+        const data = await res.json()
+        this.#events = Array.isArray(data) ? data : []
+      }
+    } catch {
+      // Silently ignore — history tab shows empty state
+    }
   }
 
   setupEventListeners(): void {
@@ -149,6 +167,14 @@ export class JobMetaPanel extends HTMLElement {
       return
     }
     const action = button.dataset.action
+    if (action === 'tab') {
+      const tab = button.dataset.tab as 'details' | 'history' | 'notes'
+      if (tab) {
+        this.#activeTab = tab
+        this.render()
+      }
+      return
+    }
     if (action === 'status') {
       const jobId = this.#job?.id
       const status = button.dataset.status
@@ -263,49 +289,91 @@ export class JobMetaPanel extends HTMLElement {
       })
       .join('')
 
+    const eventsHtml = (Array.isArray(this.#events) ? this.#events : [])
+      .map(event => {
+        const statusLabel = STATUS_LABELS[event.status] ?? event.status
+        const actorLabel = event.actor ? ` by ${esc(event.actor)}` : ''
+        const noteHtml = event.note ? `<div class="event-note">${esc(event.note)}</div>` : ''
+        return `<div class="event-row">
+          <span class="chip chip-${esc(event.status)}">${esc(statusLabel)}</span>
+          <span class="event-date">${esc(event.occurredAt)}${actorLabel}</span>
+          ${noteHtml}
+        </div>`
+      })
+      .join('')
+
+    const detailsActive = this.#activeTab === 'details'
+    const historyActive = this.#activeTab === 'history'
+    const notesActive = this.#activeTab === 'notes'
+
     this.innerHTML = `
       <aside class="meta-panel">
-        <div class="meta-section">
-          <div class="meta-label">Status</div>
-          <span class="chip chip-${esc(job._status)}">${esc(statusLabel)}</span>
-        </div>
-        <div class="meta-section actions">
-          <button class="btn btn-primary btn-block" type="button" data-action="note" data-kind="applied">Mark applied</button>
-          <button class="btn btn-block" type="button" data-action="note" data-kind="interviewing">Mark interviewing</button>
-          <button class="btn btn-block" type="button" data-action="note" data-kind="declined">Mark declined</button>
-          <button class="btn btn-block" type="button" data-action="note" data-kind="unsuccessful">Mark unsuccessful</button>
-          <button class="btn btn-block" type="button" data-action="note" data-kind="successful">Mark successful</button>
-          <button class="btn btn-block" type="button" data-action="note" data-kind="general">Add note</button>
-          <button class="btn btn-block" type="button" data-action="status" data-status="skipped">Skip</button>
-          <button class="btn btn-block" type="button" data-action="open" data-url="${esc(job.url)}">Open LinkedIn</button>
-        </div>
-        <div class="meta-section">
-          <div class="meta-label-row">
-            <div class="meta-label">AI Evaluation</div>
-            <button class="btn btn-sm" type="button" data-action="rank" data-job-id="${esc(job.providerJobId)}" ${rankDisabled}>Re-rank</button>
-          </div>
-          <ai-eval-box${evalData.verdict ? ` verdict="${esc(evalData.verdict)}"` : ''}${evalData.score ? ` score="${esc(evalData.score)}"` : ''}${evalData.why ? ` why="${esc(evalData.why)}"` : ''}${evalData.gated ? ' gated' : ''}${evalData.urgent ? ' urgent' : ''}></ai-eval-box>
-        </div>
-        <div class="meta-section">
-          <div class="meta-label">Signals</div>
-          ${signalsHtml}
-        </div>
+        <nav class="meta-tabs" role="tablist">
+          <button class="meta-tab" role="tab" aria-selected="${detailsActive}" data-action="tab" data-tab="details">Details</button>
+          <button class="meta-tab" role="tab" aria-selected="${historyActive}" data-action="tab" data-tab="history">History</button>
+          <button class="meta-tab" role="tab" aria-selected="${notesActive}" data-action="tab" data-tab="notes">Notes</button>
+        </nav>
         ${
-          this.#notes.length > 0
-            ? `<div class="meta-section">
-          <div class="meta-label">Notes</div>
-          ${notesHtml}
-        </div>`
+          detailsActive
+            ? `
+          <div class="meta-section">
+            <div class="meta-label">Status</div>
+            <span class="chip chip-${esc(job._status)}">${esc(statusLabel)}</span>
+          </div>
+          <div class="meta-section actions">
+            <button class="btn btn-primary btn-block" type="button" data-action="note" data-kind="applied">Mark applied</button>
+            <button class="btn btn-block" type="button" data-action="note" data-kind="interviewing">Mark interviewing</button>
+            <button class="btn btn-block" type="button" data-action="note" data-kind="declined">Mark declined</button>
+            <button class="btn btn-block" type="button" data-action="note" data-kind="unsuccessful">Mark unsuccessful</button>
+            <button class="btn btn-block" type="button" data-action="note" data-kind="successful">Mark successful</button>
+            <button class="btn btn-block" type="button" data-action="note" data-kind="general">Add note</button>
+            <button class="btn btn-block" type="button" data-action="status" data-status="skipped">Skip</button>
+            <button class="btn btn-block" type="button" data-action="open" data-url="${esc(job.url)}">Open LinkedIn</button>
+          </div>
+          <div class="meta-section">
+            <div class="meta-label-row">
+              <div class="meta-label">AI Evaluation</div>
+              <button class="btn btn-sm" type="button" data-action="rank" data-job-id="${esc(job.providerJobId)}" ${rankDisabled}>Re-rank</button>
+            </div>
+            <ai-eval-box${evalData.verdict ? ` verdict="${esc(evalData.verdict)}"` : ''}${evalData.score ? ` score="${esc(evalData.score)}"` : ''}${evalData.why ? ` why="${esc(evalData.why)}"` : ''}${evalData.gated ? ' gated' : ''}${evalData.urgent ? ' urgent' : ''}></ai-eval-box>
+          </div>
+          <div class="meta-section">
+            <div class="meta-label">Signals</div>
+            ${signalsHtml}
+          </div>
+          <div class="meta-section actions">
+            <button class="btn btn-block" type="button" data-action="flag" data-job-id="${esc(job.providerJobId)}" ${flagDisabled}>${flagLabel}</button>
+          </div>
+        `
             : ''
         }
-        <div class="meta-section actions">
-          <button class="btn btn-block" type="button" data-action="flag" data-job-id="${esc(job.providerJobId)}" ${flagDisabled}>${flagLabel}</button>
-        </div>
+        ${
+          historyActive
+            ? `
+          <div class="meta-section">
+            <div class="meta-label">History</div>
+            ${eventsHtml || '<p class="meta-empty">No history yet</p>'}
+          </div>
+        `
+            : ''
+        }
+        ${
+          notesActive
+            ? `
+          <div class="meta-section">
+            <div class="meta-label">Notes</div>
+            ${notesHtml || '<p class="meta-empty">No notes yet</p>'}
+          </div>
+        `
+            : ''
+        }
         <job-note-dialog></job-note-dialog>
       </aside>
     `
 
-    this.querySelector('ai-eval-box')?.setWhy(evalWhyFromSignals(this.#signals))
+    if (detailsActive) {
+      this.querySelector('ai-eval-box')?.setWhy(evalWhyFromSignals(this.#signals))
+    }
   }
 }
 

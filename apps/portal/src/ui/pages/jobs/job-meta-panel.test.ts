@@ -256,6 +256,9 @@ describe('job-meta-panel', () => {
     ]
     el.setNotes(notes)
 
+    const notesTab = el.querySelector<HTMLButtonElement>('[data-tab="notes"]')
+    notesTab?.click()
+
     const metaLabel = el.querySelector('.meta-section .meta-label')
     expect(metaLabel).not.toBeNull()
     expect(el.querySelector('.meta-panel')?.textContent).toContain('Notes')
@@ -281,6 +284,9 @@ describe('job-meta-panel', () => {
       },
     ]
     el.setNotes(notes)
+
+    const notesTab = el.querySelector<HTMLButtonElement>('[data-tab="notes"]')
+    notesTab?.click()
 
     const noteRow = el.querySelector('.note-row')
     expect(noteRow?.querySelector('.chip')?.textContent).toBe('Interviewing')
