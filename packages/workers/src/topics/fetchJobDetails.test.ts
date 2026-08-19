@@ -224,7 +224,7 @@ describe('fetch-job-details drain', () => {
     expect(job.status).toBe('skipped')
     expect(job.processedBy).toBe('system')
     expect(job.skipReason).toBe('No longer accepting applications')
-    expect(job.skippedAt).not.toBeNull()
+    expect(job.closedAt).not.toBeNull()
     expect(job.updatedAt).not.toBeNull()
 
     expect(onSkip).toHaveBeenCalledTimes(1)

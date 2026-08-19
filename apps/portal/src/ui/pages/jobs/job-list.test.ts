@@ -24,6 +24,7 @@ function job(overrides: Partial<Job> = {}): Job {
     priority: 1,
     category: 'P1',
     status: 'new',
+    closedAt: null,
     descriptionHtml: null,
     ...overrides,
   }

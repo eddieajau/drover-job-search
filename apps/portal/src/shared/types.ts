@@ -25,6 +25,7 @@ export interface Job {
   priority: number
   category: string
   status: string
+  closedAt: string | null
   signals?: SignalSummary
   queued?: boolean
 }
