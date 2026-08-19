@@ -8,21 +8,25 @@ import { eq, and } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 import { importJob, ProviderError, type ProvidedJob } from 'providers'
 
-const VALID_STATUSES = ['applied', 'interviewing', 'skipped', 'declined', 'unsuccessful', 'successful'] as const
+const STATUS_VALUES = ['applied', 'interviewing', 'skipped', 'declined', 'unsuccessful', 'successful'] as const
+type Status = (typeof STATUS_VALUES)[number]
+
+const bodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['url', 'status'],
+  properties: {
+    url: { type: 'string' },
+    status: { type: 'string', enum: [...STATUS_VALUES] },
+    at: { type: 'string', format: 'date' },
+  },
+} as const
+
+type ImportBody = { url: string; status: Status; at?: string }
 
 const postJobImport: FastifyPluginAsync = async app => {
-  app.post('/', async (req, reply) => {
-    const body = (req.body ?? {}) as { url?: string; status?: string; at?: string }
-
-    const url = body.url
-    if (typeof url !== 'string') {
-      return reply.badRequest('url is required')
-    }
-
-    const status = body.status
-    if (typeof status !== 'string' || !(VALID_STATUSES as readonly string[]).includes(status)) {
-      return reply.badRequest('status is required and must be a valid status')
-    }
+  app.post('/', { schema: { body: bodySchema } }, async (req, reply) => {
+    const { url, status, at } = req.body as ImportBody
 
     let job: ProvidedJob
     try {
@@ -52,7 +56,7 @@ const postJobImport: FastifyPluginAsync = async app => {
       return reply.conflict('Job already imported')
     }
 
-    const atValue = body.at ?? new Date().toISOString().slice(0, 10)
+    const atValue = at ?? new Date().toISOString().slice(0, 10)
     const isTerminal = status === 'successful' || status === 'unsuccessful' || status === 'skipped'
 
     const values = {

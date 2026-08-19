@@ -182,6 +182,15 @@ describe('POST /api/jobs/import', () => {
     expect(row?.status).toBe('applied')
   })
 
+  it('returns 400 for a malformed at date', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/',
+      payload: { url: SEEK_URL, status: 'applied', at: 'not-a-date' },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
   it('returns 409 for a duplicate Seek URL', async () => {
     await app.inject({
       method: 'POST',
