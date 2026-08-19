@@ -146,4 +146,13 @@ export interface TaskStatus {
   result: { inserted?: number; superseded?: number } | null
 }
 
+export interface ApplicationDay {
+  day: string
+  count: number
+}
+
+export interface ApplicationsChart {
+  days: ApplicationDay[]
+}
+
 export type { FactResponse } from '../api/serializers.js'
