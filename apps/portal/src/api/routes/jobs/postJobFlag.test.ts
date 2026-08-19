@@ -67,7 +67,7 @@ describe('POST /api/jobs/:jobId/flag', () => {
   it('leaves a skipped job status untouched by the flag', async () => {
     const job = seedJob(db, JOB1)
     db.update(jobs)
-      .set({ status: 'skipped', skippedAt: sql`(CURRENT_TIMESTAMP)`, updatedAt: sql`(CURRENT_TIMESTAMP)` })
+      .set({ status: 'skipped', updatedAt: sql`(CURRENT_TIMESTAMP)` })
       .where(eq(jobs.id, job.id))
       .run()
 
@@ -81,7 +81,7 @@ describe('POST /api/jobs/:jobId/flag', () => {
   it('leaves an applied job status untouched by the flag', async () => {
     const job = seedJob(db, JOB1)
     db.update(jobs)
-      .set({ status: 'applied', appliedAt: sql`(CURRENT_TIMESTAMP)`, updatedAt: sql`(CURRENT_TIMESTAMP)` })
+      .set({ status: 'applied', updatedAt: sql`(CURRENT_TIMESTAMP)` })
       .where(eq(jobs.id, job.id))
       .run()
 

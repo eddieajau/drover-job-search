@@ -113,7 +113,7 @@ async function processRow(
           status: 'skipped',
           processedBy: 'system',
           skipReason: 'No longer accepting applications',
-          skippedAt: sql`(CURRENT_TIMESTAMP)`,
+          closedAt: sql`(CURRENT_TIMESTAMP)`,
           updatedAt: sql`(CURRENT_TIMESTAMP)`,
         })
         .where(eq(jobs.id, row.jobId))

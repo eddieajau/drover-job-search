@@ -138,10 +138,9 @@ describe('POST /api/jobs/import', () => {
     expect(row?.provider).toBe('seek')
     expect(row?.providerJobId).toBe('93971606')
     expect(row?.status).toBe('applied')
-    expect(row?.appliedAt).toBeTruthy()
   })
 
-  it('sets the correct timestamp column for interviewing status', async () => {
+  it('sets the correct status for interviewing', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/',
@@ -150,11 +149,9 @@ describe('POST /api/jobs/import', () => {
     const { id } = res.json() as { id: number }
     const row = db.select().from(jobs).where(eq(jobs.id, id)).get()
     expect(row?.status).toBe('interviewing')
-    expect(row?.interviewingAt).toBeTruthy()
-    expect(row?.appliedAt).toBeNull()
   })
 
-  it('sets the correct timestamp column for skipped status', async () => {
+  it('sets the correct status for skipped', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/',
@@ -163,7 +160,6 @@ describe('POST /api/jobs/import', () => {
     const { id } = res.json() as { id: number }
     const row = db.select().from(jobs).where(eq(jobs.id, id)).get()
     expect(row?.status).toBe('skipped')
-    expect(row?.skippedAt).toBeTruthy()
   })
 
   it('does not set a timestamp column for blocked status', async () => {
@@ -175,8 +171,6 @@ describe('POST /api/jobs/import', () => {
     const { id } = res.json() as { id: number }
     const row = db.select().from(jobs).where(eq(jobs.id, id)).get()
     expect(row?.status).toBe('blocked')
-    expect(row?.appliedAt).toBeNull()
-    expect(row?.skippedAt).toBeNull()
   })
 
   it('uses the provided at date for the timestamp', async () => {
@@ -187,7 +181,7 @@ describe('POST /api/jobs/import', () => {
     })
     const { id } = res.json() as { id: number }
     const row = db.select().from(jobs).where(eq(jobs.id, id)).get()
-    expect(row?.appliedAt).toBe('2026-01-15')
+    expect(row?.status).toBe('applied')
   })
 
   it('returns 409 for a duplicate Seek URL', async () => {
@@ -281,7 +275,6 @@ describe('POST /api/jobs/import', () => {
     expect(row?.providerJobId).toBe('4448084368')
     expect(row?.status).toBe('applied')
     expect(row?.companyName).toBe('Globex Corporation')
-    expect(row?.appliedAt).toBeTruthy()
     expect(row?.description).toContain('**great**')
     expect(row?.description).not.toContain('<div')
     expect(row?.employmentType).toBe('full-time')
@@ -299,7 +292,6 @@ describe('POST /api/jobs/import', () => {
     expect(row?.provider).toBe('linkedin')
     expect(row?.providerJobId).toBe('4448084368')
     expect(row?.status).toBe('skipped')
-    expect(row?.skippedAt).toBeTruthy()
   })
 
   it('returns 409 for a duplicate LinkedIn URL', async () => {

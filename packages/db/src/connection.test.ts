@@ -58,12 +58,6 @@ describe('createDb', () => {
       'processed_by',
       'skip_reason',
       'created_at',
-      'applied_at',
-      'skipped_at',
-      'declined_at',
-      'interviewing_at',
-      'unsuccessful_at',
-      'successful_at',
       'updated_at',
       'closed_at',
     ])
@@ -98,40 +92,6 @@ describe('createDb', () => {
         )
         .run(`job-${status}`, status)
     }
-
-    db.$client.prepare("UPDATE jobs SET declined_at = '2026-08-01' WHERE status = 'declined'").run()
-    const declined = db.$client.prepare("SELECT status, declined_at FROM jobs WHERE status = 'declined'").get() as {
-      status: string
-      declined_at: string
-    }
-    expect(declined).toEqual({ status: 'declined', declined_at: '2026-08-01' })
-
-    db.$client.prepare("UPDATE jobs SET interviewing_at = '2026-08-02' WHERE status = 'interviewing'").run()
-    const interviewing = db.$client
-      .prepare("SELECT status, interviewing_at FROM jobs WHERE status = 'interviewing'")
-      .get() as {
-      status: string
-      interviewing_at: string
-    }
-    expect(interviewing).toEqual({ status: 'interviewing', interviewing_at: '2026-08-02' })
-
-    db.$client.prepare("UPDATE jobs SET unsuccessful_at = '2026-08-03' WHERE status = 'unsuccessful'").run()
-    const unsuccessful = db.$client
-      .prepare("SELECT status, unsuccessful_at FROM jobs WHERE status = 'unsuccessful'")
-      .get() as {
-      status: string
-      unsuccessful_at: string
-    }
-    expect(unsuccessful).toEqual({ status: 'unsuccessful', unsuccessful_at: '2026-08-03' })
-
-    db.$client.prepare("UPDATE jobs SET successful_at = '2026-08-04' WHERE status = 'successful'").run()
-    const successful = db.$client
-      .prepare("SELECT status, successful_at FROM jobs WHERE status = 'successful'")
-      .get() as {
-      status: string
-      successful_at: string
-    }
-    expect(successful).toEqual({ status: 'successful', successful_at: '2026-08-04' })
 
     db.$client.close()
   })

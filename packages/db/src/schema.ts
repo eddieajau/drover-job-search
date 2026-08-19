@@ -82,12 +82,6 @@ export const jobs = sqliteTable(
     createdAt: text('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    appliedAt: text('applied_at'),
-    skippedAt: text('skipped_at'),
-    declinedAt: text('declined_at'),
-    interviewingAt: text('interviewing_at'),
-    unsuccessfulAt: text('unsuccessful_at'),
-    successfulAt: text('successful_at'),
     updatedAt: text('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
@@ -380,12 +374,6 @@ CREATE TABLE IF NOT EXISTS jobs (
     ),
     skip_reason TEXT,
     created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-    applied_at TEXT,
-    skipped_at TEXT,
-    declined_at TEXT,
-    interviewing_at TEXT,
-    unsuccessful_at TEXT,
-    successful_at TEXT,
     updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     closed_at TEXT,
     CONSTRAINT uq_provider_job UNIQUE (provider, provider_job_id)

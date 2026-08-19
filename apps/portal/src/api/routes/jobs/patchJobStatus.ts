@@ -29,94 +29,14 @@ type StatusBody = {
   note?: string
 }
 
-/**
- * Build timestamp-set values from the transition matrix.
- *
- * | status           | applied_at | interviewing_at | declined_at | skipped_at |
- * |------------------|------------|-----------------|-------------|------------|
- * | new/discovered   | clear      | clear           | clear       | clear      |
- * | applied          | set        | clear           | clear       | clear      |
- * | interviewing     | preserve   | set             | clear       | clear      |
- * | declined         | preserve   | preserve        | set         | clear      |
- * | skipped          | clear      | clear           | clear       | set        |
- */
+// TODO(ticket-140): Rewrite transition logic to use job_status_events
 function transitionColumns(
-  status: StatusBody['status'],
-  timestamp: ReturnType<typeof sql>,
-  now: ReturnType<typeof sql>,
-  current: {
-    appliedAt: string | null
-    interviewingAt: string | null
-    declinedAt: string | null
-    unsuccessfulAt: string | null
-    successfulAt: string | null
-  }
+  _status: StatusBody['status'],
+  _timestamp: ReturnType<typeof sql>,
+  _now: ReturnType<typeof sql>,
+  _current: Record<string, unknown>
 ) {
-  switch (status) {
-    case 'discovered':
-      return {
-        appliedAt: null,
-        interviewingAt: null,
-        declinedAt: null,
-        unsuccessfulAt: null,
-        successfulAt: null,
-        skippedAt: null,
-      }
-    case 'applied':
-      return {
-        appliedAt: timestamp,
-        interviewingAt: null,
-        declinedAt: null,
-        unsuccessfulAt: null,
-        successfulAt: null,
-        skippedAt: null,
-      }
-    case 'interviewing':
-      return {
-        appliedAt: current.appliedAt,
-        interviewingAt: timestamp,
-        declinedAt: null,
-        unsuccessfulAt: null,
-        successfulAt: null,
-        skippedAt: null,
-      }
-    case 'declined':
-      return {
-        appliedAt: current.appliedAt,
-        interviewingAt: current.interviewingAt,
-        declinedAt: timestamp,
-        unsuccessfulAt: null,
-        successfulAt: null,
-        skippedAt: null,
-      }
-    case 'unsuccessful':
-      return {
-        appliedAt: current.appliedAt,
-        interviewingAt: current.interviewingAt,
-        declinedAt: null,
-        unsuccessfulAt: timestamp,
-        successfulAt: null,
-        skippedAt: null,
-      }
-    case 'successful':
-      return {
-        appliedAt: current.appliedAt,
-        interviewingAt: current.interviewingAt,
-        declinedAt: null,
-        unsuccessfulAt: null,
-        successfulAt: timestamp,
-        skippedAt: null,
-      }
-    case 'skipped':
-      return {
-        appliedAt: null,
-        interviewingAt: null,
-        declinedAt: null,
-        unsuccessfulAt: null,
-        successfulAt: null,
-        skippedAt: now,
-      }
-  }
+  return {}
 }
 
 const patchJobStatus: FastifyPluginAsync = async app => {
@@ -131,17 +51,7 @@ const patchJobStatus: FastifyPluginAsync = async app => {
     const timestamp = at ? sql`${at}` : now
 
     const row = app.db.transaction(tx => {
-      const current = tx
-        .select({
-          appliedAt: jobs.appliedAt,
-          interviewingAt: jobs.interviewingAt,
-          declinedAt: jobs.declinedAt,
-          unsuccessfulAt: jobs.unsuccessfulAt,
-          successfulAt: jobs.successfulAt,
-        })
-        .from(jobs)
-        .where(eq(jobs.id, id))
-        .get()
+      const current = tx.select({ id: jobs.id }).from(jobs).where(eq(jobs.id, id)).get()
 
       if (!current) {
         return undefined

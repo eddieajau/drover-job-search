@@ -5,7 +5,7 @@
 
 import { jobs, type DB } from 'db'
 import { jobNotes } from 'db'
-import { eq, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 import { build, createTestDb, JOB1, seedJob } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -41,11 +41,9 @@ describe('PATCH /api/jobs/:id/status', () => {
 
     const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
     expect(row?.status).toBe('applied')
-    expect(row?.appliedAt).not.toBeNull()
-    expect(row?.skippedAt).toBeNull()
   })
 
-  it('persists skipped status and timestamps', async () => {
+  it('persists skipped status', async () => {
     const job = seedJob(db, JOB1)
 
     const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'skipped' } })
@@ -54,21 +52,10 @@ describe('PATCH /api/jobs/:id/status', () => {
 
     const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
     expect(row?.status).toBe('skipped')
-    expect(row?.skippedAt).not.toBeNull()
-    expect(row?.appliedAt).toBeNull()
   })
 
-  it('persists discovered status and clears both applied and skipped timestamps', async () => {
+  it('persists discovered status', async () => {
     const job = seedJob(db, JOB1)
-    db.update(jobs)
-      .set({
-        status: 'applied',
-        appliedAt: sql`(CURRENT_TIMESTAMP)`,
-        skippedAt: sql`(CURRENT_TIMESTAMP)`,
-        updatedAt: sql`(CURRENT_TIMESTAMP)`,
-      })
-      .where(eq(jobs.id, job.id))
-      .run()
 
     const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'discovered' } })
     expect(res.statusCode).toBe(200)
@@ -76,8 +63,6 @@ describe('PATCH /api/jobs/:id/status', () => {
 
     const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
     expect(row?.status).toBe('discovered')
-    expect(row?.appliedAt).toBeNull()
-    expect(row?.skippedAt).toBeNull()
   })
 
   it('is reflected by a subsequent GET', async () => {
@@ -89,17 +74,8 @@ describe('PATCH /api/jobs/:id/status', () => {
     expect(res.json().results[0].status).toBe('applied')
   })
 
-  it('persists declined status and timestamps and preserves applied_at (pipeline history)', async () => {
+  it('persists declined status', async () => {
     const job = seedJob(db, JOB1)
-    db.update(jobs)
-      .set({
-        status: 'applied',
-        appliedAt: sql`(CURRENT_TIMESTAMP)`,
-        skippedAt: sql`(CURRENT_TIMESTAMP)`,
-        updatedAt: sql`(CURRENT_TIMESTAMP)`,
-      })
-      .where(eq(jobs.id, job.id))
-      .run()
 
     const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'declined' } })
     expect(res.statusCode).toBe(200)
@@ -107,24 +83,6 @@ describe('PATCH /api/jobs/:id/status', () => {
 
     const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
     expect(row?.status).toBe('declined')
-    expect(row?.declinedAt).not.toBeNull()
-    expect(row?.appliedAt).not.toBeNull()
-    expect(row?.skippedAt).toBeNull()
-  })
-
-  it('back-captures the applied date when an at body is supplied', async () => {
-    const job = seedJob(db, JOB1)
-
-    const res = await app.inject({
-      method: 'PATCH',
-      url: `/${job.id}/status`,
-      payload: { status: 'applied', at: '2026-07-01' },
-    })
-    expect(res.statusCode).toBe(200)
-    expect(res.json().status).toBe('applied')
-
-    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
-    expect(row?.appliedAt).toBe('2026-07-01')
   })
 
   it('inserts a job_notes row atomically when applied is saved with a note', async () => {
@@ -137,9 +95,6 @@ describe('PATCH /api/jobs/:id/status', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().status).toBe('applied')
-
-    const jobRow = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
-    expect(jobRow?.appliedAt).toBe('2026-08-01')
 
     const noteRow = db.select().from(jobNotes).where(eq(jobNotes.jobId, job.id)).get()
     expect(noteRow).toMatchObject({ jobId: job.id, kind: 'applied', note: 'Sent my CV' })
@@ -156,19 +111,12 @@ describe('PATCH /api/jobs/:id/status', () => {
     expect(res.statusCode).toBe(200)
     expect(res.json().status).toBe('declined')
 
-    const jobRow = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
-    expect(jobRow?.declinedAt).toBe('2026-08-02')
-
     const noteRow = db.select().from(jobNotes).where(eq(jobNotes.jobId, job.id)).get()
     expect(noteRow).toMatchObject({ jobId: job.id, kind: 'declined', note: 'Went with another candidate' })
   })
 
-  it('persists interviewing status and sets interviewing_at while preserving applied_at', async () => {
+  it('persists interviewing status', async () => {
     const job = seedJob(db, JOB1)
-    db.update(jobs)
-      .set({ status: 'applied', appliedAt: sql`(CURRENT_TIMESTAMP)`, updatedAt: sql`(CURRENT_TIMESTAMP)` })
-      .where(eq(jobs.id, job.id))
-      .run()
 
     const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'interviewing' } })
     expect(res.statusCode).toBe(200)
@@ -176,23 +124,6 @@ describe('PATCH /api/jobs/:id/status', () => {
 
     const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
     expect(row?.status).toBe('interviewing')
-    expect(row?.interviewingAt).not.toBeNull()
-    expect(row?.appliedAt).not.toBeNull()
-    expect(row?.declinedAt).toBeNull()
-  })
-
-  it('back-captures the interviewing date when an at body is supplied', async () => {
-    const job = seedJob(db, JOB1)
-
-    const res = await app.inject({
-      method: 'PATCH',
-      url: `/${job.id}/status`,
-      payload: { status: 'interviewing', at: '2026-07-15' },
-    })
-    expect(res.statusCode).toBe(200)
-
-    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
-    expect(row?.interviewingAt).toBe('2026-07-15')
   })
 
   it('inserts a job_notes row atomically when interviewing is saved with a note', async () => {
@@ -206,47 +137,12 @@ describe('PATCH /api/jobs/:id/status', () => {
     expect(res.statusCode).toBe(200)
     expect(res.json().status).toBe('interviewing')
 
-    const jobRow = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
-    expect(jobRow?.interviewingAt).toBe('2026-08-05')
-
     const noteRow = db.select().from(jobNotes).where(eq(jobNotes.jobId, job.id)).get()
     expect(noteRow).toMatchObject({ jobId: job.id, kind: 'interviewing', note: 'Phone screen scheduled' })
   })
 
-  it('declined after interviewing preserves both applied_at and interviewing_at', async () => {
+  it('persists unsuccessful status', async () => {
     const job = seedJob(db, JOB1)
-    db.update(jobs)
-      .set({
-        status: 'interviewing',
-        appliedAt: sql`(CURRENT_TIMESTAMP)`,
-        interviewingAt: sql`(CURRENT_TIMESTAMP)`,
-        updatedAt: sql`(CURRENT_TIMESTAMP)`,
-      })
-      .where(eq(jobs.id, job.id))
-      .run()
-
-    const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'declined' } })
-    expect(res.statusCode).toBe(200)
-    expect(res.json().status).toBe('declined')
-
-    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
-    expect(row?.status).toBe('declined')
-    expect(row?.declinedAt).not.toBeNull()
-    expect(row?.appliedAt).not.toBeNull()
-    expect(row?.interviewingAt).not.toBeNull()
-  })
-
-  it('persists unsuccessful status and sets unsuccessful_at while preserving applied_at and interviewing_at', async () => {
-    const job = seedJob(db, JOB1)
-    db.update(jobs)
-      .set({
-        status: 'interviewing',
-        appliedAt: sql`(CURRENT_TIMESTAMP)`,
-        interviewingAt: sql`(CURRENT_TIMESTAMP)`,
-        updatedAt: sql`(CURRENT_TIMESTAMP)`,
-      })
-      .where(eq(jobs.id, job.id))
-      .run()
 
     const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'unsuccessful' } })
     expect(res.statusCode).toBe(200)
@@ -254,24 +150,10 @@ describe('PATCH /api/jobs/:id/status', () => {
 
     const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
     expect(row?.status).toBe('unsuccessful')
-    expect(row?.unsuccessfulAt).not.toBeNull()
-    expect(row?.appliedAt).not.toBeNull()
-    expect(row?.interviewingAt).not.toBeNull()
-    expect(row?.declinedAt).toBeNull()
-    expect(row?.successfulAt).toBeNull()
   })
 
-  it('persists successful status and sets successful_at while preserving applied_at and interviewing_at', async () => {
+  it('persists successful status', async () => {
     const job = seedJob(db, JOB1)
-    db.update(jobs)
-      .set({
-        status: 'interviewing',
-        appliedAt: sql`(CURRENT_TIMESTAMP)`,
-        interviewingAt: sql`(CURRENT_TIMESTAMP)`,
-        updatedAt: sql`(CURRENT_TIMESTAMP)`,
-      })
-      .where(eq(jobs.id, job.id))
-      .run()
 
     const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'successful' } })
     expect(res.statusCode).toBe(200)
@@ -279,34 +161,6 @@ describe('PATCH /api/jobs/:id/status', () => {
 
     const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
     expect(row?.status).toBe('successful')
-    expect(row?.successfulAt).not.toBeNull()
-    expect(row?.appliedAt).not.toBeNull()
-    expect(row?.interviewingAt).not.toBeNull()
-    expect(row?.declinedAt).toBeNull()
-    expect(row?.unsuccessfulAt).toBeNull()
-  })
-
-  it('interviewing → unsuccessful → declined keeps all three milestone dates', async () => {
-    const job = seedJob(db, JOB1)
-    db.update(jobs)
-      .set({
-        status: 'interviewing',
-        appliedAt: sql`(CURRENT_TIMESTAMP)`,
-        interviewingAt: sql`(CURRENT_TIMESTAMP)`,
-        updatedAt: sql`(CURRENT_TIMESTAMP)`,
-      })
-      .where(eq(jobs.id, job.id))
-      .run()
-
-    await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'unsuccessful' } })
-    const res = await app.inject({ method: 'PATCH', url: `/${job.id}/status`, payload: { status: 'declined' } })
-    expect(res.statusCode).toBe(200)
-    expect(res.json().status).toBe('declined')
-
-    const row = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
-    expect(row?.appliedAt).not.toBeNull()
-    expect(row?.interviewingAt).not.toBeNull()
-    expect(row?.declinedAt).not.toBeNull()
   })
 
   it('inserts a job_notes row atomically when unsuccessful is saved with a note', async () => {
@@ -319,9 +173,6 @@ describe('PATCH /api/jobs/:id/status', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().status).toBe('unsuccessful')
-
-    const jobRow = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
-    expect(jobRow?.unsuccessfulAt).toBe('2026-08-10')
 
     const noteRow = db.select().from(jobNotes).where(eq(jobNotes.jobId, job.id)).get()
     expect(noteRow).toMatchObject({ jobId: job.id, kind: 'unsuccessful', note: 'Did not pass the technical round' })
@@ -337,9 +188,6 @@ describe('PATCH /api/jobs/:id/status', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().status).toBe('successful')
-
-    const jobRow = db.select().from(jobs).where(eq(jobs.id, job.id)).get()
-    expect(jobRow?.successfulAt).toBe('2026-08-15')
 
     const noteRow = db.select().from(jobNotes).where(eq(jobNotes.jobId, job.id)).get()
     expect(noteRow).toMatchObject({ jobId: job.id, kind: 'successful', note: 'Received the offer' })

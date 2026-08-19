@@ -20,23 +20,9 @@ const ALLOWED_STATUSES: ReadonlySet<string> = new Set<JobStatusValue>([
   'successful',
 ])
 
-function timestampColumn(status: JobStatusValue): string | null {
-  switch (status) {
-    case 'applied':
-      return 'appliedAt'
-    case 'interviewing':
-      return 'interviewingAt'
-    case 'declined':
-      return 'declinedAt'
-    case 'unsuccessful':
-      return 'unsuccessfulAt'
-    case 'successful':
-      return 'successfulAt'
-    case 'skipped':
-      return 'skippedAt'
-    case 'blocked':
-      return null
-  }
+// TODO(ticket-140): Rewrite to use job_status_events
+function timestampColumn(_status: JobStatusValue): string | null {
+  return null
 }
 
 const postJobImport: FastifyPluginAsync = async app => {
