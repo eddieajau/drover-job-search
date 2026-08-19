@@ -265,7 +265,7 @@ describe('job-meta-panel', () => {
     const noteRow = el.querySelector('.note-row')
     expect(noteRow).not.toBeNull()
     expect(noteRow?.querySelector('.chip')?.textContent).toBe('Applied')
-    expect(noteRow?.querySelector('.note-text')?.textContent).toBe('Sent my CV on the site')
+    expect(noteRow?.querySelector('.note-preview')?.textContent).toBe('Sent my CV on the site')
     expect(noteRow?.querySelector('.note-date')?.textContent).toBe('2026-08-10 10:00:00')
   })
 
@@ -290,7 +290,7 @@ describe('job-meta-panel', () => {
 
     const noteRow = el.querySelector('.note-row')
     expect(noteRow?.querySelector('.chip')?.textContent).toBe('Interviewing')
-    expect(noteRow?.querySelector('.note-text')?.textContent).toBe('Phone screen on 5 Aug')
+    expect(noteRow?.querySelector('.note-preview')?.textContent).toBe('Phone screen on 5 Aug')
   })
 
   it('disables the flag button when queued is true', () => {

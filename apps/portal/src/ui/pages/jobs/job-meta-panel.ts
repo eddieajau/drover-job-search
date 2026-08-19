@@ -175,6 +175,23 @@ export class JobMetaPanel extends HTMLElement {
       }
       return
     }
+    if (action === 'expand') {
+      const noteId = button.dataset.note ?? ''
+      const container = this.querySelector<HTMLElement>(`[data-note-id="${noteId}"]`)
+      if (!container) return
+
+      const preview = container.querySelector<HTMLElement>('.note-preview')
+      const full = container.querySelector<HTMLElement>('.note-full')
+      const btn = button
+
+      if (preview && full) {
+        const isExpanded = !full.hidden
+        preview.hidden = !isExpanded
+        full.hidden = isExpanded
+        btn.textContent = isExpanded ? 'Show more' : 'Show less'
+      }
+      return
+    }
     if (action === 'status') {
       const jobId = this.#job?.id
       const status = button.dataset.status
@@ -278,12 +295,25 @@ export class JobMetaPanel extends HTMLElement {
       })
       .join('')
 
+    const TRUNCATE_LENGTH = 120
+
     const notesHtml = this.#notes
       .map(note => {
         const kindLabel = NOTE_KIND_LABELS[note.kind] ?? note.kind
+        const isLong = note.note.length > TRUNCATE_LENGTH
+        const preview = isLong ? note.note.slice(0, TRUNCATE_LENGTH) + '…' : note.note
+        const noteId = `note-${note.id}`
         return `<div class="note-row">
           <span class="chip chip-${esc(note.kind)}">${esc(kindLabel)}</span>
-          <div class="note-text">${esc(note.note)}</div>
+          <div class="note-text" data-note-id="${esc(noteId)}">
+            <span class="note-preview">${esc(preview)}</span>
+            ${
+              isLong
+                ? `<span class="note-full" hidden>${esc(note.note)}</span>
+            <button class="note-expand" type="button" data-action="expand" data-note="${esc(noteId)}">Show more</button>`
+                : ''
+            }
+          </div>
           <div class="note-date">${esc(note.createdAt)}</div>
         </div>`
       })
@@ -311,7 +341,7 @@ export class JobMetaPanel extends HTMLElement {
         <nav class="meta-tabs" role="tablist">
           <button class="meta-tab" role="tab" aria-selected="${detailsActive}" data-action="tab" data-tab="details">Details</button>
           <button class="meta-tab" role="tab" aria-selected="${historyActive}" data-action="tab" data-tab="history">History</button>
-          <button class="meta-tab" role="tab" aria-selected="${notesActive}" data-action="tab" data-tab="notes">Notes</button>
+          <button class="meta-tab" role="tab" aria-selected="${notesActive}" data-action="tab" data-tab="notes">Notes (${this.#notes.length})</button>
         </nav>
         ${
           detailsActive

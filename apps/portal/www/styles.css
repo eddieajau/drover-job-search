@@ -1598,6 +1598,25 @@ job-meta-panel {
   word-break: break-word;
 }
 
+.note-preview,
+.note-full {
+  display: block;
+}
+
+.note-full[hidden] {
+  display: none;
+}
+
+.note-expand {
+  margin-top: 0.25rem;
+  font-size: 0.8em;
+  color: var(--link-color, #4a90d9);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
 .note-date {
   font-size: 11px;
   color: var(--muted);

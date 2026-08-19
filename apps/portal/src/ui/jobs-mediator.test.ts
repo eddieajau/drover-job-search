@@ -801,7 +801,7 @@ describe('jobs-mediator', () => {
 
     const panel = document.querySelector('job-meta-panel')
     panel?.querySelector<HTMLButtonElement>('[data-tab="notes"]')?.click()
-    expect(panel?.querySelector('.note-row .note-text')?.textContent).toBe('Follow up')
+    expect(panel?.querySelector('.note-row .note-preview')?.textContent).toBe('Follow up')
   })
 
   it('ignores a stray priority URL param without breaking', async () => {
