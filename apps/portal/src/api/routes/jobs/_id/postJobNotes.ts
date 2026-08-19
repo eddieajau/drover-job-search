@@ -15,7 +15,7 @@ const bodySchema = {
   required: ['kind', 'note'],
   properties: {
     kind: { type: 'string', enum: ['applied', 'declined', 'interviewing', 'general', 'unsuccessful', 'successful'] },
-    note: { type: 'string', minLength: 1, maxLength: 2000 },
+    note: { type: 'string', minLength: 1 },
   },
 } as const
 

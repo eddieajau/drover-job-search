@@ -19,7 +19,7 @@ const bodySchema = {
       enum: ['applied', 'interviewing', 'skipped', 'discovered', 'declined', 'unsuccessful', 'successful'],
     },
     at: { type: 'string', format: 'date' },
-    note: { type: 'string', maxLength: 2000 },
+    note: { type: 'string' },
   },
 } as const
 

@@ -118,13 +118,15 @@ describe('POST /api/jobs/:id/notes', () => {
     expect(res.statusCode).toBe(400)
   })
 
-  it('returns 400 for a note longer than 2000 characters', async () => {
+  it('accepts a note longer than 2000 characters', async () => {
     const job = seedJob(db, JOB1)
+    const longNote = 'x'.repeat(5000)
     const res = await app.inject({
       method: 'POST',
       url: `/${job.id}/notes`,
-      payload: { kind: 'general', note: 'x'.repeat(2001) },
+      payload: { kind: 'general', note: longNote },
     })
-    expect(res.statusCode).toBe(400)
+    expect(res.statusCode).toBe(201)
+    expect(res.json().note).toBe(longNote)
   })
 })
