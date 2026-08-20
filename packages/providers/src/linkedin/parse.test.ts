@@ -9,7 +9,41 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { normaliseWorkplace } from '../common/index.js'
-import { classifyWorkplaceType, excerpt, matchesWorkType, parseJobDetail, workTypeFlag } from './parse.js'
+import {
+  classifyWorkplaceType,
+  excerpt,
+  extractDivContent,
+  matchesWorkType,
+  parseJobDetail,
+  workTypeFlag,
+} from './parse.js'
+
+describe('extractDivContent', () => {
+  it('extracts content from a div with matching class', () => {
+    const html = '<div class="target-class">Hello world</div>'
+    expect(extractDivContent(html, 'target-class')).toBe('Hello world')
+  })
+
+  it('handles nested divs correctly', () => {
+    const html = '<div class="outer">' + '<div class="inner">nested</div>' + '<p>more</p>' + '</div>'
+    expect(extractDivContent(html, 'outer')).toBe('<div class="inner">nested</div><p>more</p>')
+  })
+
+  it('returns null when class is not found', () => {
+    const html = '<div class="other">content</div>'
+    expect(extractDivContent(html, 'missing-class')).toBeNull()
+  })
+
+  it('handles multiple class matches by returning the first', () => {
+    const html = '<div class="desc">First</div>' + '<div class="desc">Second</div>'
+    expect(extractDivContent(html, 'desc')).toBe('First')
+  })
+
+  it('returns null for unclosed div', () => {
+    const html = '<div class="open">No closing tag'
+    expect(extractDivContent(html, 'open')).toBeNull()
+  })
+})
 
 describe('parseJobDetail', () => {
   it('preserves structural tags in the raw description HTML', () => {
