@@ -1855,15 +1855,112 @@ applications-chart {
 }
 
 .chart {
-  height: 160px;
+  height: 220px;
 }
 
 .chart svg {
   width: 100%;
-  height: 160px;
+  height: 100%;
   display: block;
 }
 
-.applications-chart[data-empty] svg rect {
+.chart .grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart .baseline {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart .weekend {
+  fill: var(--border);
   opacity: 0.15;
+}
+
+.chart .bar {
+  fill: var(--accent);
+}
+
+.chart .bar-hit {
+  fill: transparent;
+  cursor: default;
+}
+
+.chart .axis-y {
+  font-size: 10px;
+  fill: var(--text);
+  opacity: 0.6;
+  font-family: inherit;
+}
+
+.chart .axis-x {
+  font-size: 10px;
+  fill: var(--text);
+  opacity: 0.6;
+  font-family: inherit;
+}
+
+.chart .axis-x.today {
+  font-weight: 700;
+  fill: var(--text);
+  opacity: 1;
+}
+
+.chart .bar-value {
+  font-size: 10px;
+  fill: var(--text);
+  font-family: inherit;
+}
+
+.chart .avg-line {
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.applications-chart[data-empty] .bar {
+  opacity: 0.15;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0 0 34px;
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.swatch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch-bar {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.swatch-avg {
+  display: inline-block;
+  width: 16px;
+  height: 0;
+  border-top: 2px dashed var(--blue);
+}
+
+.swatch-weekend {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--border);
+  opacity: 0.3;
 }

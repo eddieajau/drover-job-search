@@ -51,7 +51,7 @@ describe('dashboard-page', () => {
   it('forwards setData to the child applications-chart', () => {
     el.setData(sample())
     const chart = el.querySelector<HTMLElementTagNameMap['applications-chart']>('applications-chart')
-    expect(chart?.querySelectorAll('.chart svg rect').length).toBe(14)
+    expect(chart?.querySelectorAll('.chart svg rect.bar').length).toBe(14)
   })
 
   it('forwards null setData to the child applications-chart', () => {

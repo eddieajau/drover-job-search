@@ -47,12 +47,59 @@ describe('applications-chart', () => {
     expect(el.querySelector('.chart svg')).not.toBeNull()
   })
 
-  it('renders 14 rect bars when data is set', () => {
-    el.setData(sample())
-    expect(el.querySelectorAll('.chart svg rect').length).toBe(14)
+  it('has the correct viewBox', () => {
+    const svg = el.querySelector<SVGSVGElement>('.chart svg')
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 640 220')
   })
 
-  it('renders 14 baseline bars with data-empty when all counts are zero', () => {
+  it('does not have preserveAspectRatio="none"', () => {
+    const svg = el.querySelector<SVGSVGElement>('.chart svg')
+    expect(svg?.getAttribute('preserveAspectRatio')).not.toBe('none')
+  })
+
+  it('has role="img" and an aria-label', () => {
+    const svg = el.querySelector<SVGSVGElement>('.chart svg')
+    expect(svg?.getAttribute('role')).toBe('img')
+    expect(svg?.getAttribute('aria-label')).toBe('Applications per day, last 14 days')
+  })
+
+  it('renders 14 bar rects when data is set', () => {
+    el.setData(sample())
+    expect(el.querySelectorAll('.chart svg rect.bar').length).toBe(14)
+  })
+
+  it('renders 6 gridline/baseline elements', () => {
+    el.setData(sample())
+    const lines = el.querySelectorAll('.chart svg line')
+    const gridLines = Array.from(lines).filter(l => l.classList.contains('grid'))
+    const baseline = el.querySelectorAll('.chart svg line.baseline')
+    expect(gridLines.length).toBe(5)
+    expect(baseline.length).toBe(1)
+  })
+
+  it('renders 14 x-axis text labels', () => {
+    el.setData(sample())
+    expect(el.querySelectorAll('.chart svg text.axis-x').length).toBe(14)
+  })
+
+  it('renders weekend shading rects', () => {
+    el.setData(sample())
+    const weekends = el.querySelectorAll('.chart svg rect.weekend')
+    expect(weekends.length).toBe(4)
+  })
+
+  it('renders an average line', () => {
+    el.setData(sample())
+    expect(el.querySelector('.chart svg line.avg-line')).not.toBeNull()
+  })
+
+  it('renders the chart legend as a sibling of .chart', () => {
+    const legend = el.querySelector('.chart-legend')
+    expect(legend).not.toBeNull()
+    expect(legend?.previousElementSibling?.classList.contains('chart')).toBe(true)
+  })
+
+  it('sets data-empty when all counts are zero', () => {
     const zeros: ApplicationsChartData = {
       days: Array.from({ length: 14 }, (_, i) => ({
         day: `2026-08-${String(i + 6).padStart(2, '0')}`,
@@ -60,7 +107,7 @@ describe('applications-chart', () => {
       })),
     }
     el.setData(zeros)
-    expect(el.querySelectorAll('.chart svg rect').length).toBe(14)
+    expect(el.querySelectorAll('.chart svg rect.bar').length).toBe(14)
     expect(el.hasAttribute('data-empty')).toBe(true)
   })
 
@@ -74,27 +121,20 @@ describe('applications-chart', () => {
     expect(el.hasAttribute('data-empty')).toBe(false)
   })
 
-  it('makes the tallest bar the highest rect', () => {
+  it('the tallest bar has the maximum height', () => {
     el.setData(sample())
-    const rects = Array.from(el.querySelectorAll<SVGRectElement>('.chart svg rect'))
-    const heights = rects.map(r => parseFloat(r.getAttribute('height') ?? '0'))
+    const bars = Array.from(el.querySelectorAll<SVGRectElement>('.chart svg rect.bar'))
+    const heights = bars.map(r => parseFloat(r.getAttribute('height') ?? '0'))
     const maxIdx = heights.indexOf(Math.max(...heights))
-    expect(heights[maxIdx]).toBe(140)
-    expect(rects[maxIdx].querySelector('title')?.textContent).toBe('2026-08-15: 3 applications')
+    expect(heights[maxIdx]).toBeCloseTo(106.8)
   })
 
-  it('each bar has a title with day and count', () => {
+  it('each hit-rect has a title with day and count', () => {
     el.setData(sample())
-    const rects = Array.from(el.querySelectorAll<SVGRectElement>('.chart svg rect'))
-    const titles = rects.map(r => r.querySelector('title')?.textContent ?? '')
-    expect(titles[2]).toBe('2026-08-08: 2 applications')
-    expect(titles[4]).toBe('2026-08-10: 1 applications')
-    expect(titles[9]).toBe('2026-08-15: 3 applications')
-  })
-
-  it('the SVG has role="img" and an aria-label', () => {
-    const svg = el.querySelector<SVGSVGElement>('.chart svg')
-    expect(svg?.getAttribute('role')).toBe('img')
-    expect(svg?.getAttribute('aria-label')).toBe('Applications per day, last 14 days')
+    const hits = Array.from(el.querySelectorAll<SVGRectElement>('.chart svg rect.bar-hit'))
+    const titles = hits.map(r => r.querySelector('title')?.textContent ?? '')
+    expect(titles[2]).toContain('2 applications')
+    expect(titles[4]).toContain('1 application')
+    expect(titles[9]).toContain('3 applications')
   })
 })

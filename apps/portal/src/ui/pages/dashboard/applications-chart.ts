@@ -6,6 +6,46 @@
 import type { ApplicationDay, ApplicationsChart as ApplicationsChartData } from '../../../shared/types.js'
 
 const SLOT_COUNT = 14
+const PLOT_X = 34
+const PLOT_WIDTH = 600
+const PLOT_Y = 16
+const PLOT_HEIGHT = 178
+const PLOT_BOTTOM = PLOT_Y + PLOT_HEIGHT
+const SLOT_WIDTH = PLOT_WIDTH / SLOT_COUNT
+const BAR_WIDTH = 24
+const Y_TICKS = [0, 1, 2, 3, 4, 5]
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function yForValue(value: number, yMax: number): number {
+  if (yMax === 0) return PLOT_BOTTOM
+  return PLOT_BOTTOM - (value / yMax) * PLOT_HEIGHT
+}
+
+function yTickY(tick: number): number {
+  return PLOT_BOTTOM - tick * (PLOT_HEIGHT / 5)
+}
+
+function parseDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function isWeekend(date: Date): boolean {
+  const dow = date.getDay()
+  return dow === 0 || dow === 6
+}
+
+function formatLabel(date: Date, isFirst: boolean): string {
+  if (isFirst) {
+    return `${MONTHS[date.getMonth()]} ${date.getDate()}`
+  }
+  return `${date.getDate()}`
+}
+
+function isToday(iso: string, today: string): boolean {
+  return iso === today
+}
 
 export class ApplicationsChart extends HTMLElement {
   #data: ApplicationDay[] = []
@@ -29,8 +69,13 @@ export class ApplicationsChart extends HTMLElement {
   render(): void {
     this.innerHTML = `
       <div class="chart">
-        <svg viewBox="0 0 600 160" preserveAspectRatio="none" role="img" aria-label="Applications per day, last 14 days">
+        <svg viewBox="0 0 640 220" role="img" aria-label="Applications per day, last 14 days">
         </svg>
+      </div>
+      <div class="chart-legend">
+        <span class="swatch"><span class="swatch-bar"></span>Applications</span>
+        <span class="swatch"><span class="swatch-avg"></span>Daily avg</span>
+        <span class="swatch"><span class="swatch-weekend"></span>Weekend</span>
       </div>
     `
     this.#draw()
@@ -52,25 +97,79 @@ export class ApplicationsChart extends HTMLElement {
       this.removeAttribute('data-empty')
     }
 
-    const slotWidth = 600 / SLOT_COUNT
-    const barHeight = 140
-    const yMax = 140
+    const yMax = max <= 5 ? 5 : max
+    const today = new Date().toISOString().slice(0, 10)
+    const total = this.#data.reduce((sum, d) => sum + d.count, 0)
+    const avgY = yForValue(total / SLOT_COUNT, yMax)
 
-    const bars = Array.from({ length: SLOT_COUNT }, (_, i) => {
+    const parts: string[] = []
+
+    // Gridlines + baseline
+    for (const tick of Y_TICKS) {
+      const y = yTickY(tick)
+      const cls = tick === 0 ? 'baseline' : 'grid'
+      parts.push(`<line class="${cls}" x1="${PLOT_X}" y1="${y}" x2="${PLOT_X + PLOT_WIDTH}" y2="${y}"/>`)
+    }
+
+    // Y-axis labels
+    for (const tick of Y_TICKS) {
+      const y = yTickY(tick)
+      parts.push(`<text class="axis-y" x="${PLOT_X - 6}" y="${y + 4}" text-anchor="end">${tick}</text>`)
+    }
+
+    // Weekend shading
+    for (let i = 0; i < SLOT_COUNT; i++) {
+      const day = this.#data[i]
+      if (!day) continue
+      const date = parseDate(day.day)
+      if (isWeekend(date)) {
+        const x = PLOT_X + i * SLOT_WIDTH
+        parts.push(`<rect class="weekend" x="${x}" y="${PLOT_Y}" width="${SLOT_WIDTH}" height="${PLOT_HEIGHT}"/>`)
+      }
+    }
+
+    // Average line
+    parts.push(`<line class="avg-line" x1="${PLOT_X}" y1="${avgY}" x2="${PLOT_X + PLOT_WIDTH}" y2="${avgY}"/>`)
+
+    // Bars, labels, hit-rects, x-axis labels
+    for (let i = 0; i < SLOT_COUNT; i++) {
       const day = this.#data[i]
       const count = day?.count ?? 0
-      const normalisedMax = Math.max(max, 1)
-      const height = (count / normalisedMax) * barHeight
-      const y = yMax - height
+      const height = yMax > 0 ? (count / yMax) * PLOT_HEIGHT : 0
+      const y = PLOT_BOTTOM - height
+      const slotX = PLOT_X + i * SLOT_WIDTH
+      const barX = slotX + (SLOT_WIDTH - BAR_WIDTH) / 2
       const dayLabel = day?.day ?? ''
-      const title = dayLabel ? `${dayLabel}: ${count} applications` : `${count} applications`
+      const date = day ? parseDate(day.day) : null
+      const todayFlag = dayLabel ? isToday(dayLabel, today) : false
+      const labelText = date ? formatLabel(date, i === 0) : ''
 
-      return `<rect x="${i * slotWidth}" y="${y}" width="${slotWidth}" height="${height}" fill="var(--accent)">
-        <title>${title}</title>
-      </rect>`
-    })
+      // Bar
+      parts.push(`<rect class="bar" x="${barX}" y="${y}" width="${BAR_WIDTH}" height="${height}" rx="3"/>`)
 
-    svg.innerHTML = bars.join('')
+      // Bar value label
+      if (count > 0) {
+        parts.push(
+          `<text class="bar-value" x="${barX + BAR_WIDTH / 2}" y="${y - 4}" text-anchor="middle">${count}</text>`
+        )
+      }
+
+      // Hit-rect with tooltip
+      const titleText = dayLabel
+        ? `${new Date(dayLabel).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}: ${count} application${count === 1 ? '' : 's'}`
+        : `${count} application${count === 1 ? '' : 's'}`
+      parts.push(
+        `<rect class="bar-hit" x="${slotX}" y="${PLOT_Y}" width="${SLOT_WIDTH}" height="${PLOT_HEIGHT}"><title>${titleText}</title></rect>`
+      )
+
+      // X-axis label
+      const cls = todayFlag ? 'axis-x today' : 'axis-x'
+      parts.push(
+        `<text class="${cls}" x="${slotX + SLOT_WIDTH / 2}" y="${PLOT_BOTTOM + 16}" text-anchor="middle">${labelText}</text>`
+      )
+    }
+
+    svg.innerHTML = parts.join('')
   }
 }
 

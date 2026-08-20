@@ -59,7 +59,7 @@ describe('dashboard-mediator', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/applications/chart')
-    expect(page.querySelectorAll('.chart svg rect').length).toBe(14)
+    expect(page.querySelectorAll('.chart svg rect.bar').length).toBe(14)
   })
 
   it('catches up and renders an empty chart when the fetch fails', async () => {
@@ -71,7 +71,7 @@ describe('dashboard-mediator', () => {
 
     await new Promise(resolve => setTimeout(resolve, 0))
 
-    expect(page.querySelectorAll('.chart svg rect').length).toBe(14)
+    expect(page.querySelectorAll('.chart svg rect.bar').length).toBe(14)
     expect(page.querySelector('applications-chart')?.hasAttribute('data-empty')).toBe(true)
   })
 
@@ -85,6 +85,6 @@ describe('dashboard-mediator', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/applications/chart')
-    expect(page.querySelectorAll('.chart svg rect').length).toBe(14)
+    expect(page.querySelectorAll('.chart svg rect.bar').length).toBe(14)
   })
 })
