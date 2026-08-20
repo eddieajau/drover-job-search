@@ -9,8 +9,6 @@ import type { FastifyPluginAsync } from 'fastify'
 
 import type { ApplicationsChart } from '../../../../shared/types.js'
 
-const WINDOW_DAYS = 14
-
 function localDate(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -32,8 +30,10 @@ function daysBack(n: number): string[] {
 }
 
 const getApplicationsChart: FastifyPluginAsync = async app => {
-  app.get('/', async () => {
-    const days = daysBack(WINDOW_DAYS)
+  app.get('/', async req => {
+    const { days: rawDays } = req.query as { days?: string }
+    const raw = Number(rawDays)
+    const days = daysBack(Number.isFinite(raw) ? Math.min(Math.max(raw, 1), 30) : 14)
     const windowStart = `${days[0]}T00:00:00Z`
 
     const rows = app.db

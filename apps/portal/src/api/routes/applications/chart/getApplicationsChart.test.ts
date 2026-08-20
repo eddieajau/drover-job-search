@@ -86,6 +86,44 @@ describe('GET /api/applications/chart', () => {
     expect(todayEntry?.count).toBe(0)
   })
 
+  it('returns 7 days when ?days=7', async () => {
+    const res = await app.inject({ method: 'GET', url: '/?days=7' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { days: Array<{ day: string; count: number }> }
+    expect(body.days).toHaveLength(7)
+    expect(body.days[6].day).toBe(toDay(new Date()))
+  })
+
+  it('returns 30 days when ?days=30', async () => {
+    const res = await app.inject({ method: 'GET', url: '/?days=30' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { days: Array<{ day: string; count: number }> }
+    expect(body.days).toHaveLength(30)
+    expect(body.days[29].day).toBe(toDay(new Date()))
+  })
+
+  it('clamps ?days=100 to 30', async () => {
+    const res = await app.inject({ method: 'GET', url: '/?days=100' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { days: Array<{ day: string; count: number }> }
+    expect(body.days).toHaveLength(30)
+  })
+
+  it('defaults to 14 for non-numeric ?days', async () => {
+    const res = await app.inject({ method: 'GET', url: '/?days=abc' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { days: Array<{ day: string; count: number }> }
+    expect(body.days).toHaveLength(14)
+  })
+
+  it('clamps ?days=0 to 1', async () => {
+    const res = await app.inject({ method: 'GET', url: '/?days=0' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { days: Array<{ day: string; count: number }> }
+    expect(body.days).toHaveLength(1)
+    expect(body.days[0].day).toBe(toDay(new Date()))
+  })
+
   it('returns days in chronological order with last entry as today', async () => {
     const res = await app.inject({ method: 'GET', url: '/' })
     const body = res.json() as { days: Array<{ day: string; count: number }> }
