@@ -32,7 +32,6 @@ export async function importJob(url: string, opts?: { logger?: SearchLogger }): 
   throw new ProviderError('unsupported_url', 'URL must be a provider job URL')
 }
 
-export { SEEK_URL_RE } from './seek/index.js'
 export { LINKEDIN_URL_RE } from './linkedin/index.js'
 export {
   htmlFetch,

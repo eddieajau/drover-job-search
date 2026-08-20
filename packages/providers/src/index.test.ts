@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ProviderError, type ProvidedJob } from './common/index.js'
-import { importJob, LINKEDIN_URL_RE, SEEK_URL_RE } from './index.js'
+import { importJob, LINKEDIN_URL_RE } from './index.js'
 import { provider as linkedinProvider } from './linkedin/index.js'
 import { provider as seekProvider } from './seek/index.js'
 
@@ -124,8 +124,7 @@ describe('importJob', () => {
     }
   })
 
-  it('exports SEEK_URL_RE and LINKEDIN_URL_RE for consumer reuse', () => {
-    expect(SEEK_URL_RE.test(SEEK_URL)).toBe(true)
+  it('exports LINKEDIN_URL_RE for consumer reuse', () => {
     expect(LINKEDIN_URL_RE.test(LINKEDIN_URL)).toBe(true)
   })
 })
