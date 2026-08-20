@@ -35,17 +35,90 @@ describe('dashboard-page', () => {
 
   beforeEach(() => {
     document.body.innerHTML = ''
+    sessionStorage.clear()
     el = document.createElement('dashboard-page')
     document.body.appendChild(el)
   })
 
   afterEach(() => {
     document.body.innerHTML = ''
+    sessionStorage.clear()
   })
 
-  it('renders the page shell with head and panel', () => {
+  it('renders the page shell with head and dash-grid', () => {
     expect(el.querySelector('.page > .page-head h1')?.textContent).toBe('Dashboard')
-    expect(el.querySelector('.panel > applications-chart')).not.toBeNull()
+    expect(el.querySelector('.page > .dash-grid')).not.toBeNull()
+  })
+
+  it('renders the current date in .page-sub', () => {
+    const sub = el.querySelector('.page-head .page-sub')
+    expect(sub?.textContent).toBeTruthy()
+    expect(sub?.textContent).toContain(new Date().getFullYear().toString())
+  })
+
+  it('renders a date range select with 7/14/30 day options', () => {
+    const sel = el.querySelector<HTMLSelectElement>('.page-head select[aria-label="Date range"]')
+    expect(sel).not.toBeNull()
+    const options = Array.from(sel!.options)
+    expect(options).toHaveLength(3)
+    expect(options.map(o => o.value)).toEqual(['7', '14', '30'])
+  })
+
+  it('defaults to 14 days', () => {
+    const sel = el.querySelector<HTMLSelectElement>('.page-range')
+    expect(sel?.value).toBe('14')
+  })
+
+  it('reads default from sessionStorage', () => {
+    document.body.innerHTML = ''
+    sessionStorage.setItem('dashboard-days', '30')
+    const e = document.createElement('dashboard-page')
+    document.body.appendChild(e)
+    const sel = e.querySelector<HTMLSelectElement>('.page-range')
+    expect(sel?.value).toBe('30')
+  })
+
+  it('rangeDays returns current selection', () => {
+    expect(el.rangeDays).toBe(14)
+    const sel = el.querySelector<HTMLSelectElement>('.page-range')!
+    sel.value = '7'
+    sel.dispatchEvent(new Event('change'))
+    expect(el.rangeDays).toBe(7)
+  })
+
+  it('dispatches dashboard-range:change on select change', () => {
+    const received: number[] = []
+    el.addEventListener('dashboard-range:change', ((e: CustomEvent) => {
+      received.push(e.detail.days)
+    }) as EventListener)
+
+    const sel = el.querySelector<HTMLSelectElement>('.page-range')!
+    sel.value = '30'
+    sel.dispatchEvent(new Event('change'))
+
+    expect(received).toEqual([30])
+  })
+
+  it('the change event bubbles and is composed', () => {
+    const received = { bubbled: false, composed: false }
+    document.addEventListener('dashboard-range:change', ((e: CustomEvent) => {
+      received.bubbled = e.bubbles
+      received.composed = e.composed
+    }) as EventListener)
+
+    const sel = el.querySelector<HTMLSelectElement>('.page-range')!
+    sel.value = '7'
+    sel.dispatchEvent(new Event('change'))
+
+    expect(received.bubbled).toBe(true)
+    expect(received.composed).toBe(true)
+  })
+
+  it('persists selection to sessionStorage', () => {
+    const sel = el.querySelector<HTMLSelectElement>('.page-range')!
+    sel.value = '30'
+    sel.dispatchEvent(new Event('change'))
+    expect(sessionStorage.getItem('dashboard-days')).toBe('30')
   })
 
   it('forwards setData to the child applications-chart', () => {
