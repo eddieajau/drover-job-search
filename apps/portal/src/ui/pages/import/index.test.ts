@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import './index.js'
+import '../manual-entry/index.js'
 import type { ImportPage } from './index.js'
 
 describe('import-page', () => {
@@ -17,17 +18,45 @@ describe('import-page', () => {
     document.body.appendChild(el)
   })
 
-  it('renders the page shell with form controls', () => {
-    expect(el.querySelector('h1')?.textContent).toBe('Import Job')
-    expect(el.querySelector<HTMLInputElement>('#import-url')).not.toBeNull()
-    expect(el.querySelector<HTMLSelectElement>('#import-status')).not.toBeNull()
-    expect(el.querySelector<HTMLInputElement>('#import-date')).not.toBeNull()
-    expect(el.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe('Import')
-    const cancel = el.querySelector<HTMLAnchorElement>('a.btn[href="#jobs"]')
-    expect(cancel?.textContent).toBe('Cancel')
+  it('renders tab bar with Link and Manual buttons', () => {
+    const tabs = el.querySelectorAll<HTMLButtonElement>('button[data-action="tab"]')
+    expect(tabs.length).toBe(2)
+    expect(tabs[0].dataset.tab).toBe('link')
+    expect(tabs[0].textContent).toBe('Link')
+    expect(tabs[1].dataset.tab).toBe('manual')
+    expect(tabs[1].textContent).toBe('Manual')
   })
 
-  it('renders the URL input with required pattern', () => {
+  it('defaults to Link tab active', () => {
+    const linkTab = el.querySelector<HTMLButtonElement>('button[data-tab="link"]')
+    expect(linkTab?.getAttribute('aria-selected')).toBe('true')
+    const manualTab = el.querySelector<HTMLButtonElement>('button[data-tab="manual"]')
+    expect(manualTab?.getAttribute('aria-selected')).toBe('false')
+    expect(el.querySelector('#import-form')).not.toBeNull()
+    expect(el.querySelector('manual-entry-page')).toBeNull()
+  })
+
+  it('clicking Manual tab sets aria-selected and renders manual-entry-page', () => {
+    el.querySelector<HTMLButtonElement>('button[data-tab="manual"]')!.click()
+
+    const manualTab = el.querySelector<HTMLButtonElement>('button[data-tab="manual"]')
+    expect(manualTab?.getAttribute('aria-selected')).toBe('true')
+    const linkTab = el.querySelector<HTMLButtonElement>('button[data-tab="link"]')
+    expect(linkTab?.getAttribute('aria-selected')).toBe('false')
+    expect(el.querySelector('#import-form')).toBeNull()
+    expect(el.querySelector('manual-entry-page')).not.toBeNull()
+  })
+
+  it('clicking Link tab re-renders the URL form', () => {
+    el.querySelector<HTMLButtonElement>('button[data-tab="manual"]')!.click()
+    expect(el.querySelector('manual-entry-page')).not.toBeNull()
+
+    el.querySelector<HTMLButtonElement>('button[data-tab="link"]')!.click()
+    expect(el.querySelector('#import-form')).not.toBeNull()
+    expect(el.querySelector('manual-entry-page')).toBeNull()
+  })
+
+  it('renders the URL input with required pattern on Link tab', () => {
     const input = el.querySelector<HTMLInputElement>('#import-url')!
     expect(input.required).toBe(true)
     expect(input.pattern).toBe(
@@ -105,7 +134,7 @@ describe('import-page', () => {
     expect(received.detail.status).toBe('applied')
   })
 
-  it('disables the button and shows "Importing\u2026" when setBusy(true)', () => {
+  it('setBusy operates on the active tab submit button', () => {
     el.setBusy(true)
     const btn = el.querySelector<HTMLButtonElement>('button[type="submit"]')
     expect(btn?.disabled).toBe(true)

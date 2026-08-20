@@ -4,6 +4,7 @@
  */
 
 import { escapeHtml as esc } from '../../escape.js'
+import '../manual-entry/index.js'
 
 export interface ImportPageEventMap {
   'import-page:ready': CustomEvent<void>
@@ -11,6 +12,7 @@ export interface ImportPageEventMap {
 }
 
 export class ImportPage extends HTMLElement {
+  #activeTab: 'link' | 'manual' = 'link'
   #busy = false
   #abort: AbortController | null = null
 
@@ -33,10 +35,10 @@ export class ImportPage extends HTMLElement {
     btn.disabled = busy
     if (busy) {
       btn.setAttribute('aria-busy', 'true')
-      btn.textContent = 'Importing…'
+      btn.textContent = this.#activeTab === 'link' ? 'Importing\u2026' : 'Saving\u2026'
     } else {
       btn.removeAttribute('aria-busy')
-      btn.textContent = 'Import'
+      btn.textContent = this.#activeTab === 'link' ? 'Import' : 'Save'
     }
   }
 
@@ -44,6 +46,10 @@ export class ImportPage extends HTMLElement {
     const input = this.querySelector<HTMLInputElement>('#import-date')
     if (input) {
       input.value = date
+    }
+    const manual = this.querySelector<HTMLElement & { setDate: (d: string) => void }>('manual-entry-page')
+    if (manual) {
+      manual.setDate(date)
     }
   }
 
@@ -66,9 +72,28 @@ export class ImportPage extends HTMLElement {
     this.#abort = new AbortController()
     const opts = { signal: this.#abort.signal }
     this.addEventListener('submit', this.#onSubmit, opts)
-    // Pasted links often carry tracking query params; drop them once the
-    // user moves on from the URL field so the saved link is clean.
+    this.addEventListener('click', this.#onClick, opts)
     this.addEventListener('focusout', this.#onUrlBlur, opts)
+  }
+
+  #onClick = (event: MouseEvent): void => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-action]')
+    if (!button) {
+      return
+    }
+    const action = button.dataset.action
+    if (action === 'tab') {
+      const tab = button.dataset.tab as 'link' | 'manual'
+      if (tab) {
+        this.#activeTab = tab
+        this.render()
+        this.setupEventListeners()
+        if (tab === 'link') {
+          this.dispatchEvent(new CustomEvent('import-page:ready', { bubbles: true, composed: true }))
+        }
+      }
+      return
+    }
   }
 
   #onUrlBlur = (event: FocusEvent): void => {
@@ -114,9 +139,19 @@ export class ImportPage extends HTMLElement {
   }
 
   render(): void {
+    const linkActive = this.#activeTab === 'link'
+    const manualActive = this.#activeTab === 'manual'
+
     this.innerHTML = `
       <main class="page">
         <h1>Import Job</h1>
+        <nav class="meta-tabs" role="tablist">
+          <button class="meta-tab" role="tab" aria-selected="${linkActive}" data-action="tab" data-tab="link">Link</button>
+          <button class="meta-tab" role="tab" aria-selected="${manualActive}" data-action="tab" data-tab="manual">Manual</button>
+        </nav>
+        ${
+          linkActive
+            ? `
         <form id="import-form" class="form">
           <div class="field">
             <label class="field-label req" for="import-url">Job URL</label>
@@ -144,6 +179,11 @@ export class ImportPage extends HTMLElement {
             <a class="btn" href="#jobs">Cancel</a>
           </div>
         </form>
+        `
+            : `
+        <manual-entry-page></manual-entry-page>
+        `
+        }
         <div id="import-result"></div>
       </main>
     `

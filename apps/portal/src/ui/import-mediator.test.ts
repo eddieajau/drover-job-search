@@ -7,14 +7,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { _resetImportMediatorForTesting, initImportMediator } from './import-mediator.js'
 import './pages/import/index.js'
+import './pages/manual-entry/index.js'
 import type { ImportPage } from './pages/import/index.js'
+import type { ManualEntryPage } from './pages/manual-entry/index.js'
 
 function mockFetch(_routes: Record<string, unknown>): void {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
       if (init?.method === 'POST') {
-        const body = JSON.parse(init.body as string) as { url: string; status: string }
+        const body = JSON.parse(init.body as string) as { url: string; status: string; title?: string }
         if (body.url === 'https://au.seek.com/job/duplicate') {
           return { ok: false, status: 409, text: async () => 'Job already imported' }
         }
@@ -23,7 +25,7 @@ function mockFetch(_routes: Record<string, unknown>): void {
         }
         return {
           ok: true,
-          json: async () => ({ id: 1, status: body.status, title: 'Senior Engineer' }),
+          json: async () => ({ id: 1, status: body.status, title: body.title ?? 'Senior Engineer' }),
         }
       }
       return { ok: false, status: 404 }
@@ -179,5 +181,168 @@ describe('import-mediator', () => {
 
     expect(btn?.disabled).toBe(false)
     expect(btn?.getAttribute('aria-busy')).toBeNull()
+  })
+
+  it('sets date on manual-entry-page when manual-entry-page:ready fires', async () => {
+    mockFetch({})
+    initImportMediator()
+    const page = document.createElement('import-page') as ImportPage
+    document.body.appendChild(page)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const manual = document.createElement('manual-entry-page') as ManualEntryPage
+    page.appendChild(manual)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const dateInput = manual.querySelector<HTMLInputElement>('#manual-date')
+    const today = new Date()
+    const expected = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    expect(dateInput?.value).toBe(expected)
+  })
+
+  it('POSTs /api/jobs on manual-entry-page:save and shows success banner', async () => {
+    mockFetch({})
+    initImportMediator()
+    const page = document.createElement('import-page') as ImportPage
+    document.body.appendChild(page)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const manual = document.createElement('manual-entry-page') as ManualEntryPage
+    page.appendChild(manual)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    window.dispatchEvent(
+      new CustomEvent('manual-entry-page:save', {
+        detail: {
+          title: 'Senior Engineer',
+          companyName: 'Acme Corp',
+          url: 'https://example.com/job/123',
+          location: 'Sydney',
+          workplaceType: 'remote',
+          employmentType: 'full-time',
+          postedAt: '2026-01-10',
+          description: 'Great role',
+          status: 'applied',
+          date: '2026-01-15',
+        },
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/jobs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Senior Engineer',
+        companyName: 'Acme Corp',
+        url: 'https://example.com/job/123',
+        location: 'Sydney',
+        workplaceType: 'remote',
+        employmentType: 'full-time',
+        postedAt: '2026-01-10',
+        description: 'Great role',
+        status: 'applied',
+        at: '2026-01-15',
+      }),
+    })
+
+    const banner = page.querySelector('.ingest-result.success')
+    expect(banner).not.toBeNull()
+    expect(banner?.textContent).toContain('Senior Engineer')
+  })
+
+  it('shows error banner on manual-entry-page:save non-201 response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return { ok: false, status: 500, text: async () => 'Server error' }
+      })
+    )
+    initImportMediator()
+    const page = document.createElement('import-page') as ImportPage
+    document.body.appendChild(page)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const manual = document.createElement('manual-entry-page') as ManualEntryPage
+    page.appendChild(manual)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    window.dispatchEvent(
+      new CustomEvent('manual-entry-page:save', {
+        detail: {
+          title: 'Senior Engineer',
+          companyName: 'Acme Corp',
+          url: 'https://example.com/job/123',
+          location: 'Sydney',
+          workplaceType: 'remote',
+          employmentType: 'full-time',
+          postedAt: '2026-01-10',
+          description: 'Great role',
+          status: 'applied',
+          date: '2026-01-15',
+        },
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const banner = page.querySelector('.ingest-result.error')
+    expect(banner).not.toBeNull()
+    expect(banner?.textContent).toContain('Server error')
+  })
+
+  it('shows error banner on manual-entry-page:save network failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('Network error')
+      })
+    )
+    initImportMediator()
+    const page = document.createElement('import-page') as ImportPage
+    document.body.appendChild(page)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const manual = document.createElement('manual-entry-page') as ManualEntryPage
+    page.appendChild(manual)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    window.dispatchEvent(
+      new CustomEvent('manual-entry-page:save', {
+        detail: {
+          title: 'Senior Engineer',
+          companyName: 'Acme Corp',
+          url: 'https://example.com/job/123',
+          location: 'Sydney',
+          workplaceType: 'remote',
+          employmentType: 'full-time',
+          postedAt: '2026-01-10',
+          description: 'Great role',
+          status: 'applied',
+          date: '2026-01-15',
+        },
+      })
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const banner = page.querySelector('.ingest-result.error')
+    expect(banner).not.toBeNull()
+    expect(banner?.textContent).toContain('Network error')
+  })
+
+  it('_resetImportMediatorForTesting cleans up manual listeners', async () => {
+    mockFetch({})
+    initImportMediator()
+    _resetImportMediatorForTesting()
+
+    const page = document.createElement('import-page') as ImportPage
+    document.body.appendChild(page)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const manual = document.createElement('manual-entry-page') as ManualEntryPage
+    page.appendChild(manual)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const dateInput = manual.querySelector<HTMLInputElement>('#manual-date')
+    expect(dateInput?.value).toBe('')
   })
 })
