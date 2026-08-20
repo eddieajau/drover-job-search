@@ -155,4 +155,18 @@ export interface ApplicationsChart {
   days: ApplicationDay[]
 }
 
+export interface DashboardSummary {
+  applied: { count: number; delta: number }
+  inFlight: { applied: number; interviewing: number }
+  interviewRate: number
+  pipeline: {
+    applied: number
+    interviewing: number
+    successful: number
+    unsuccessful: number
+    declined: number
+  }
+  attention: Array<{ kind: string; message: string; detail: string }>
+}
+
 export type { FactResponse } from '../api/serializers.js'
