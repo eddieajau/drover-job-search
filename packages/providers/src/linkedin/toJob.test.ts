@@ -21,6 +21,10 @@ const CLOSED_HTML = `
 <div class="topcard__flavor topcard__flavor--bullet">No longer accepting applications</div>
 `
 
+const LINKEDIN_URL = 'https://www.linkedin.com/jobs/view/4448084368'
+const FULL_PAGE_URL = 'https://www.linkedin.com/jobs/view/4448084368'
+const GUEST_API_FRAGMENT = '/jobs-guest/jobs/api/jobPosting'
+
 function mockFetch(html: string): ReturnType<typeof vi.fn> {
   return vi.fn().mockResolvedValue({
     status: 200,
@@ -29,13 +33,14 @@ function mockFetch(html: string): ReturnType<typeof vi.fn> {
   })
 }
 
-const LINKEDIN_URL = 'https://www.linkedin.com/jobs/view/4448084368'
-
-function mockFetch(html: string): ReturnType<typeof vi.fn> {
-  return vi.fn().mockResolvedValue({
-    status: 200,
-    ok: true,
-    text: async () => html,
+function mockFetchByPattern(patterns: { url: string; html: string }[]): ReturnType<typeof vi.fn> {
+  return vi.fn().mockImplementation(async (url: string) => {
+    const match = patterns.find(p => url.includes(p.url))
+    return {
+      status: 200,
+      ok: true,
+      text: async () => match?.html ?? '',
+    }
   })
 }
 
@@ -78,7 +83,41 @@ describe('toJob', () => {
   })
 
   it('throws ProviderError with job_closed for closed listings', async () => {
-    fetchSpy = mockFetch(CLOSED_HTML)
+    fetchSpy = mockFetchByPattern([
+      { url: GUEST_API_FRAGMENT, html: CLOSED_HTML },
+      { url: FULL_PAGE_URL, html: CLOSED_HTML },
+    ])
+    vi.stubGlobal('fetch', fetchSpy)
+
+    await expect(toJob(LINKEDIN_URL)).rejects.toThrow(ProviderError)
+    try {
+      await toJob(LINKEDIN_URL)
+    } catch (e) {
+      expect((e as ProviderError).code).toBe('job_closed')
+    }
+  })
+
+  it('falls back to full page when guest API reports closed', async () => {
+    fetchSpy = mockFetchByPattern([
+      { url: GUEST_API_FRAGMENT, html: CLOSED_HTML },
+      { url: FULL_PAGE_URL, html: DETAIL_HTML },
+    ])
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const job = await toJob(LINKEDIN_URL)
+
+    expect(job.provider).toBe('linkedin')
+    expect(job.providerJobId).toBe('4448084368')
+    expect(job.title).toBe('Staff Software Engineer')
+    expect(job.companyName).toBe('Globex Corporation')
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws job_closed when full-page fallback also returns closed', async () => {
+    fetchSpy = mockFetchByPattern([
+      { url: GUEST_API_FRAGMENT, html: CLOSED_HTML },
+      { url: FULL_PAGE_URL, html: CLOSED_HTML },
+    ])
     vi.stubGlobal('fetch', fetchSpy)
 
     await expect(toJob(LINKEDIN_URL)).rejects.toThrow(ProviderError)

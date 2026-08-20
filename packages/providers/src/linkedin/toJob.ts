@@ -22,6 +22,7 @@
 // SOFTWARE.
 
 import {
+  htmlFetch,
   normaliseEmploymentType,
   ProviderError,
   silentLogger,
@@ -30,10 +31,29 @@ import {
   type SearchLogger,
 } from '../common/index.js'
 import { detail } from './detail.js'
+import { parseJobDetail, type JobDetail } from './parse.js'
+
+function toProvidedJob(d: JobDetail): ProvidedJob {
+  return {
+    provider: 'linkedin',
+    providerJobId: d.id,
+    title: d.title,
+    companyName: d.company ?? '',
+    url: d.url,
+    location: d.location ?? '',
+    workplaceType: d.workplaceType,
+    employmentType: normaliseEmploymentType(d.employmentType),
+    postedAt: d.date,
+    description: d.description ? toMarkdown(d.description) : null,
+  }
+}
 
 /**
  * Fetch and parse a LinkedIn job into a `ProvidedJob` with a markdown
  * description.
+ *
+ * When the guest API reports the job as closed, we fall back to the full
+ * browser-rendered page which may still contain the job content.
  *
  * The **dispatcher** (ticket 131) maps `ProviderError` codes to HTTP
  * status; `toJob` owns the fetch-fail, closed, and map-to-ProvidedJob
@@ -47,19 +67,15 @@ export async function toJob(url: string, logger: SearchLogger = silentLogger): P
   }
 
   if (d.closed) {
+    // Guest API says closed — try the full browser-rendered page.
+    const fullUrl = `https://www.linkedin.com/jobs/view/${d.id}`
+    const html = await htmlFetch(fullUrl, logger)
+    if (html) {
+      const d2 = parseJobDetail(html, d.id)
+      if (!d2.closed) return toProvidedJob(d2)
+    }
     throw new ProviderError('job_closed', 'This job is no longer accepting applications')
   }
 
-  return {
-    provider: 'linkedin',
-    providerJobId: d.id,
-    title: d.title,
-    companyName: d.company ?? '',
-    url: d.url,
-    location: d.location ?? '',
-    workplaceType: d.workplaceType,
-    employmentType: normaliseEmploymentType(d.employmentType),
-    postedAt: d.date,
-    description: d.description ? toMarkdown(d.description) : null,
-  }
+  return toProvidedJob(d)
 }

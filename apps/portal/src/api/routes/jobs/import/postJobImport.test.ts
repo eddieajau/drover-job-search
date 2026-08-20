@@ -329,10 +329,8 @@ describe('POST /api/jobs/import', () => {
 
   it('returns 422 when the LinkedIn job is closed', async () => {
     vi.restoreAllMocks()
-    mockHtmlFetch(
-      seekHtml,
-      '<div class="topcard__flavor topcard__flavor--bullet">No longer accepting applications</div>'
-    )
+    const closedHtml = '<div class="topcard__flavor topcard__flavor--bullet">No longer accepting applications</div>'
+    mockHtmlFetch(closedHtml, closedHtml)
 
     const res = await app.inject({
       method: 'POST',
