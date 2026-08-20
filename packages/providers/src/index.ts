@@ -9,12 +9,11 @@
 // provider URL. Consumers should import everything from this barrel instead of
 // reaching into `provider-linkedin` / `provider-seek` sub-paths.
 
-import { htmlFetch, ProviderError, silentLogger, type ProvidedJob, type SearchLogger } from './common/index.js'
-import { toJob as linkedinToJob } from './linkedin/toJob.js'
-import { toJob as seekToJob } from './seek/toJob.js'
+import { ProviderError, silentLogger, type ProvidedJob, type SearchLogger } from './common/index.js'
+import { provider as linkedinProvider } from './linkedin/index.js'
+import { provider as seekProvider } from './seek/index.js'
 
-const SEEK_URL_RE = /^https?:\/\/au\.seek\.com\/job\/(\d+)$/
-const LINKEDIN_URL_RE = /^https?:\/\/(?:[a-z]{2,}\.)?linkedin\.com\/jobs\/view\/(\d{6,})\/?$/
+const providers = [seekProvider, linkedinProvider]
 
 /**
  * Detect the provider from a URL, fetch the page, and return a normalised
@@ -24,24 +23,17 @@ const LINKEDIN_URL_RE = /^https?:\/\/(?:[a-z]{2,}\.)?linkedin\.com\/jobs\/view\/
 export async function importJob(url: string, opts?: { logger?: SearchLogger }): Promise<ProvidedJob> {
   const logger = opts?.logger ?? silentLogger
 
-  const seekMatch = url.match(SEEK_URL_RE)
-  if (seekMatch) {
-    const html = await htmlFetch(url, logger)
-    if (!html) {
-      throw new ProviderError('fetch_failed', 'Could not fetch job page')
+  for (const p of providers) {
+    if (p.isMatch(url)) {
+      return p.toJob(url, logger)
     }
-    return seekToJob(html, url)
-  }
-
-  const linkedinMatch = url.match(LINKEDIN_URL_RE)
-  if (linkedinMatch) {
-    return linkedinToJob(linkedinMatch[1], logger)
   }
 
   throw new ProviderError('unsupported_url', 'URL must be a provider job URL')
 }
 
-export { SEEK_URL_RE, LINKEDIN_URL_RE }
+export { SEEK_URL_RE } from './seek/index.js'
+export { LINKEDIN_URL_RE } from './linkedin/index.js'
 export {
   htmlFetch,
   normaliseEmploymentType,
@@ -50,6 +42,13 @@ export {
   silentLogger,
   toMarkdown,
 } from './common/index.js'
-export type { EmploymentType, ProvidedJob, ProviderErrorCode, SearchLogger, WorkplaceType } from './common/index.js'
+export type {
+  EmploymentType,
+  ProvidedJob,
+  Provider,
+  ProviderErrorCode,
+  SearchLogger,
+  WorkplaceType,
+} from './common/index.js'
 export { search, selectJobage, detail } from './linkedin/index.js'
 export { parseSeekJob } from './seek/index.js'

@@ -29,6 +29,16 @@ function mockFetch(html: string): ReturnType<typeof vi.fn> {
   })
 }
 
+const LINKEDIN_URL = 'https://www.linkedin.com/jobs/view/4448084368'
+
+function mockFetch(html: string): ReturnType<typeof vi.fn> {
+  return vi.fn().mockResolvedValue({
+    status: 200,
+    ok: true,
+    text: async () => html,
+  })
+}
+
 describe('toJob', () => {
   let fetchSpy: ReturnType<typeof vi.fn>
 
@@ -42,7 +52,7 @@ describe('toJob', () => {
   })
 
   it('returns a ProvidedJob with a markdown description', async () => {
-    const job = await toJob('4448084368')
+    const job = await toJob(LINKEDIN_URL)
 
     expect(job.provider).toBe('linkedin')
     expect(job.providerJobId).toBe('4448084368')
@@ -59,9 +69,9 @@ describe('toJob', () => {
     fetchSpy = vi.fn().mockResolvedValue({ status: 404, ok: false, text: async () => '' })
     vi.stubGlobal('fetch', fetchSpy)
 
-    await expect(toJob('4448084368')).rejects.toThrow(ProviderError)
+    await expect(toJob(LINKEDIN_URL)).rejects.toThrow(ProviderError)
     try {
-      await toJob('4448084368')
+      await toJob(LINKEDIN_URL)
     } catch (e) {
       expect((e as ProviderError).code).toBe('fetch_failed')
     }
@@ -71,9 +81,9 @@ describe('toJob', () => {
     fetchSpy = mockFetch(CLOSED_HTML)
     vi.stubGlobal('fetch', fetchSpy)
 
-    await expect(toJob('4448084368')).rejects.toThrow(ProviderError)
+    await expect(toJob(LINKEDIN_URL)).rejects.toThrow(ProviderError)
     try {
-      await toJob('4448084368')
+      await toJob(LINKEDIN_URL)
     } catch (e) {
       expect((e as ProviderError).code).toBe('job_closed')
     }

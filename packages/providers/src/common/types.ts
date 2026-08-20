@@ -4,6 +4,7 @@
  */
 
 import type { EmploymentType } from './employment.js'
+import type { SearchLogger } from './fetch.js'
 import type { WorkplaceType } from './workplace.js'
 
 /**
@@ -23,4 +24,16 @@ export interface ProvidedJob {
   employmentType: EmploymentType | null
   postedAt: string | null
   description: string | null
+}
+
+/**
+ * Strategy adapter for a single job provider (SEEK, LinkedIn, etc.).
+ *
+ * The dispatcher iterates an array of these — new providers are added by
+ * appending, not by editing `importJob`.
+ */
+export interface Provider {
+  name: string
+  isMatch(url: string): boolean
+  toJob(url: string, logger?: SearchLogger): Promise<ProvidedJob> | ProvidedJob
 }

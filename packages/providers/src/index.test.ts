@@ -3,15 +3,12 @@
  * @license   MIT
  */
 
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ProviderError } from './common/index.js'
+import { ProviderError, type ProvidedJob } from './common/index.js'
 import { importJob, LINKEDIN_URL_RE, SEEK_URL_RE } from './index.js'
-
-const seekHtml = readFileSync(resolve(import.meta.dirname, '../../../.local/examples/seek.html'), 'utf-8')
+import { provider as linkedinProvider } from './linkedin/index.js'
+import { provider as seekProvider } from './seek/index.js'
 
 const SEEK_URL = 'https://au.seek.com/job/93971606'
 const NON_SEEK_URL = 'https://example.com/job/123'
@@ -20,38 +17,41 @@ const SEEK_URL_BAD = 'https://au.seek.com/job/abc'
 const LINKEDIN_URL = 'https://www.linkedin.com/jobs/view/4448084368/'
 const LINKEDIN_URL_NO_SLASH = 'https://www.linkedin.com/jobs/view/4448084368'
 
-const LINKEDIN_DETAIL_HTML = `
-<div class="topcard__title">Staff Software Engineer</h1>
-<div class="topcard__org-name-link" href="https://www.linkedin.com/company/globex">Globex Corporation</a>
-<div class="topcard__flavor topcard__flavor--bullet">Sydney, Australia</span>
-<div class="show-more-less-html__markup"><h2>About the role</h2><p>We build <strong>great</strong> things.</p></div>
-<h3 class="description__job-criteria-subheader">Employment type</h3>
-<span class="description__job-criteria-text">Full-time</span>
-`
+const SEEK_JOB: ProvidedJob = {
+  provider: 'seek',
+  providerJobId: '93971606',
+  title: 'Senior Project Manager',
+  companyName: 'Acme Corp',
+  url: SEEK_URL,
+  location: 'Sydney, Australia',
+  workplaceType: null,
+  employmentType: 'full-time',
+  postedAt: null,
+  description: '# Senior Project Manager\n\nWe build things.',
+}
 
-const LINKEDIN_CLOSED_HTML = `
-<div class="topcard__flavor topcard__flavor--bullet">No longer accepting applications</div>
-`
-
-function mockHtmlFetch(seekContent: string, linkedinContent: string = LINKEDIN_DETAIL_HTML): void {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input)
-      const body = url.includes('linkedin.com/jobs-guest') ? linkedinContent : seekContent
-      return {
-        ok: true,
-        text: async () => body,
-        status: 200,
-        headers: new Headers({ 'content-type': 'text/html' }),
-      }
-    })
-  )
+const LINKEDIN_JOB: ProvidedJob = {
+  provider: 'linkedin',
+  providerJobId: '4448084368',
+  title: 'Staff Software Engineer',
+  companyName: 'Globex Corporation',
+  url: LINKEDIN_URL,
+  location: 'Sydney, Australia',
+  workplaceType: null,
+  employmentType: 'full-time',
+  postedAt: null,
+  description: '# Staff Software Engineer\n\nWe build **great** things.',
 }
 
 describe('importJob', () => {
+  let seekToJobSpy: ReturnType<typeof vi.fn>
+  let linkedinToJobSpy: ReturnType<typeof vi.fn>
+
   beforeEach(() => {
-    mockHtmlFetch(seekHtml)
+    seekToJobSpy = vi.fn().mockResolvedValue(SEEK_JOB)
+    linkedinToJobSpy = vi.fn().mockResolvedValue(LINKEDIN_JOB)
+    vi.spyOn(seekProvider, 'toJob').mockImplementation(seekToJobSpy)
+    vi.spyOn(linkedinProvider, 'toJob').mockImplementation(linkedinToJobSpy)
   })
 
   afterEach(() => {
@@ -63,10 +63,8 @@ describe('importJob', () => {
 
     expect(job.provider).toBe('seek')
     expect(job.providerJobId).toBe('93971606')
-    expect(job.title).toContain('Senior Project Manager')
-    expect(job.url).toBe(SEEK_URL)
-    expect(job.description).toBeTruthy()
-    expect(job.description).not.toMatch(/<div/)
+    expect(seekToJobSpy).toHaveBeenCalledWith(SEEK_URL, expect.anything())
+    expect(linkedinToJobSpy).not.toHaveBeenCalled()
   })
 
   it('returns a ProvidedJob for a LinkedIn URL', async () => {
@@ -74,10 +72,8 @@ describe('importJob', () => {
 
     expect(job.provider).toBe('linkedin')
     expect(job.providerJobId).toBe('4448084368')
-    expect(job.title).toBe('Staff Software Engineer')
-    expect(job.companyName).toBe('Globex Corporation')
-    expect(job.description).toContain('**great**')
-    expect(job.description).not.toMatch(/<div/)
+    expect(linkedinToJobSpy).toHaveBeenCalledWith(LINKEDIN_URL, expect.anything())
+    expect(seekToJobSpy).not.toHaveBeenCalled()
   })
 
   it('returns a ProvidedJob for a LinkedIn URL without trailing slash', async () => {
@@ -85,6 +81,7 @@ describe('importJob', () => {
 
     expect(job.provider).toBe('linkedin')
     expect(job.providerJobId).toBe('4448084368')
+    expect(linkedinToJobSpy).toHaveBeenCalledWith(LINKEDIN_URL_NO_SLASH, expect.anything())
   })
 
   it('throws ProviderError with unsupported_url for a non-provider URL', async () => {
@@ -105,9 +102,8 @@ describe('importJob', () => {
     }
   })
 
-  it('throws ProviderError with fetch_failed when htmlFetch returns empty string', async () => {
-    vi.restoreAllMocks()
-    mockHtmlFetch('')
+  it('throws ProviderError with fetch_failed when provider throws', async () => {
+    seekToJobSpy.mockRejectedValue(new ProviderError('fetch_failed', 'Could not fetch job page'))
 
     await expect(importJob(SEEK_URL)).rejects.toThrow(ProviderError)
     try {
@@ -118,8 +114,7 @@ describe('importJob', () => {
   })
 
   it('throws ProviderError with job_closed for a closed LinkedIn job', async () => {
-    vi.restoreAllMocks()
-    mockHtmlFetch(seekHtml, LINKEDIN_CLOSED_HTML)
+    linkedinToJobSpy.mockRejectedValue(new ProviderError('job_closed', 'This job is no longer accepting applications'))
 
     await expect(importJob(LINKEDIN_URL)).rejects.toThrow(ProviderError)
     try {

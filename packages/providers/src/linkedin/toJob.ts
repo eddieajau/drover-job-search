@@ -39,8 +39,8 @@ import { detail } from './detail.js'
  * status; `toJob` owns the fetch-fail, closed, and map-to-ProvidedJob
  * paths only.
  */
-export async function toJob(id: string, logger: SearchLogger = silentLogger): Promise<ProvidedJob> {
-  const d = await detail({ id, logger })
+export async function toJob(url: string, logger: SearchLogger = silentLogger): Promise<ProvidedJob> {
+  const d = await detail({ id: url, logger })
 
   if (!d) {
     throw new ProviderError('fetch_failed', 'Could not fetch job page')

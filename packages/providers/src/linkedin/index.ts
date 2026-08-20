@@ -21,6 +21,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import type { Provider } from '../common/index.js'
+
 export { search, selectJobage, LINKEDIN_WINDOWS, type SearchOpts, type SearchResult } from './search.js'
 export { detail, type DetailOpts } from './detail.js'
 export { toJob } from './toJob.js'
@@ -33,3 +35,13 @@ export {
   type JobDetail,
 } from './parse.js'
 export { normaliseWorkplace, silentLogger, type SearchLogger, type WorkplaceType } from '../common/index.js'
+
+const LINKEDIN_URL_RE = /^https?:\/\/(?:[a-z]{2,}\.)?linkedin\.com\/jobs\/view\/(\d{6,})\/?$/
+
+export const provider: Provider = {
+  name: 'linkedin',
+  isMatch: url => LINKEDIN_URL_RE.test(url),
+  toJob: (url, logger) => import('./toJob.js').then(m => m.toJob(url, logger)),
+}
+
+export { LINKEDIN_URL_RE }

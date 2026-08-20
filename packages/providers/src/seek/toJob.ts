@@ -3,18 +3,21 @@
  * @license   MIT
  */
 
-import { ProviderError, toMarkdown, type ProvidedJob } from '../common/index.js'
+import { htmlFetch, ProviderError, toMarkdown, type ProvidedJob, type SearchLogger } from '../common/index.js'
 import { parseSeekJob } from './parse.js'
 
 /**
- * Turn already-fetched Seek HTML into a `ProvidedJob` with a markdown
- * description.
+ * Fetch SEEK HTML for a job URL, parse it, and return a `ProvidedJob`
+ * with a markdown description.
  *
- * The **dispatcher** (ticket 131) owns the 422 for an empty `htmlFetch`
- * response; `toJob` receives already-fetched HTML so it only owns the
- * parse-fail path.
+ * Throws `ProviderError` on fetch failure or parse failure.
  */
-export function toJob(html: string, url: string): ProvidedJob {
+export async function toJob(url: string, _logger?: SearchLogger): Promise<ProvidedJob> {
+  const html = await htmlFetch(url, _logger)
+  if (!html) {
+    throw new ProviderError('fetch_failed', 'Could not fetch job page')
+  }
+
   const detail = parseSeekJob(html, url)
   if (!detail) {
     throw new ProviderError('parse_failed', 'Could not parse job page')
