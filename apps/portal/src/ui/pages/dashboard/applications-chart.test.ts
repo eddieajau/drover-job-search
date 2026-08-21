@@ -30,6 +30,25 @@ function sample(): ApplicationsChartData {
   }
 }
 
+function isoOf(date: Date): string {
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${m}-${d}`
+}
+
+// `count` consecutive days ending on the given date (exclusive of "today",
+// so the today-highlight styling never leaks into assertions).
+function daysBack(count: number, endYear: number, endMonth: number, endDate: number): ApplicationsChartData {
+  const end = new Date(endYear, endMonth - 1, endDate)
+  const days = []
+  for (let i = count - 1; i >= 0; i--) {
+    const date = new Date(end)
+    date.setDate(date.getDate() - i)
+    days.push({ day: isoOf(date), count: 0 })
+  }
+  return { days }
+}
+
 describe('applications-chart', () => {
   let el: ApplicationsChart
 
@@ -57,10 +76,18 @@ describe('applications-chart', () => {
     expect(svg?.getAttribute('preserveAspectRatio')).not.toBe('none')
   })
 
-  it('has role="img" and an aria-label', () => {
+  it('has role="img" and a range-free aria-label before data arrives', () => {
     const svg = el.querySelector<SVGSVGElement>('.chart svg')
     expect(svg?.getAttribute('role')).toBe('img')
+    expect(svg?.getAttribute('aria-label')).toBe('Applications per day')
+  })
+
+  it('reflects the rendered day count in the aria-label', () => {
+    const svg = el.querySelector<SVGSVGElement>('.chart svg')
+    el.setData(sample())
     expect(svg?.getAttribute('aria-label')).toBe('Applications per day, last 14 days')
+    el.setData(daysBack(30, 2026, 8, 19))
+    expect(svg?.getAttribute('aria-label')).toBe('Applications per day, last 30 days')
   })
 
   it('renders 14 bar rects when data is set', () => {
@@ -80,6 +107,28 @@ describe('applications-chart', () => {
   it('renders 14 x-axis text labels', () => {
     el.setData(sample())
     expect(el.querySelectorAll('.chart svg text.axis-x').length).toBe(14)
+  })
+
+  it('renders 30 bars and 30 x-axis labels for a 30-day dataset', () => {
+    el.setData(daysBack(30, 2026, 8, 19))
+    expect(el.querySelectorAll('.chart svg rect.bar').length).toBe(30)
+    expect(el.querySelectorAll('.chart svg text.axis-x').length).toBe(30)
+  })
+
+  it('centres a narrower bar in each 20px slot at 30 days', () => {
+    el.setData(daysBack(30, 2026, 8, 19))
+    const firstBar = el.querySelector<SVGRectElement>('.chart svg rect.bar')
+    // slotWidth = 600/30 = 20; the bar fills 60% of it, centred.
+    expect(parseFloat(firstBar?.getAttribute('width') ?? '')).toBeCloseTo(12)
+    expect(parseFloat(firstBar?.getAttribute('x') ?? '')).toBeCloseTo(38)
+  })
+
+  it('keeps the capped 24px bar in its ~42.9px slot at 14 days', () => {
+    el.setData(sample())
+    const firstBar = el.querySelector<SVGRectElement>('.chart svg rect.bar')
+    const slotWidth = 600 / 14
+    expect(parseFloat(firstBar?.getAttribute('width') ?? '')).toBeCloseTo(24)
+    expect(parseFloat(firstBar?.getAttribute('x') ?? '')).toBeCloseTo(34 + (slotWidth - 24) / 2)
   })
 
   it('renders weekend shading rects', () => {

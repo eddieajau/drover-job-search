@@ -5,14 +5,16 @@
 
 import type { ApplicationDay, ApplicationsChart as ApplicationsChartData } from '../../../shared/types.js'
 
-const SLOT_COUNT = 14
+// Matches the API clamp on `?days=`; anything longer is drawn truncated.
+const MAX_SLOT_COUNT = 30
 const PLOT_X = 34
 const PLOT_WIDTH = 600
 const PLOT_Y = 16
 const PLOT_HEIGHT = 178
 const PLOT_BOTTOM = PLOT_Y + PLOT_HEIGHT
-const SLOT_WIDTH = PLOT_WIDTH / SLOT_COUNT
-const BAR_WIDTH = 24
+// Bars fill 60% of their slot, capped so short ranges don't balloon.
+const BAR_FILL = 0.6
+const MAX_BAR_WIDTH = 24
 // Five intervals above zero; labels are derived from yMax, not these steps.
 const TICK_STEPS = [0, 1, 2, 3, 4, 5]
 
@@ -53,6 +55,11 @@ function isToday(iso: string, today: string): boolean {
   return iso === today
 }
 
+function ariaLabel(dayCount: number): string {
+  if (dayCount === 0) return 'Applications per day'
+  return `Applications per day, last ${dayCount} day${dayCount === 1 ? '' : 's'}`
+}
+
 export class ApplicationsChart extends HTMLElement {
   #data: ApplicationDay[] = []
   #abort: AbortController | null = null
@@ -75,7 +82,7 @@ export class ApplicationsChart extends HTMLElement {
   render(): void {
     this.innerHTML = `
       <div class="chart">
-        <svg viewBox="0 0 640 220" role="img" aria-label="Applications per day, last 14 days">
+        <svg viewBox="0 0 640 220" role="img" aria-label="Applications per day">
         </svg>
       </div>
       <div class="chart-legend">
@@ -103,10 +110,18 @@ export class ApplicationsChart extends HTMLElement {
       this.removeAttribute('data-empty')
     }
 
+    // One slot per fetched day (capped to the API clamp); the floor of 1
+    // keeps the average line well-defined before any data arrives.
+    const dayCount = Math.min(this.#data.length, MAX_SLOT_COUNT)
+    const slotCount = Math.max(dayCount, 1)
+    const slotWidth = PLOT_WIDTH / slotCount
+    const barWidth = Math.min(MAX_BAR_WIDTH, slotWidth * BAR_FILL)
     const yMax = max <= 5 ? 5 : max
     const today = new Date().toISOString().slice(0, 10)
     const total = this.#data.reduce((sum, d) => sum + d.count, 0)
-    const avgY = yForValue(total / SLOT_COUNT, yMax)
+    const avgY = yForValue(total / slotCount, yMax)
+
+    svg.setAttribute('aria-label', ariaLabel(dayCount))
 
     const parts: string[] = []
 
@@ -126,13 +141,13 @@ export class ApplicationsChart extends HTMLElement {
     }
 
     // Weekend shading
-    for (let i = 0; i < SLOT_COUNT; i++) {
+    for (let i = 0; i < slotCount; i++) {
       const day = this.#data[i]
       if (!day) continue
       const date = parseDate(day.day)
       if (isWeekend(date)) {
-        const x = PLOT_X + i * SLOT_WIDTH
-        parts.push(`<rect class="weekend" x="${x}" y="${PLOT_Y}" width="${SLOT_WIDTH}" height="${PLOT_HEIGHT}"/>`)
+        const x = PLOT_X + i * slotWidth
+        parts.push(`<rect class="weekend" x="${x}" y="${PLOT_Y}" width="${slotWidth}" height="${PLOT_HEIGHT}"/>`)
       }
     }
 
@@ -140,25 +155,25 @@ export class ApplicationsChart extends HTMLElement {
     parts.push(`<line class="avg-line" x1="${PLOT_X}" y1="${avgY}" x2="${PLOT_X + PLOT_WIDTH}" y2="${avgY}"/>`)
 
     // Bars, labels, hit-rects, x-axis labels
-    for (let i = 0; i < SLOT_COUNT; i++) {
+    for (let i = 0; i < slotCount; i++) {
       const day = this.#data[i]
       const count = day?.count ?? 0
       const height = yMax > 0 ? (count / yMax) * PLOT_HEIGHT : 0
       const y = PLOT_BOTTOM - height
-      const slotX = PLOT_X + i * SLOT_WIDTH
-      const barX = slotX + (SLOT_WIDTH - BAR_WIDTH) / 2
+      const slotX = PLOT_X + i * slotWidth
+      const barX = slotX + (slotWidth - barWidth) / 2
       const dayLabel = day?.day ?? ''
       const date = day ? parseDate(day.day) : null
       const todayFlag = dayLabel ? isToday(dayLabel, today) : false
       const labelText = date ? formatLabel(date, i === 0) : ''
 
       // Bar
-      parts.push(`<rect class="bar" x="${barX}" y="${y}" width="${BAR_WIDTH}" height="${height}" rx="3"/>`)
+      parts.push(`<rect class="bar" x="${barX}" y="${y}" width="${barWidth}" height="${height}" rx="3"/>`)
 
       // Bar value label
       if (count > 0) {
         parts.push(
-          `<text class="bar-value" x="${barX + BAR_WIDTH / 2}" y="${y - 4}" text-anchor="middle">${count}</text>`
+          `<text class="bar-value" x="${barX + barWidth / 2}" y="${y - 4}" text-anchor="middle">${count}</text>`
         )
       }
 
@@ -167,13 +182,13 @@ export class ApplicationsChart extends HTMLElement {
         ? `${new Date(dayLabel).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}: ${count} application${count === 1 ? '' : 's'}`
         : `${count} application${count === 1 ? '' : 's'}`
       parts.push(
-        `<rect class="bar-hit" x="${slotX}" y="${PLOT_Y}" width="${SLOT_WIDTH}" height="${PLOT_HEIGHT}"><title>${titleText}</title></rect>`
+        `<rect class="bar-hit" x="${slotX}" y="${PLOT_Y}" width="${slotWidth}" height="${PLOT_HEIGHT}"><title>${titleText}</title></rect>`
       )
 
       // X-axis label
       const cls = todayFlag ? 'axis-x today' : 'axis-x'
       parts.push(
-        `<text class="${cls}" x="${slotX + SLOT_WIDTH / 2}" y="${PLOT_BOTTOM + 16}" text-anchor="middle">${labelText}</text>`
+        `<text class="${cls}" x="${slotX + slotWidth / 2}" y="${PLOT_BOTTOM + 16}" text-anchor="middle">${labelText}</text>`
       )
     }
 
