@@ -3,8 +3,9 @@
  * @license   MIT
  */
 
-import type { ApplicationsChart } from '../shared/types.js'
+import type { ApplicationsChart, DashboardSummary } from '../shared/types.js'
 import { DashboardPage } from './pages/dashboard/index.js'
+import type { QueueHealthData } from './pages/dashboard/queue-health.js'
 
 let registered = false
 
@@ -14,15 +15,17 @@ export function initDashboardMediator(): void {
   }
   registered = true
   window.addEventListener('dashboard-page:ready', handleReady)
+  window.addEventListener('dashboard-range:change', handleRangeChange)
   const page = document.querySelector<DashboardPage>('dashboard-page')
   if (page) {
-    void refreshChart(page)
+    void refreshAll(page)
   }
 }
 
 export function _resetDashboardMediatorForTesting(): void {
   if (registered) {
     window.removeEventListener('dashboard-page:ready', handleReady)
+    window.removeEventListener('dashboard-range:change', handleRangeChange)
   }
   registered = false
 }
@@ -33,18 +36,63 @@ async function handleReady(event: Event): Promise<void> {
   // that returned null (no page in the DOM yet) is cached and served again here,
   // even after the page has connected and dispatched this event.
   if (event.target instanceof DashboardPage) {
-    await refreshChart(event.target)
+    await refreshAll(event.target)
   }
 }
 
-async function refreshChart(page: DashboardPage): Promise<void> {
+async function handleRangeChange(event: Event): Promise<void> {
+  if (!(event.target instanceof DashboardPage)) {
+    return
+  }
+  const { days } = (event as CustomEvent<{ days: number }>).detail
+  await refreshRangeData(event.target, days)
+}
+
+// Each loader swallows its own failure and pushes empty data instead, so one
+// broken endpoint can never block the other widgets.
+
+async function loadChart(page: DashboardPage, days: number): Promise<void> {
   try {
-    const response = await fetch('/api/applications/chart')
+    const response = await fetch(`/api/applications/chart?days=${days}`)
     if (!response.ok) {
       throw new Error('Failed to load chart')
     }
-    page.setData((await response.json()) as ApplicationsChart)
+    page.setChart((await response.json()) as ApplicationsChart)
   } catch {
-    page.setData({ days: [] })
+    page.setChart({ days: [] })
   }
+}
+
+async function loadSummary(page: DashboardPage, days: number): Promise<void> {
+  try {
+    const response = await fetch(`/api/dashboard/summary?days=${days}`)
+    if (!response.ok) {
+      throw new Error('Failed to load dashboard summary')
+    }
+    page.setSummary((await response.json()) as DashboardSummary)
+  } catch {
+    page.setSummary(null)
+  }
+}
+
+async function loadQueueHealth(page: DashboardPage): Promise<void> {
+  try {
+    const response = await fetch('/api/analysis-queue/summary')
+    if (!response.ok) {
+      throw new Error('Failed to load queue health')
+    }
+    page.setQueueHealth((await response.json()) as QueueHealthData)
+  } catch {
+    page.setQueueHealth(null)
+  }
+}
+
+function refreshAll(page: DashboardPage): Promise<void> {
+  const days = page.rangeDays
+  return Promise.all([loadChart(page, days), loadSummary(page, days), loadQueueHealth(page)]).then(() => undefined)
+}
+
+// Queue health is current state, not range-scoped, so it is skipped here.
+function refreshRangeData(page: DashboardPage, days: number): Promise<void> {
+  return Promise.all([loadChart(page, days), loadSummary(page, days)]).then(() => undefined)
 }

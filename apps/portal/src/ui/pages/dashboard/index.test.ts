@@ -131,64 +131,98 @@ describe('dashboard-page', () => {
     expect(sessionStorage.getItem('dashboard-days')).toBe('30')
   })
 
-  it('forwards setData to the child applications-chart', () => {
-    el.setData(sample())
+  it('renders all dashboard widgets', () => {
+    expect(el.querySelector('applications-chart')).not.toBeNull()
+    expect(el.querySelectorAll('stat-card').length).toBe(3)
+    expect(el.querySelector('pipeline-funnel')).not.toBeNull()
+    expect(el.querySelector('attention-list')).not.toBeNull()
+    expect(el.querySelector('queue-health')).not.toBeNull()
+  })
+
+  it('setChart forwards to the child applications-chart', () => {
+    el.setChart(sample())
     const chart = el.querySelector<HTMLElementTagNameMap['applications-chart']>('applications-chart')
     expect(chart?.querySelectorAll('.chart svg rect.bar').length).toBe(14)
   })
 
-  it('forwards null setData to the child applications-chart', () => {
-    el.setData(null)
+  it('setChart(null) empties the child applications-chart', () => {
+    el.setChart(null)
     const chart = el.querySelector<HTMLElementTagNameMap['applications-chart']>('applications-chart')
     expect(chart?.hasAttribute('data-empty')).toBe(true)
   })
 
-  it('renders three stat-card widgets', () => {
-    expect(el.querySelectorAll('stat-card').length).toBe(3)
-    expect(el.querySelector('#stat-applied stat-card')).not.toBeNull()
-    expect(el.querySelector('#stat-inflight stat-card')).not.toBeNull()
-    expect(el.querySelector('#stat-rate stat-card')).not.toBeNull()
-  })
-
-  it('setStats populates the applied card with count and delta', () => {
-    el.setStats(sampleSummary())
+  it('setSummary populates the applied card with count and delta', () => {
+    el.setSummary(sampleSummary())
     const card = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-applied stat-card')!
     expect(card.querySelector('.stat-label')?.textContent).toBe('Applied · 14d')
     expect(card.querySelector('.stat-value')?.textContent).toBe('14')
     expect(card.querySelector('.stat-delta.up')?.textContent).toBe('+2')
   })
 
-  it('setStats populates the in-flight card with combined count', () => {
-    el.setStats(sampleSummary())
+  it('setSummary populates the in-flight card with combined count', () => {
+    el.setSummary(sampleSummary())
     const card = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-inflight stat-card')!
     expect(card.querySelector('.stat-label')?.textContent).toBe('In flight')
     expect(card.querySelector('.stat-value')?.textContent).toBe('16')
     expect(card.querySelector('.stat-note')?.textContent).toBe('12 applied · 4 interviewing')
   })
 
-  it('setStats populates the interview-rate card', () => {
-    el.setStats(sampleSummary())
+  it('setSummary populates the interview-rate card', () => {
+    el.setSummary(sampleSummary())
     const card = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-rate stat-card')!
     expect(card.querySelector('.stat-value')?.textContent).toBe('15%')
     expect(card.querySelector('.stat-note')?.textContent).toBe('applied → interviewing, 14d')
   })
 
-  it('setStats labels follow the selected range', () => {
+  it('setSummary labels follow the selected range', () => {
     const sel = el.querySelector<HTMLSelectElement>('.page-range')!
     sel.value = '7'
-    el.setStats(sampleSummary())
+    el.setSummary(sampleSummary())
     const applied = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-applied stat-card')!
     expect(applied.querySelector('.stat-label')?.textContent).toBe('Applied · 7d')
     const rate = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-rate stat-card')!
     expect(rate.querySelector('.stat-note')?.textContent).toBe('applied → interviewing, 7d')
   })
 
-  it('setStats omits the delta chip when delta is zero', () => {
+  it('setSummary omits the delta chip when delta is zero', () => {
     const summary = sampleSummary()
     summary.applied.delta = 0
-    el.setStats(summary)
+    el.setSummary(summary)
     const card = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-applied stat-card')!
     expect(card.querySelector('.stat-delta')).toBeNull()
+  })
+
+  it('setSummary populates the pipeline funnel and attention list', () => {
+    el.setSummary(sampleSummary())
+    const funnel = el.querySelector<HTMLElementTagNameMap['pipeline-funnel']>('pipeline-funnel')!
+    expect(funnel.querySelectorAll('.funnel-row').length).toBe(5)
+    expect(funnel.querySelectorAll('.funnel-count')[0]?.textContent).toBe('12')
+
+    const attention = el.querySelector<HTMLElementTagNameMap['attention-list']>('attention-list')!
+    expect(attention.querySelector('.widget-sub')?.textContent).toBe('All clear')
+  })
+
+  it('setSummary(null) renders placeholder stats without crashing', () => {
+    expect(() => el.setSummary(null)).not.toThrow()
+    const applied = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-applied stat-card')!
+    expect(applied.querySelector('.stat-value')?.textContent).toBe('—')
+    const funnel = el.querySelector<HTMLElementTagNameMap['pipeline-funnel']>('pipeline-funnel')!
+    expect(funnel.querySelectorAll('.funnel-count')[0]?.textContent).toBe('—')
+  })
+
+  it('setQueueHealth forwards to the child queue-health', () => {
+    el.setQueueHealth({ pending: { fetch_job_details: 1, rank: 2 }, done: 3, total: 6 })
+    const health = el.querySelector<HTMLElementTagNameMap['queue-health']>('queue-health')!
+    expect(health.querySelector('.health-chip')?.textContent).toBe('Busy')
+    const values = health.querySelectorAll('.mini-value')
+    expect(Array.from(values).map(v => v.textContent)).toEqual(['2', '1', '3', '6'])
+  })
+
+  it('setQueueHealth(null) renders the empty queue state', () => {
+    el.setQueueHealth(null)
+    const health = el.querySelector<HTMLElementTagNameMap['queue-health']>('queue-health')!
+    expect(health.querySelector('.health-chip')).toBeNull()
+    expect(health.querySelector('.mini-value')?.textContent).toBe('—')
   })
 
   it('dispatches dashboard-page:ready on connect', () => {

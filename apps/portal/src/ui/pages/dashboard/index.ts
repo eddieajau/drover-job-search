@@ -5,6 +5,10 @@
 
 import type { ApplicationsChart as ApplicationsChartData, DashboardSummary } from '../../../shared/types.js'
 import './applications-chart.js'
+import './attention-list.js'
+import './pipeline-funnel.js'
+import type { QueueHealthData } from './queue-health.js'
+import './queue-health.js'
 import './stat-card.js'
 
 const STORAGE_KEY = 'dashboard-days'
@@ -31,37 +35,51 @@ export class DashboardPage extends HTMLElement {
     this.#abort.abort()
   }
 
-  setData(chart: ApplicationsChartData | null): void {
+  get rangeDays(): number {
+    const sel = this.querySelector<HTMLSelectElement>('.page-range')
+    return sel ? Number(sel.value) : DEFAULT_DAYS
+  }
+
+  setChart(chart: ApplicationsChartData | null): void {
     const el = this.querySelector<HTMLElementTagNameMap['applications-chart']>('applications-chart')
     if (el) {
       el.setData(chart)
     }
   }
 
-  setStats(summary: DashboardSummary): void {
+  setSummary(summary: DashboardSummary | null): void {
     const days = this.rangeDays
-    const delta = summary.applied.delta
+    const applied = summary?.applied
     this.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-applied stat-card')?.setData({
       label: `Applied · ${days}d`,
-      value: summary.applied.count,
+      value: applied?.count ?? '—',
       note: `vs prior ${days} days`,
-      delta: delta === 0 ? undefined : { value: Math.abs(delta), direction: delta > 0 ? 'up' : 'down' },
+      delta:
+        applied && applied.delta !== 0
+          ? { value: Math.abs(applied.delta), direction: applied.delta > 0 ? 'up' : 'down' }
+          : undefined,
     })
+    const inFlight = summary?.inFlight
     this.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-inflight stat-card')?.setData({
       label: 'In flight',
-      value: summary.inFlight.applied + summary.inFlight.interviewing,
-      note: `${summary.inFlight.applied} applied · ${summary.inFlight.interviewing} interviewing`,
+      value: inFlight ? inFlight.applied + inFlight.interviewing : '—',
+      note: inFlight ? `${inFlight.applied} applied · ${inFlight.interviewing} interviewing` : undefined,
     })
     this.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-rate stat-card')?.setData({
       label: 'Interview rate',
-      value: `${summary.interviewRate}%`,
+      value: summary ? `${summary.interviewRate}%` : '—',
       note: `applied → interviewing, ${days}d`,
     })
+
+    this.querySelector<HTMLElementTagNameMap['pipeline-funnel']>('pipeline-funnel')?.setData(summary?.pipeline ?? null)
+    this.querySelector<HTMLElementTagNameMap['attention-list']>('attention-list')?.setData(summary?.attention ?? null)
   }
 
-  get rangeDays(): number {
-    const sel = this.querySelector<HTMLSelectElement>('.page-range')
-    return sel ? Number(sel.value) : DEFAULT_DAYS
+  setQueueHealth(data: QueueHealthData | null): void {
+    const el = this.querySelector<HTMLElementTagNameMap['queue-health']>('queue-health')
+    if (el) {
+      el.setData(data)
+    }
   }
 
   render(): void {
@@ -88,6 +106,15 @@ export class DashboardPage extends HTMLElement {
           </section>
           <section class="panel widget span-8" id="chart">
             <applications-chart></applications-chart>
+          </section>
+          <section class="panel widget span-4" id="pipeline">
+            <pipeline-funnel></pipeline-funnel>
+          </section>
+          <section class="panel widget span-7" id="attention">
+            <attention-list></attention-list>
+          </section>
+          <section class="panel widget span-5" id="queue-health">
+            <queue-health></queue-health>
           </section>
         </div>
       </main>
