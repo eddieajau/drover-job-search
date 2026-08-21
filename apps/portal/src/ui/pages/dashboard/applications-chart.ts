@@ -13,7 +13,8 @@ const PLOT_HEIGHT = 178
 const PLOT_BOTTOM = PLOT_Y + PLOT_HEIGHT
 const SLOT_WIDTH = PLOT_WIDTH / SLOT_COUNT
 const BAR_WIDTH = 24
-const Y_TICKS = [0, 1, 2, 3, 4, 5]
+// Five intervals above zero; labels are derived from yMax, not these steps.
+const TICK_STEPS = [0, 1, 2, 3, 4, 5]
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -24,6 +25,11 @@ function yForValue(value: number, yMax: number): number {
 
 function yTickY(tick: number): number {
   return PLOT_BOTTOM - tick * (PLOT_HEIGHT / 5)
+}
+
+// Value on the bar scale at a gridline, rounded half up so labels stay whole.
+function tickValue(step: number, yMax: number): number {
+  return Math.round((step / 5) * yMax)
 }
 
 function parseDate(iso: string): Date {
@@ -105,16 +111,18 @@ export class ApplicationsChart extends HTMLElement {
     const parts: string[] = []
 
     // Gridlines + baseline
-    for (const tick of Y_TICKS) {
-      const y = yTickY(tick)
-      const cls = tick === 0 ? 'baseline' : 'grid'
+    for (const step of TICK_STEPS) {
+      const y = yTickY(step)
+      const cls = step === 0 ? 'baseline' : 'grid'
       parts.push(`<line class="${cls}" x1="${PLOT_X}" y1="${y}" x2="${PLOT_X + PLOT_WIDTH}" y2="${y}"/>`)
     }
 
     // Y-axis labels
-    for (const tick of Y_TICKS) {
-      const y = yTickY(tick)
-      parts.push(`<text class="axis-y" x="${PLOT_X - 6}" y="${y + 4}" text-anchor="end">${tick}</text>`)
+    for (const step of TICK_STEPS) {
+      const y = yTickY(step)
+      parts.push(
+        `<text class="axis-y" x="${PLOT_X - 6}" y="${y + 4}" text-anchor="end">${tickValue(step, yMax)}</text>`
+      )
     }
 
     // Weekend shading

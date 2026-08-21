@@ -93,6 +93,33 @@ describe('applications-chart', () => {
     expect(el.querySelector('.chart svg line.avg-line')).not.toBeNull()
   })
 
+  function yAxisLabels(): string[] {
+    return Array.from(el.querySelectorAll<SVGTextElement>('.chart svg text.axis-y')).map(t => t.textContent ?? '')
+  }
+
+  it('labels the y-axis with real values when the data max exceeds 5', () => {
+    const days = sample().days.map((d, i) => ({ day: d.day, count: i === 9 ? 10 : d.count }))
+    el.setData({ days })
+    expect(yAxisLabels()).toEqual(['0', '2', '4', '6', '8', '10'])
+  })
+
+  it('rounds y-axis labels to whole numbers at odd maxima', () => {
+    const days = sample().days.map((d, i) => ({ day: d.day, count: i === 9 ? 7 : d.count }))
+    el.setData({ days })
+    expect(yAxisLabels().every(label => !label.includes('.'))).toBe(true)
+    expect(yAxisLabels()).toEqual(['0', '1', '3', '4', '6', '7'])
+  })
+
+  it('keeps the 0–5 axis when the data max is at most 5', () => {
+    el.setData(sample())
+    expect(yAxisLabels()).toEqual(['0', '1', '2', '3', '4', '5'])
+  })
+
+  it('keeps the 0–5 axis in the empty state', () => {
+    el.setData(null)
+    expect(yAxisLabels()).toEqual(['0', '1', '2', '3', '4', '5'])
+  })
+
   it('renders the chart legend as a sibling of .chart', () => {
     const legend = el.querySelector('.chart-legend')
     expect(legend).not.toBeNull()
