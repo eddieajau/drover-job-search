@@ -804,6 +804,26 @@ describe('jobs-mediator', () => {
     expect(panel?.querySelector('.note-row .note-preview')?.textContent).toBe('Follow up')
   })
 
+  it('loads the selected job history into the meta panel via setEvents', async () => {
+    mockFetch({
+      '/api/jobs/2/events': [
+        { id: 1, jobId: 2, status: 'applied', occurredAt: '2026-08-10 10:00:00', actor: 'human', note: 'Sent my CV' },
+      ],
+      '/api/jobs': jobsResponse(),
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    window.dispatchEvent(new CustomEvent('job-list:select', { detail: { jobId: 2 } }))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const panel = document.querySelector('job-meta-panel')
+    panel?.querySelector<HTMLButtonElement>('[data-tab="history"]')?.click()
+    expect(panel?.querySelector('.event-row .chip')?.textContent).toBe('Applied')
+    expect(panel?.querySelector('.event-row .event-note')?.textContent).toBe('Sent my CV')
+  })
+
   it('ignores a stray priority URL param without breaking', async () => {
     window.location.hash = '#jobs?priority=1'
     mockFetch({ '/api/jobs': jobsResponse() })

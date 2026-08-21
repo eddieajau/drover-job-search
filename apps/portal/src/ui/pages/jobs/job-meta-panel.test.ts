@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import type { Job, JobNote, JobSignal } from '../../../shared/types.js'
+import type { Job, JobNote, JobSignal, JobStatusEvent } from '../../../shared/types.js'
 import type { JobWithStatus } from '../../jobs-view.js'
 import './job-meta-panel.js'
 import type { JobMetaPanel } from './job-meta-panel.js'
@@ -292,6 +292,39 @@ describe('job-meta-panel', () => {
     const noteRow = el.querySelector('.note-row')
     expect(noteRow?.querySelector('.chip')?.textContent).toBe('Interviewing')
     expect(noteRow?.querySelector('.note-preview')?.textContent).toBe('Phone screen on 5 Aug')
+  })
+
+  it('renders the History section via setEvents with status chips, actor and note', () => {
+    const j: JobWithStatus = { ...job(), _status: 'applied', netScore: 50 }
+    el.showJob(j, [], false)
+
+    const events: JobStatusEvent[] = [
+      { id: 2, jobId: 1, status: 'applied', occurredAt: '2026-08-10 10:00:00', actor: 'human', note: 'Sent my CV' },
+      { id: 1, jobId: 1, status: 'new', occurredAt: '2026-08-01 09:00:00', actor: null, note: null },
+    ]
+    el.setEvents(events)
+
+    el.querySelector<HTMLButtonElement>('[data-tab="history"]')?.click()
+
+    const rows = el.querySelectorAll('.event-row')
+    expect(rows.length).toBe(2)
+    expect(rows[0].querySelector('.chip')?.textContent).toBe('Applied')
+    expect(rows[0].querySelector('.chip')?.classList.contains('chip-applied')).toBe(true)
+    expect(rows[0].querySelector('.event-date')?.textContent).toBe('2026-08-10 10:00:00 by human')
+    expect(rows[0].querySelector('.event-note')?.textContent).toBe('Sent my CV')
+    expect(rows[1].querySelector('.chip')?.textContent).toBe('New')
+    expect(rows[1].querySelector('.event-date')?.textContent).toBe('2026-08-01 09:00:00')
+    expect(rows[1].querySelector('.event-note')).toBeNull()
+  })
+
+  it('shows the empty history state when no events are set', () => {
+    const j: JobWithStatus = { ...job(), _status: 'new', netScore: 50 }
+    el.showJob(j, [], false)
+
+    el.querySelector<HTMLButtonElement>('[data-tab="history"]')?.click()
+
+    expect(el.querySelectorAll('.event-row').length).toBe(0)
+    expect(el.querySelector('.meta-section .meta-empty')?.textContent).toBe('No history yet')
   })
 
   it('disables the flag button when queued is true', () => {

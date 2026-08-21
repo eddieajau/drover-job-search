@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import type { JobNote, JobSignal } from '../../../shared/types.js'
+import type { JobNote, JobSignal, JobStatusEvent } from '../../../shared/types.js'
 import { escapeHtml as esc } from '../../escape.js'
 import type { JobWithStatus } from '../../jobs-view.js'
 import type { EvalWhy } from './ai-eval-box.js'
@@ -105,7 +105,7 @@ export class JobMetaPanel extends HTMLElement {
   #job: JobWithStatus | null = null
   #signals: JobSignal[] = []
   #notes: JobNote[] = []
-  #events: Array<{ status: string; occurredAt: string; actor: string | null; note: string | null }> = []
+  #events: JobStatusEvent[] = []
   #queued = false
   #activeTab: 'details' | 'history' | 'notes' = 'details'
   #abort: AbortController | null = null
@@ -123,9 +123,6 @@ export class JobMetaPanel extends HTMLElement {
     if (job?.id !== this.#job?.id) {
       this.#notes = []
       this.#events = []
-      if (job) {
-        this.fetchEvents(job.id)
-      }
     }
     this.#job = job
     this.#signals = signals
@@ -138,16 +135,9 @@ export class JobMetaPanel extends HTMLElement {
     this.render()
   }
 
-  private async fetchEvents(jobId: number): Promise<void> {
-    try {
-      const res = await fetch(`/api/jobs/${jobId}/events`)
-      if (res.ok) {
-        const data = await res.json()
-        this.#events = Array.isArray(data) ? data : []
-      }
-    } catch {
-      // Silently ignore — history tab shows empty state
-    }
+  setEvents(events: JobStatusEvent[]): void {
+    this.#events = events
+    this.render()
   }
 
   setupEventListeners(): void {
@@ -319,7 +309,7 @@ export class JobMetaPanel extends HTMLElement {
       })
       .join('')
 
-    const eventsHtml = (Array.isArray(this.#events) ? this.#events : [])
+    const eventsHtml = this.#events
       .map(event => {
         const statusLabel = STATUS_LABELS[event.status] ?? event.status
         const actorLabel = event.actor ? ` by ${esc(event.actor)}` : ''

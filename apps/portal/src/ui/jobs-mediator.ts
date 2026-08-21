@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import type { Job, JobNote, JobStatus } from '../shared/types.js'
+import type { Job, JobNote, JobStatus, JobStatusEvent } from '../shared/types.js'
 import type { JobsFilters, JobsViewState, JobWithStatus, JobSortKey } from './jobs-view.js'
 import type { NavigationState } from './navigation-state.js'
 import { parseHash, toHash } from './navigation-state.js'
@@ -215,6 +215,22 @@ async function loadNotes(id: number): Promise<void> {
   }
 }
 
+async function loadEvents(id: number): Promise<void> {
+  try {
+    const response = await fetch(`/api/jobs/${id}/events`)
+    if (!response.ok) {
+      return
+    }
+    const events = (await response.json()) as unknown
+    if (!Array.isArray(events)) {
+      return
+    }
+    document.querySelector('job-meta-panel')?.setEvents(events as JobStatusEvent[])
+  } catch {
+    // Leave the history section as-is on failure
+  }
+}
+
 function handleOpen(event: Event): void {
   const { url } = (event as CustomEvent<{ url: string }>).detail
   window.open(url, '_blank')
@@ -307,5 +323,6 @@ function pushState(): void {
 
   if (selectedId !== null) {
     void loadNotes(selectedId)
+    void loadEvents(selectedId)
   }
 }

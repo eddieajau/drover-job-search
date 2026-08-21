@@ -54,6 +54,15 @@ export interface JobNote {
   updatedAt: string
 }
 
+export interface JobStatusEvent {
+  id: number
+  jobId: number
+  status: string
+  occurredAt: string
+  actor: 'human' | 'ai' | 'system' | null
+  note: string | null
+}
+
 export interface QueryOptions {
   location?: string
   workType?: string
