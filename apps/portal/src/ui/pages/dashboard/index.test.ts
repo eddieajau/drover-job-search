@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import type { ApplicationsChart as ApplicationsChartData } from '../../../shared/types.js'
+import type { ApplicationsChart as ApplicationsChartData, DashboardSummary } from '../../../shared/types.js'
 import './index.js'
 import type { DashboardPage } from './index.js'
 
@@ -27,6 +27,16 @@ function sample(): ApplicationsChartData {
       { day: '2026-08-18', count: 0 },
       { day: '2026-08-19', count: 0 },
     ],
+  }
+}
+
+function sampleSummary(): DashboardSummary {
+  return {
+    applied: { count: 14, delta: 2 },
+    inFlight: { applied: 12, interviewing: 4 },
+    interviewRate: 15,
+    pipeline: { applied: 12, interviewing: 4, successful: 1, unsuccessful: 3, declined: 2 },
+    attention: [],
   }
 }
 
@@ -131,6 +141,54 @@ describe('dashboard-page', () => {
     el.setData(null)
     const chart = el.querySelector<HTMLElementTagNameMap['applications-chart']>('applications-chart')
     expect(chart?.hasAttribute('data-empty')).toBe(true)
+  })
+
+  it('renders three stat-card widgets', () => {
+    expect(el.querySelectorAll('stat-card').length).toBe(3)
+    expect(el.querySelector('#stat-applied stat-card')).not.toBeNull()
+    expect(el.querySelector('#stat-inflight stat-card')).not.toBeNull()
+    expect(el.querySelector('#stat-rate stat-card')).not.toBeNull()
+  })
+
+  it('setStats populates the applied card with count and delta', () => {
+    el.setStats(sampleSummary())
+    const card = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-applied stat-card')!
+    expect(card.querySelector('.stat-label')?.textContent).toBe('Applied · 14d')
+    expect(card.querySelector('.stat-value')?.textContent).toBe('14')
+    expect(card.querySelector('.stat-delta.up')?.textContent).toBe('+2')
+  })
+
+  it('setStats populates the in-flight card with combined count', () => {
+    el.setStats(sampleSummary())
+    const card = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-inflight stat-card')!
+    expect(card.querySelector('.stat-label')?.textContent).toBe('In flight')
+    expect(card.querySelector('.stat-value')?.textContent).toBe('16')
+    expect(card.querySelector('.stat-note')?.textContent).toBe('12 applied · 4 interviewing')
+  })
+
+  it('setStats populates the interview-rate card', () => {
+    el.setStats(sampleSummary())
+    const card = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-rate stat-card')!
+    expect(card.querySelector('.stat-value')?.textContent).toBe('15%')
+    expect(card.querySelector('.stat-note')?.textContent).toBe('applied → interviewing, 14d')
+  })
+
+  it('setStats labels follow the selected range', () => {
+    const sel = el.querySelector<HTMLSelectElement>('.page-range')!
+    sel.value = '7'
+    el.setStats(sampleSummary())
+    const applied = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-applied stat-card')!
+    expect(applied.querySelector('.stat-label')?.textContent).toBe('Applied · 7d')
+    const rate = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-rate stat-card')!
+    expect(rate.querySelector('.stat-note')?.textContent).toBe('applied → interviewing, 7d')
+  })
+
+  it('setStats omits the delta chip when delta is zero', () => {
+    const summary = sampleSummary()
+    summary.applied.delta = 0
+    el.setStats(summary)
+    const card = el.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-applied stat-card')!
+    expect(card.querySelector('.stat-delta')).toBeNull()
   })
 
   it('dispatches dashboard-page:ready on connect', () => {

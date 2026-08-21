@@ -3,8 +3,9 @@
  * @license   MIT
  */
 
-import type { ApplicationsChart as ApplicationsChartData } from '../../../shared/types.js'
+import type { ApplicationsChart as ApplicationsChartData, DashboardSummary } from '../../../shared/types.js'
 import './applications-chart.js'
+import './stat-card.js'
 
 const STORAGE_KEY = 'dashboard-days'
 const DEFAULT_DAYS = 14
@@ -37,6 +38,27 @@ export class DashboardPage extends HTMLElement {
     }
   }
 
+  setStats(summary: DashboardSummary): void {
+    const days = this.rangeDays
+    const delta = summary.applied.delta
+    this.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-applied stat-card')?.setData({
+      label: `Applied · ${days}d`,
+      value: summary.applied.count,
+      note: `vs prior ${days} days`,
+      delta: delta === 0 ? undefined : { value: Math.abs(delta), direction: delta > 0 ? 'up' : 'down' },
+    })
+    this.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-inflight stat-card')?.setData({
+      label: 'In flight',
+      value: summary.inFlight.applied + summary.inFlight.interviewing,
+      note: `${summary.inFlight.applied} applied · ${summary.inFlight.interviewing} interviewing`,
+    })
+    this.querySelector<HTMLElementTagNameMap['stat-card']>('#stat-rate stat-card')?.setData({
+      label: 'Interview rate',
+      value: `${summary.interviewRate}%`,
+      note: `applied → interviewing, ${days}d`,
+    })
+  }
+
   get rangeDays(): number {
     const sel = this.querySelector<HTMLSelectElement>('.page-range')
     return sel ? Number(sel.value) : DEFAULT_DAYS
@@ -55,6 +77,15 @@ export class DashboardPage extends HTMLElement {
           </select>
         </div>
         <div class="dash-grid">
+          <section class="panel widget span-3" id="stat-applied">
+            <stat-card></stat-card>
+          </section>
+          <section class="panel widget span-3" id="stat-inflight">
+            <stat-card></stat-card>
+          </section>
+          <section class="panel widget span-3" id="stat-rate">
+            <stat-card></stat-card>
+          </section>
           <section class="panel widget span-8" id="chart">
             <applications-chart></applications-chart>
           </section>
