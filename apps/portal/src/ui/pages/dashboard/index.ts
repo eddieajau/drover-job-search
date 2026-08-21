@@ -11,7 +11,6 @@ import type { QueueHealthData } from './queue-health.js'
 import './queue-health.js'
 import './stat-card.js'
 
-const STORAGE_KEY = 'dashboard-days'
 const DEFAULT_DAYS = 14
 
 export interface DashboardPageEventMap {
@@ -20,24 +19,28 @@ export interface DashboardPageEventMap {
 }
 
 export class DashboardPage extends HTMLElement {
-  #mounted = false
-  #abort = new AbortController()
+  #abort: AbortController | null = null
 
   connectedCallback(): void {
-    if (this.#mounted) return
-    this.#mounted = true
     this.render()
     this.setupEventListeners()
     this.dispatchEvent(new CustomEvent('dashboard-page:ready', { bubbles: true, composed: true }))
   }
 
   disconnectedCallback(): void {
-    this.#abort.abort()
+    this.cleanup()
   }
 
   get rangeDays(): number {
     const sel = this.querySelector<HTMLSelectElement>('.page-range')
     return sel ? Number(sel.value) : DEFAULT_DAYS
+  }
+
+  setDays(days: number): void {
+    const sel = this.querySelector<HTMLSelectElement>('.page-range')
+    if (sel && Array.from(sel.options).some(option => option.value === String(days))) {
+      sel.value = String(days)
+    }
   }
 
   setChart(chart: ApplicationsChartData | null): void {
@@ -122,15 +125,14 @@ export class DashboardPage extends HTMLElement {
   }
 
   setupEventListeners(): void {
+    this.cleanup()
+    this.#abort = new AbortController()
     const opts = { signal: this.#abort.signal }
     const sel = this.querySelector<HTMLSelectElement>('.page-range')
     if (sel) {
-      const stored = sessionStorage.getItem(STORAGE_KEY)
-      if (stored) sel.value = stored
       sel.addEventListener(
         'change',
         () => {
-          sessionStorage.setItem(STORAGE_KEY, sel.value)
           this.dispatchEvent(
             new CustomEvent('dashboard-range:change', {
               detail: { days: Number(sel.value) },
@@ -142,6 +144,11 @@ export class DashboardPage extends HTMLElement {
         opts
       )
     }
+  }
+
+  cleanup(): void {
+    this.#abort?.abort()
+    this.#abort = null
   }
 
   #formatDate(d: Date): string {

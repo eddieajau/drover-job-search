@@ -118,13 +118,15 @@ describe('dashboard-mediator', () => {
       '/api/analysis-queue/summary': queueHealth,
     })
     initDashboardMediator()
-    document.body.appendChild(document.createElement('dashboard-page'))
+    const page = document.createElement('dashboard-page') as DashboardPage
+    document.body.appendChild(page)
 
     await flush()
 
     const urls = fetchedUrls()
     expect(urls).toContain('/api/applications/chart?days=30')
     expect(urls).toContain('/api/dashboard/summary?days=30')
+    expect(page.querySelector<HTMLSelectElement>('.page-range')?.value).toBe('30')
   })
 
   it('re-fetches chart and summary on dashboard-range:change but not queue health', async () => {
@@ -148,6 +150,7 @@ describe('dashboard-mediator', () => {
     expect(urls).toContain('/api/applications/chart?days=7')
     expect(urls).toContain('/api/dashboard/summary?days=7')
     expect(urls.filter(url => url.includes('/api/analysis-queue/summary'))).toHaveLength(0)
+    expect(sessionStorage.getItem('dashboard-days')).toBe('7')
   })
 
   it('pushes empty chart data when only the chart fetch fails', async () => {

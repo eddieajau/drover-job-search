@@ -45,14 +45,12 @@ describe('dashboard-page', () => {
 
   beforeEach(() => {
     document.body.innerHTML = ''
-    sessionStorage.clear()
     el = document.createElement('dashboard-page')
     document.body.appendChild(el)
   })
 
   afterEach(() => {
     document.body.innerHTML = ''
-    sessionStorage.clear()
   })
 
   it('renders the page shell with head and dash-grid', () => {
@@ -79,13 +77,16 @@ describe('dashboard-page', () => {
     expect(sel?.value).toBe('14')
   })
 
-  it('reads default from sessionStorage', () => {
-    document.body.innerHTML = ''
-    sessionStorage.setItem('dashboard-days', '30')
-    const e = document.createElement('dashboard-page')
-    document.body.appendChild(e)
-    const sel = e.querySelector<HTMLSelectElement>('.page-range')
+  it('setDays sets the select value when the option exists', () => {
+    el.setDays(30)
+    const sel = el.querySelector<HTMLSelectElement>('.page-range')
     expect(sel?.value).toBe('30')
+  })
+
+  it('setDays ignores values with no matching option', () => {
+    el.setDays(9)
+    const sel = el.querySelector<HTMLSelectElement>('.page-range')
+    expect(sel?.value).toBe('14')
   })
 
   it('rangeDays returns current selection', () => {
@@ -124,11 +125,11 @@ describe('dashboard-page', () => {
     expect(received.composed).toBe(true)
   })
 
-  it('persists selection to sessionStorage', () => {
+  it('does not persist the selection to sessionStorage', () => {
     const sel = el.querySelector<HTMLSelectElement>('.page-range')!
     sel.value = '30'
     sel.dispatchEvent(new Event('change'))
-    expect(sessionStorage.getItem('dashboard-days')).toBe('30')
+    expect(sessionStorage.getItem('dashboard-days')).toBeNull()
   })
 
   it('renders all dashboard widgets', () => {

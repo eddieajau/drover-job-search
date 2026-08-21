@@ -9,6 +9,8 @@ import type { QueueHealthData } from './pages/dashboard/queue-health.js'
 
 let registered = false
 
+const STORAGE_KEY = 'dashboard-days'
+
 export function initDashboardMediator(): void {
   if (registered) {
     return
@@ -36,6 +38,10 @@ async function handleReady(event: Event): Promise<void> {
   // that returned null (no page in the DOM yet) is cached and served again here,
   // even after the page has connected and dispatched this event.
   if (event.target instanceof DashboardPage) {
+    const stored = Number(sessionStorage.getItem(STORAGE_KEY))
+    if (stored === 7 || stored === 14 || stored === 30) {
+      event.target.setDays(stored)
+    }
     await refreshAll(event.target)
   }
 }
@@ -45,6 +51,7 @@ async function handleRangeChange(event: Event): Promise<void> {
     return
   }
   const { days } = (event as CustomEvent<{ days: number }>).detail
+  sessionStorage.setItem(STORAGE_KEY, String(days))
   await refreshRangeData(event.target, days)
 }
 
