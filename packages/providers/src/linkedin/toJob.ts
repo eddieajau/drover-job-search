@@ -30,7 +30,7 @@ import {
   type SearchLogger,
 } from '../common/index.js'
 import { detail } from './detail.js'
-import { parseJobDetail, type JobDetail } from './parse.js'
+import { type JobDetail } from './parse.js'
 
 function toProvidedJob(d: JobDetail): ProvidedJob {
   return {
