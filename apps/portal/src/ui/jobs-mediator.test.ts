@@ -592,6 +592,81 @@ describe('jobs-mediator', () => {
     expect(titles[2]).toBe('Tech Lead')
   })
 
+  it('sorts unapplied jobs after applied ones when sort filter is applied', async () => {
+    mockFetch({
+      '/api/jobs': {
+        count: 2,
+        results: [
+          {
+            ...mockJobsResponse.results[0],
+            appliedAt: '2026-08-10 09:00:00',
+            signals: { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+          },
+          {
+            ...mockJobsResponse.results[1],
+            appliedAt: null,
+            signals: { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+          },
+        ],
+      },
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    const sortSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-sort')
+    if (sortSelect) {
+      sortSelect.value = 'applied'
+    }
+    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    const cards = document.querySelectorAll('job-card')
+    const titles = Array.from(cards).map(c => c.querySelector('.job-title')?.textContent)
+    expect(titles).toEqual(['Staff Engineer', 'Senior Developer'])
+  })
+
+  it('breaks appliedAt ties by id descending when sort filter is applied', async () => {
+    mockFetch({
+      '/api/jobs': {
+        count: 3,
+        results: [
+          {
+            ...mockJobsResponse.results[0],
+            appliedAt: '2026-08-10 09:00:00',
+            signals: { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+          },
+          {
+            ...mockJobsResponse.results[1],
+            appliedAt: '2026-08-10 09:00:00',
+            signals: { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+          },
+          {
+            ...mockJobsResponse.results[2],
+            appliedAt: null,
+            signals: { signalCount: 0, gated: false, dimensions: {}, baseScore: 0, netScore: 0 },
+          },
+        ],
+      },
+    })
+
+    initJobsMediator()
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const filterBar = document.querySelector('filter-bar')
+    const sortSelect = filterBar?.querySelector<HTMLSelectElement>('#filter-sort')
+    if (sortSelect) {
+      sortSelect.value = 'applied'
+    }
+    filterBar?.dispatchEvent(new Event('change', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    const cards = document.querySelectorAll('job-card')
+    const ids = Array.from(cards).map(c => c.getAttribute('job-id'))
+    expect(ids).toEqual(['2', '1', '3'])
+  })
+
   it('writes sort to the URL when non-default', async () => {
     mockFetch({ '/api/jobs': jobsResponse() })
 

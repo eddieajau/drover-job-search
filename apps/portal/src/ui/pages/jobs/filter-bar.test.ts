@@ -109,12 +109,25 @@ describe('filter-bar', () => {
     expect(received).not.toHaveProperty('score')
   })
 
-  it('renders the sort select with three options and no triage', () => {
+  it('renders the sort select with four options and no triage', () => {
     const sortSelect = el.querySelector<HTMLSelectElement>('#filter-sort')
     expect(sortSelect).not.toBeNull()
     const options = Array.from(sortSelect!.querySelectorAll('option')).map(o => o.value)
-    expect(options).toEqual(['score', 'posted', 'company'])
+    expect(options).toEqual(['score', 'posted', 'applied', 'company'])
     expect(sortSelect?.querySelector('option[value="triage"]')).toBeNull()
+  })
+
+  it('dispatches filter-bar:change with sort applied when Applied option is selected', () => {
+    let received: { sort: string } | undefined
+    el.addEventListener('filter-bar:change', event => {
+      received = (event as CustomEvent<{ sort: string }>).detail
+    })
+
+    const sortSelect = el.querySelector<HTMLSelectElement>('#filter-sort')!
+    sortSelect.value = 'applied'
+    el.dispatchEvent(new Event('change', { bubbles: true }))
+
+    expect(received?.sort).toBe('applied')
   })
 
   it('setFilters with a non-default sort updates the select value', () => {

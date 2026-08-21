@@ -25,6 +25,10 @@ function postedAtMs(postedAt: string | null): number {
   return Number.isNaN(time) ? 0 : time
 }
 
+function appliedAtMs(appliedAt: string | null): number {
+  return postedAtMs(appliedAt)
+}
+
 let registered = false
 
 let results: Job[] = []
@@ -291,6 +295,14 @@ function pushState(): void {
       const byPosted = postedAtMs(b.postedAt) - postedAtMs(a.postedAt)
       if (byPosted !== 0) {
         return byPosted
+      }
+      return b.id - a.id
+    }
+    if (sortKey === 'applied') {
+      // Unapplied jobs (appliedAtMs === 0) sink below every applied job.
+      const byApplied = appliedAtMs(b.appliedAt) - appliedAtMs(a.appliedAt)
+      if (byApplied !== 0) {
+        return byApplied
       }
       return b.id - a.id
     }

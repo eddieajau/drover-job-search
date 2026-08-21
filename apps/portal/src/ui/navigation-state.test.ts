@@ -246,6 +246,19 @@ describe('toHash', () => {
     })
   })
 
+  it('round-trips the applied sort through parseHash and toHash', () => {
+    expect(
+      toHash({
+        view: 'jobs',
+        filters: { status: 'new', search: '', sort: 'applied' },
+      })
+    ).toBe('#jobs?sort=applied')
+    expect(parseHash('#jobs?sort=applied')).toEqual({
+      view: 'jobs',
+      filters: { status: 'new', search: '', sort: 'applied' },
+    })
+  })
+
   it('round-trips a non-default status through parseHash and toHash', () => {
     expect(
       toHash({
