@@ -125,9 +125,14 @@ export interface JobResponse extends Omit<JobRow, 'description' | 'status'> {
   descriptionHtml: string | null
   signals: SignalSummary
   queued: boolean
+  appliedAt: string | null
 }
 
-export function toJobJson(row: JobRow, summary?: SignalSummary, queued = false): JobResponse {
+export function toJobJson(
+  row: JobRow & { appliedAt?: string | null },
+  summary?: SignalSummary,
+  queued = false
+): JobResponse {
   const { description, ...rest } = row
   return {
     ...rest,
@@ -135,6 +140,7 @@ export function toJobJson(row: JobRow, summary?: SignalSummary, queued = false):
     descriptionHtml: description ? markdownToHtml(description) : null,
     signals: summary ?? { signalCount: 0, gated: false, dimensions: {}, baseScore: 0 },
     queued,
+    appliedAt: row.appliedAt ?? null,
   }
 }
 

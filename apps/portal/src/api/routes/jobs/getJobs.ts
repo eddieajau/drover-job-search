@@ -3,8 +3,8 @@
  * @license   MIT
  */
 
-import { analysisQueue, jobs, type Job } from 'db'
-import { and, desc, eq, inArray, like, or } from 'drizzle-orm'
+import { analysisQueue, jobStatusEvents, jobs, type Job } from 'db'
+import { and, desc, eq, getTableColumns, inArray, like, or, sql } from 'drizzle-orm'
 import type { FastifyPluginAsync } from 'fastify'
 
 import type { SignalSummary } from '../../../shared/types.js'
@@ -98,10 +98,17 @@ const getJobs: FastifyPluginAsync = async app => {
 
     const pageIds = ids.slice(pageOffset, pageOffset + pageLimit)
 
-    let results: Job[] = []
+    let results: Array<Job & { appliedAt: string | null }> = []
     if (pageIds.length > 0) {
       results = await app.db
-        .select()
+        .select({
+          ...getTableColumns(jobs),
+          appliedAt: sql<string | null>`(
+            select max(${jobStatusEvents.occurredAt}) from ${jobStatusEvents}
+            where ${jobStatusEvents.jobId} = ${sql.identifier('jobs')}.${sql.identifier('id')}
+              and ${jobStatusEvents.status} = 'applied'
+          )`,
+        })
         .from(jobs)
         .where(inArray(jobs.id, pageIds))
         .orderBy(desc(jobs.postedAt), desc(jobs.id))

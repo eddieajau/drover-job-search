@@ -26,6 +26,7 @@ export interface Job {
   category: string
   status: string
   closedAt: string | null
+  appliedAt: string | null
   signals?: SignalSummary
   queued?: boolean
 }

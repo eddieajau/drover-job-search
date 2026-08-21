@@ -3,7 +3,7 @@
  * @license   MIT
  */
 
-import { analysisQueue, jobs, type DB, type Job } from 'db'
+import { analysisQueue, jobs, jobStatusEvents, type DB, type Job } from 'db'
 import { eq } from 'drizzle-orm'
 import { build, createTestDb, JOB1, JOB2, JOB3, seedJob, seedSignal } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -322,6 +322,56 @@ describe('GET /api/jobs status pass-through and filtering', () => {
     const body = res.json() as { count: number; results: unknown[] }
     expect(body.count).toBe(6)
     expect(body.results).toHaveLength(5)
+  })
+})
+
+describe('GET /api/jobs appliedAt join', () => {
+  let db: DB
+  let app: Awaited<ReturnType<typeof build>>
+
+  function seedEvent(jobId: number, status: string, occurredAt: string): void {
+    db.insert(jobStatusEvents).values({ jobId, status, occurredAt }).run()
+  }
+
+  beforeEach(async () => {
+    db = createTestDb()
+    app = await build(getJobs, { db, prefix: '/' })
+  })
+
+  afterEach(async () => {
+    await app.close()
+    db.$client.close()
+  })
+
+  it('returns an ISO appliedAt for an applied job and null for one never applied to', async () => {
+    const applied = seedJob(db, JOB1)
+    seedJob(db, JOB2)
+    seedEvent(applied.id, 'applied', '2026-08-10T09:30:00Z')
+
+    const res = await app.inject({ method: 'GET', url: '/' })
+    const results = res.json().results as Array<{ providerJobId: string; appliedAt: string | null }>
+    expect(results.find(j => j.providerJobId === JOB1.providerJobId)?.appliedAt).toBe('2026-08-10T09:30:00Z')
+    expect(results.find(j => j.providerJobId === JOB2.providerJobId)?.appliedAt).toBeNull()
+  })
+
+  it('uses the latest occurredAt when a job has multiple applied events', async () => {
+    const job = seedJob(db, JOB1)
+    seedEvent(job.id, 'applied', '2026-08-01T10:00:00Z')
+    seedEvent(job.id, 'applied', '2026-08-15T12:00:00Z')
+
+    const res = await app.inject({ method: 'GET', url: '/' })
+    const results = res.json().results as Array<{ providerJobId: string; appliedAt: string | null }>
+    expect(results[0].appliedAt).toBe('2026-08-15T12:00:00Z')
+  })
+
+  it('ignores non-applied statuses when resolving appliedAt', async () => {
+    const job = seedJob(db, JOB1)
+    seedEvent(job.id, 'interviewing', '2026-08-10T09:30:00Z')
+    seedEvent(job.id, 'skipped', '2026-08-11T09:30:00Z')
+
+    const res = await app.inject({ method: 'GET', url: '/' })
+    const results = res.json().results as Array<{ providerJobId: string; appliedAt: string | null }>
+    expect(results[0].appliedAt).toBeNull()
   })
 })
 
