@@ -2205,3 +2205,66 @@ pipeline-funnel {
   border-top: 1px solid var(--border);
   padding-top: 10px;
 }
+
+/* ── Needs attention widget ──────────────────────────────────── */
+
+attention-list {
+  display: block;
+}
+
+.attention-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.attention-row:last-child {
+  border-bottom: none;
+}
+
+.attention-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--muted);
+}
+
+.attention-dot.discovered_missing {
+  background: var(--accent);
+}
+
+.attention-dot.queue_stuck {
+  background: var(--blue);
+}
+
+.attention-text {
+  min-width: 0;
+}
+
+.attention-text .sub {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.attention-link {
+  margin-left: auto;
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.attention-link:hover {
+  text-decoration: underline;
+}
+
+.attention-empty {
+  font-size: 13px;
+  color: var(--muted);
+}
