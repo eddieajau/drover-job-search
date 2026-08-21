@@ -11,14 +11,15 @@ import { createOllamaClient, type OllamaClient } from '../clients/ollama.js'
 import { createConsumer, type Consumer } from '../consumer.js'
 import { reconcileBlockedForJob } from '../lib/reconcileBlocked.js'
 import { sanitise } from '../lib/sanitise.js'
-import { complete, selectPending, type PendingRow } from '../queue.js'
+import { complete, fail, selectPending, type PendingRow } from '../queue.js'
 import { buildPrompt } from './prompt.js'
 
-// Skips mark the queue row done rather than leaving it pending. A missing
-// description and invalid LLM output are deterministic — retrying won't help,
-// and failing the row would re-drain it forever. The fetch-job-details drain
-// marks failures done too (via fail()), so both drains keep the portal worker
-// loop from spinning; retrying failed rows is deferred to a later iteration.
+// Legitimate skips (missing job, blocked status, no description) complete the
+// queue row — nothing was attempted, and retrying wouldn't help. Inference
+// failures (Ollama unreachable, unparseable response) fail the row instead:
+// work was attempted and did not happen, so completing would be a false
+// positive. Both paths are terminal so a drain pass terminates; retrying
+// failed rows is deferred to a later iteration.
 
 export { createOllamaClient }
 
@@ -243,14 +244,14 @@ async function evaluateJob(
   try {
     raw = await opts.client.generate(prompt)
   } catch (err) {
-    complete(db, row.queueId)
+    fail(db, row.queueId, err instanceof Error ? err.message : String(err))
     opts.onError?.(row, err)
     return 'skipped'
   }
 
   const result = parseLlmResponse(raw)
   if (!result) {
-    complete(db, row.queueId)
+    fail(db, row.queueId, 'invalid LLM response')
     opts.onError?.(row, new Error('invalid LLM response'))
     return 'skipped'
   }

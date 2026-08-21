@@ -342,7 +342,7 @@ describe('rank-job-details drain', () => {
     expect(JSON.parse(signals[0].metadata!)).toEqual({ strengths: ['new strength'], gaps: [] })
   })
 
-  it('marks the row done when LLM returns malformed JSON and calls onError', async () => {
+  it('fails the row when LLM returns malformed JSON and calls onError', async () => {
     seedQueue(db, '123456')
     const onError = vi.fn()
 
@@ -353,11 +353,12 @@ describe('rank-job-details drain', () => {
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
+    expect(queue.errorMessage).toBe('invalid LLM response')
     expect(onError).toHaveBeenCalledTimes(1)
     expect(onError.mock.calls[0][1]).toBeInstanceOf(Error)
   })
 
-  it('marks the row done when LLM response has wrong shape', async () => {
+  it('fails the row when LLM response has wrong shape', async () => {
     seedQueue(db, '123456')
     const onError = vi.fn()
 
@@ -367,10 +368,11 @@ describe('rank-job-details drain', () => {
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
+    expect(queue.errorMessage).toBe('invalid LLM response')
     expect(onError).toHaveBeenCalledTimes(1)
   })
 
-  it('marks the row done when a gate name is invalid', async () => {
+  it('fails the row when a gate name is invalid', async () => {
     seedQueue(db, '123456')
     const onError = vi.fn()
 
@@ -383,10 +385,11 @@ describe('rank-job-details drain', () => {
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
+    expect(queue.errorMessage).toBe('invalid LLM response')
     expect(onError).toHaveBeenCalledTimes(1)
   })
 
-  it('marks the row done when dimension signal_type is invalid', async () => {
+  it('fails the row when dimension signal_type is invalid', async () => {
     seedQueue(db, '123456')
     const onError = vi.fn()
 
@@ -399,10 +402,11 @@ describe('rank-job-details drain', () => {
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
+    expect(queue.errorMessage).toBe('invalid LLM response')
     expect(onError).toHaveBeenCalledTimes(1)
   })
 
-  it('marks the row done when ollama client throws and calls onError with the error', async () => {
+  it('fails the row with the error message when ollama client throws and calls onError', async () => {
     seedQueue(db, '123456')
     const onError = vi.fn()
     const error = new Error('network error')
@@ -415,11 +419,15 @@ describe('rank-job-details drain', () => {
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
+    expect(queue.errorMessage).toBe('network error')
     expect(onError).toHaveBeenCalledTimes(1)
     expect(onError.mock.calls[0][1]).toBe(error)
+
+    const signals = db.select().from(jobSignals).all()
+    expect(signals.filter(s => s.source === 'llm_deep_eval')).toHaveLength(0)
   })
 
-  it('marks the row done when the job has no description', async () => {
+  it('marks the row done without an error when the job has no description', async () => {
     seedQueue(db, '123456', null)
     const onError = vi.fn()
 
@@ -428,6 +436,7 @@ describe('rank-job-details drain', () => {
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
+    expect(queue.errorMessage).toBeNull()
     expect(onError).toHaveBeenCalledTimes(1)
   })
 
@@ -519,6 +528,7 @@ describe('rank-job-details drain', () => {
     expect(outcome).toBe('skipped')
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
+    expect(queue.errorMessage).toBe('network error')
     expect(onError).toHaveBeenCalledTimes(1)
   })
 
