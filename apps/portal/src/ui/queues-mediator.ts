@@ -65,6 +65,12 @@ async function refreshSummary(page: QueuesPage): Promise<void> {
     }
     page.setSummary((await response.json()) as QueueSummaryResponse)
   } catch {
-    page.setSummary({ pending: { fetch_job_details: 0, rank: 0 }, done: 0, total: 0, recent: [] })
+    page.setSummary({
+      pending: { fetch_job_details: 0, rank: 0 },
+      done: 0,
+      failed: 0,
+      total: 0,
+      recent: [],
+    })
   }
 }

@@ -19,7 +19,7 @@ const KICK_ACTIONS: Record<string, 'fetch_job_details' | 'rank'> = {
 }
 
 function emptySummary(): QueueSummaryResponse {
-  return { pending: { fetch_job_details: 0, rank: 0 }, done: 0, total: 0, recent: [] }
+  return { pending: { fetch_job_details: 0, rank: 0 }, done: 0, failed: 0, total: 0, recent: [] }
 }
 
 export class QueuesPage extends HTMLElement {
@@ -90,7 +90,11 @@ export class QueuesPage extends HTMLElement {
     const pending = this.#summary.pending.fetch_job_details + this.#summary.pending.rank
     const el = this.querySelector<HTMLSpanElement>('.page-count')
     if (el) {
-      el.textContent = `${pending} pending · ${this.#summary.done} done`
+      let text = `${pending} pending · ${this.#summary.done} done`
+      if (this.#summary.failed > 0) {
+        text += ` · ${this.#summary.failed} failed`
+      }
+      el.textContent = text
     }
   }
 
@@ -126,18 +130,22 @@ export class QueuesPage extends HTMLElement {
 }
 
 function rowTemplate(row: QueueSummaryRow): string {
-  const doneClass = row.completedAt ? ' is-done' : ''
+  const stateClass = row.errorMessage ? ' is-failed' : row.completedAt ? ' is-done' : ''
   const badgeClass = row.topic === 'rank' ? 'badge topic-rank' : 'badge'
-  const doneTick = row.completedAt ? '<span class="queue-done">done ✓</span>' : ''
+  const marker = row.errorMessage
+    ? `<span class="queue-failed" title="${esc(row.errorMessage)}">failed ✗</span>`
+    : row.completedAt
+      ? '<span class="queue-done">done ✓</span>'
+      : ''
   return `
-    <li class="queue-row${doneClass}">
+    <li class="queue-row${stateClass}">
       <div class="queue-main">
         <span class="queue-title">${esc(row.title)}</span>
         <span class="queue-company">${esc(row.companyName)}</span>
       </div>
       <span class="${badgeClass}">${esc(row.topic)}</span>
       <span class="queue-age">${esc(relativeAge(row.queuedAt))}</span>
-      ${doneTick}
+      ${marker}
     </li>
   `
 }

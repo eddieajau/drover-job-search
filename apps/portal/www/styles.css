@@ -1019,6 +1019,12 @@ job-card:focus-visible {
   border-color: transparent;
 }
 
+.queue-row.is-failed .badge {
+  background: var(--red-soft);
+  color: var(--red);
+  border-color: transparent;
+}
+
 .queue-age {
   color: var(--muted);
   font-size: 12px;
@@ -1027,6 +1033,13 @@ job-card:focus-visible {
 
 .queue-done {
   color: var(--green);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.queue-failed {
+  color: var(--red);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;

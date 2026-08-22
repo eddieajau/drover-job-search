@@ -13,6 +13,7 @@ function summary(): QueueSummaryResponse {
   return {
     pending: { fetch_job_details: 1, rank: 2 },
     done: 3,
+    failed: 0,
     total: 6,
     recent: [
       {
@@ -24,6 +25,7 @@ function summary(): QueueSummaryResponse {
         topic: 'fetch_job_details',
         queuedAt: '2026-08-08 09:00:00',
         completedAt: null,
+        errorMessage: null,
       },
     ],
   }
@@ -68,12 +70,46 @@ describe('queues-page', () => {
           topic: 'rank',
           queuedAt: '2026-08-08 08:00:00',
           completedAt: '2026-08-08 09:30:00',
+          errorMessage: null,
         },
       ],
     })
     const row = el.querySelector<HTMLElement>('.queue-row')
     expect(row?.classList.contains('is-done')).toBe(true)
     expect(el.querySelector('.queue-done')).not.toBeNull()
+    expect(el.querySelector('.queue-failed')).toBeNull()
+  })
+
+  it('renders a failed marker with the error message for failed rows', () => {
+    el.setSummary({
+      ...summary(),
+      recent: [
+        {
+          id: 3,
+          jobId: 12,
+          title: 'Backend Engineer',
+          companyName: 'Gamma',
+          providerJobId: 'job-3',
+          topic: 'rank',
+          queuedAt: '2026-08-08 07:00:00',
+          completedAt: '2026-08-08 07:05:00',
+          errorMessage: 'Ollama connection refused',
+        },
+      ],
+    })
+    const row = el.querySelector<HTMLElement>('.queue-row')
+    expect(row?.classList.contains('is-failed')).toBe(true)
+    expect(row?.classList.contains('is-done')).toBe(false)
+    const marker = el.querySelector<HTMLElement>('.queue-failed')
+    expect(marker).not.toBeNull()
+    expect(marker?.textContent).toBe('failed ✗')
+    expect(marker?.getAttribute('title')).toBe('Ollama connection refused')
+    expect(el.querySelector('.queue-done')).toBeNull()
+  })
+
+  it('surfaces the failed count in the head when there are failures', () => {
+    el.setSummary({ ...summary(), failed: 2 })
+    expect(el.querySelector('.page-count')?.textContent).toBe('3 pending · 3 done · 2 failed')
   })
 
   it('renders the topic-rank badge class for rank rows', () => {
@@ -89,6 +125,7 @@ describe('queues-page', () => {
           topic: 'rank',
           queuedAt: '2026-08-08 08:00:00',
           completedAt: null,
+          errorMessage: null,
         },
       ],
     })
@@ -98,7 +135,7 @@ describe('queues-page', () => {
   })
 
   it('renders an empty state when there are no recent rows', () => {
-    el.setSummary({ pending: { fetch_job_details: 0, rank: 0 }, done: 0, total: 0, recent: [] })
+    el.setSummary({ pending: { fetch_job_details: 0, rank: 0 }, done: 0, failed: 0, total: 0, recent: [] })
     expect(el.querySelector('.queue-empty')).not.toBeNull()
   })
 

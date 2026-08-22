@@ -3,11 +3,22 @@
  * @license   MIT
  */
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { selectJobage, strictTarget } from './search.js'
 
 const DAY = 86_400_000
+
+beforeEach(() => {
+  // Freeze time so the anchor timestamps below are measured against a fixed
+  // clock; otherwise an anchor "exactly" N days old races the second
+  // Date.now() call inside selectJobage and flips to the next bucket.
+  vi.useFakeTimers({ now: new Date('2026-08-21T00:00:00Z') })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 function isoDaysAgo(days: number): string {
   return new Date(Date.now() - days * DAY).toISOString()

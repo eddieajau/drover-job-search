@@ -12,12 +12,17 @@ import type { QueueSummaryResponse, QueueSummaryRow } from '../../serializers.js
 const getAnalysisQueueSummary: FastifyPluginAsync = async app => {
   app.get('/summary', async _req => {
     const topicRows = app.db
-      .select({ topic: analysisQueue.topic, completed: analysisQueue.completedAt })
+      .select({
+        topic: analysisQueue.topic,
+        completed: analysisQueue.completedAt,
+        error: analysisQueue.errorMessage,
+      })
       .from(analysisQueue)
       .all()
     const pendingGetDetails = topicRows.filter(r => r.topic === 'fetch_job_details' && !r.completed).length
     const pendingRank = topicRows.filter(r => r.topic === 'rank' && !r.completed).length
-    const done = topicRows.filter(r => r.completed).length
+    const failed = topicRows.filter(r => r.error !== null).length
+    const done = topicRows.filter(r => r.completed && r.error === null).length
 
     const recent = app.db
       .select({
@@ -29,6 +34,7 @@ const getAnalysisQueueSummary: FastifyPluginAsync = async app => {
         topic: analysisQueue.topic,
         queuedAt: analysisQueue.queuedAt,
         completedAt: analysisQueue.completedAt,
+        errorMessage: analysisQueue.errorMessage,
       })
       .from(analysisQueue)
       .innerJoin(jobs, eq(analysisQueue.jobId, jobs.id))
@@ -39,6 +45,7 @@ const getAnalysisQueueSummary: FastifyPluginAsync = async app => {
     const summary: QueueSummaryResponse = {
       pending: { fetch_job_details: pendingGetDetails, rank: pendingRank },
       done,
+      failed,
       total: topicRows.length,
       recent: recent as QueueSummaryRow[],
     }

@@ -138,11 +138,13 @@ export interface QueueSummaryRow {
   topic: 'fetch_job_details' | 'rank'
   queuedAt: string
   completedAt: string | null
+  errorMessage: string | null
 }
 
 export interface QueueSummaryResponse {
   pending: { fetch_job_details: number; rank: number }
   done: number
+  failed: number
   total: number
   recent: QueueSummaryRow[]
 }

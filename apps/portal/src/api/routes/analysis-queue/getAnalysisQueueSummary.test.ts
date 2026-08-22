@@ -29,6 +29,7 @@ describe('GET /api/analysis-queue/summary', () => {
     expect(res.json()).toEqual({
       pending: { fetch_job_details: 0, rank: 0 },
       done: 0,
+      failed: 0,
       total: 0,
       recent: [],
     })
@@ -49,6 +50,35 @@ describe('GET /api/analysis-queue/summary', () => {
       done: 1,
       total: 3,
     })
+  })
+
+  it('counts failed rows separately and keeps their error message in recent', async () => {
+    const jobA = seedJob(db, JOB1)
+    const jobB = seedJob(db, JOB2)
+    const jobC = seedJob(db, { ...JOB1, providerJobId: 'job-3' })
+    db.insert(analysisQueue).values({ jobId: jobA.id, topic: 'rank' }).run()
+    db.insert(analysisQueue).values({ jobId: jobB.id, topic: 'rank', completedAt: '2026-08-08T00:00:00Z' }).run()
+    db.insert(analysisQueue)
+      .values({
+        jobId: jobC.id,
+        topic: 'rank',
+        completedAt: '2026-08-08T00:00:00Z',
+        errorMessage: 'Ollama connection refused',
+      })
+      .run()
+
+    const res = await app.inject({ method: 'GET', url: '/summary' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({
+      pending: { fetch_job_details: 0, rank: 1 },
+      done: 1,
+      failed: 1,
+      total: 3,
+    })
+    const body = res.json() as { recent: Array<{ providerJobId: string; errorMessage: string | null }> }
+    const errorByProvider = new Map(body.recent.map(r => [r.providerJobId, r.errorMessage]))
+    expect(errorByProvider.get(JOB2.providerJobId)).toBeNull()
+    expect(errorByProvider.get('job-3')).toBe('Ollama connection refused')
   })
 
   it('limits recent to 20 rows ordered by id descending', async () => {
