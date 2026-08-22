@@ -96,6 +96,26 @@ export function selectPending(db: DB, topic: AnalysisTopic, limit?: number): Pen
   return query.all()
 }
 
+// Re-select a single queue row joined to its job, confirming it is still
+// pending for the given topic. Returns null when the row has vanished
+// (already completed, or belongs to another topic); callers decide how to
+// report that outcome.
+export function selectPendingRow(db: DB, topic: AnalysisTopic, queueId: number): PendingRow | null {
+  return (
+    db
+      .select({
+        queueId: analysisQueue.id,
+        jobId: jobs.id,
+        providerJobId: jobs.providerJobId,
+        title: jobs.title,
+      })
+      .from(analysisQueue)
+      .innerJoin(jobs, eq(analysisQueue.jobId, jobs.id))
+      .where(and(eq(analysisQueue.id, queueId), eq(analysisQueue.topic, topic), isNull(analysisQueue.completedAt)))
+      .get() ?? null
+  )
+}
+
 export function complete(db: DB, queueId: number): void {
   db.update(analysisQueue)
     .set({ completedAt: sql`(CURRENT_TIMESTAMP)`, errorMessage: null })

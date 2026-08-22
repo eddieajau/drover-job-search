@@ -3,15 +3,16 @@
  * @license   MIT
  */
 
-import { analysisQueue, facts, jobSignals, jobs, type DB, type Fact } from 'db'
+import { facts, jobSignals, jobs, type DB, type Fact } from 'db'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { FastifyBaseLogger } from 'fastify'
 
 import { createOllamaClient, type OllamaClient } from '../clients/ollama.js'
 import { createConsumer, type Consumer } from '../consumer.js'
+import { drainRows } from '../lib/drainQueue.js'
 import { reconcileBlockedForJob } from '../lib/reconcileBlocked.js'
 import { sanitise } from '../lib/sanitise.js'
-import { complete, fail, selectPending, type PendingRow } from '../queue.js'
+import { complete, fail, selectPendingRow, type PendingRow } from '../queue.js'
 import { buildPrompt } from './prompt.js'
 
 // Legitimate skips (missing job, blocked status, no description) complete the
@@ -208,16 +209,12 @@ export interface RankDrainOptions {
 }
 
 export async function drain(db: DB, opts: RankDrainOptions): Promise<{ written: number; skipped: number }> {
-  const rows = selectPending(db, 'rank', opts.limit)
   const activeFacts = db.select().from(facts).where(eq(facts.active, true)).all()
-  let written = 0
-  let skipped = 0
-  for (const row of rows) {
-    const outcome = await drainOne(db, row.queueId, opts, activeFacts)
-    if (outcome === 'written') written++
-    else skipped++
-  }
-  return { written, skipped }
+  return drainRows(db, 'rank', {
+    limit: opts.limit,
+    processRow: row => drainOne(db, row.queueId, opts, activeFacts),
+    // Rank never fails a row mid-drain (see drainOne) so `failed` is always 0.
+  }).then(({ written, skipped }) => ({ written, skipped }))
 }
 
 export async function drainOne(
@@ -226,25 +223,9 @@ export async function drainOne(
   opts: RankDrainOptions,
   activeFacts?: Fact[]
 ): Promise<'written' | 'skipped'> {
-  const row = selectPendingRow(db, queueId)
+  const row = selectPendingRow(db, 'rank', queueId)
   if (!row) return 'skipped'
   return evaluateJob(db, row, opts, activeFacts)
-}
-
-function selectPendingRow(db: DB, queueId: number): PendingRow | null {
-  return (
-    db
-      .select({
-        queueId: analysisQueue.id,
-        jobId: jobs.id,
-        providerJobId: jobs.providerJobId,
-        title: jobs.title,
-      })
-      .from(analysisQueue)
-      .innerJoin(jobs, eq(analysisQueue.jobId, jobs.id))
-      .where(and(eq(analysisQueue.id, queueId), eq(analysisQueue.topic, 'rank'), isNull(analysisQueue.completedAt)))
-      .get() ?? null
-  )
 }
 
 async function evaluateJob(

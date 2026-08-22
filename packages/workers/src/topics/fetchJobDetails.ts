@@ -3,13 +3,14 @@
  * @license   MIT
  */
 
-import { analysisQueue, jobs, type DB } from 'db'
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { jobs, type DB } from 'db'
+import { eq, sql } from 'drizzle-orm'
 import type { FastifyBaseLogger } from 'fastify'
 import { toMarkdown } from 'providers/common'
 
 import { createConsumer, type Consumer } from '../consumer.js'
-import { complete, fail, selectPending, type PendingRow } from '../queue.js'
+import { drainRows } from '../lib/drainQueue.js'
+import { complete, fail, selectPendingRow, type PendingRow } from '../queue.js'
 
 export type DetailFn = (opts: { id: string }) => Promise<{ description: string | null; closed?: boolean } | null>
 
@@ -48,17 +49,10 @@ export async function drain(
   db: DB,
   opts: FetchDetailsDrainOptions
 ): Promise<{ processed: number; failed: number; skipped: number }> {
-  const rows = selectPending(db, 'fetch_job_details', opts.limit)
-  let processed = 0
-  let failed = 0
-  let skipped = 0
-  for (const row of rows) {
-    const outcome = await drainOne(db, row.queueId, opts)
-    if (outcome === 'written') processed++
-    else if (outcome === 'skipped') skipped++
-    else failed++
-  }
-  return { processed, failed, skipped }
+  return drainRows(db, 'fetch_job_details', {
+    limit: opts.limit,
+    processRow: row => drainOne(db, row.queueId, opts),
+  }).then(({ written, failed, skipped }) => ({ processed: written, failed, skipped }))
 }
 
 export async function drainOne(
@@ -66,31 +60,9 @@ export async function drainOne(
   queueId: number,
   opts: FetchDetailsDrainOptions
 ): Promise<'written' | 'failed' | 'skipped'> {
-  const row = selectPendingRow(db, queueId)
+  const row = selectPendingRow(db, 'fetch_job_details', queueId)
   if (!row) return 'failed'
   return processRow(db, row, opts)
-}
-
-function selectPendingRow(db: DB, queueId: number): PendingRow | null {
-  return (
-    db
-      .select({
-        queueId: analysisQueue.id,
-        jobId: jobs.id,
-        providerJobId: jobs.providerJobId,
-        title: jobs.title,
-      })
-      .from(analysisQueue)
-      .innerJoin(jobs, eq(analysisQueue.jobId, jobs.id))
-      .where(
-        and(
-          eq(analysisQueue.id, queueId),
-          eq(analysisQueue.topic, 'fetch_job_details'),
-          isNull(analysisQueue.completedAt)
-        )
-      )
-      .get() ?? null
-  )
 }
 
 async function processRow(
