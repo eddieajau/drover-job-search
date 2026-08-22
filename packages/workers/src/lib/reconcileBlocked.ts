@@ -44,7 +44,7 @@ export function reconcileBlockedForAllJobs(db: DB): void {
 
 // Per-job variant: flips 'new' -> 'blocked' when dealbreaker rows exist for the
 // job. The reverse direction is NOT here — the sweep owns the unblock. This is
-// the call rankJobDetails makes after writing its own LLM signals.
+// the call topics/rank makes after writing its own LLM signals.
 export function reconcileBlockedForJob(db: DB, jobId: number): void {
   const dealbreakerCount =
     db

@@ -5,7 +5,7 @@
 
 import type { Fact } from 'db'
 
-import { buildFactsProfile } from './factsProfile.js'
+import { buildFactsProfile } from '../factsProfile.js'
 
 export interface JobContext {
   title: string

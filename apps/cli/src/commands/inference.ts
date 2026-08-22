@@ -6,7 +6,7 @@
 import { basename } from 'node:path'
 
 import { pino } from 'pino'
-import { rankJobDetails } from 'workers'
+import { rank } from 'workers'
 
 import { openDb, resolveDbPath } from '../env.js'
 
@@ -16,9 +16,9 @@ export async function runInference(_args: string[]): Promise<void> {
   log.info({ database: basename(dbFile) }, 'DATABASE')
 
   const db = openDb()
-  const client = rankJobDetails.createOllamaClient(process.env.OLLAMA_BASE_URL, process.env.OLLAMA_MODEL, log)
+  const client = rank.createOllamaClient(process.env.OLLAMA_BASE_URL, process.env.OLLAMA_MODEL, log)
 
-  const { written, skipped } = await rankJobDetails.drain(db, {
+  const { written, skipped } = await rank.drain(db, {
     client,
     onProgress: row => log.debug({ jobId: row.jobId, title: row.title }, 'evaluated'),
     onError: (row, err) =>

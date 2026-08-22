@@ -8,11 +8,11 @@ import { eq } from 'drizzle-orm'
 import { seedFact } from 'test-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createOllamaClient } from '../clients/ollama.js'
-import type { OllamaClient } from '../clients/ollama.js'
-import type { ConsumerOptions } from '../consumer.js'
-import { createConsumer } from '../consumer.js'
-import { createRankConsumer, drain, drainOne } from './rankJobDetails.js'
+import { createOllamaClient } from '../../clients/ollama.js'
+import type { OllamaClient } from '../../clients/ollama.js'
+import type { ConsumerOptions } from '../../consumer.js'
+import { createConsumer } from '../../consumer.js'
+import { createRankConsumer, drain, drainOne } from './index.js'
 
 const { consumerKickFn, consumerStopFn, consumerCaptured } = vi.hoisted(() => ({
   consumerKickFn: vi.fn(),
@@ -20,7 +20,7 @@ const { consumerKickFn, consumerStopFn, consumerCaptured } = vi.hoisted(() => ({
   consumerCaptured: { opts: undefined as ConsumerOptions | undefined },
 }))
 
-vi.mock('../consumer.js', () => ({
+vi.mock('../../consumer.js', () => ({
   createConsumer: vi.fn((opts: ConsumerOptions) => {
     consumerCaptured.opts = opts
     return { kick: consumerKickFn, stop: consumerStopFn }
@@ -28,7 +28,7 @@ vi.mock('../consumer.js', () => ({
 }))
 
 const mockOllama = { generate: vi.fn() }
-vi.mock('../clients/ollama.js', () => ({
+vi.mock('../../clients/ollama.js', () => ({
   createOllamaClient: vi.fn(() => mockOllama),
 }))
 

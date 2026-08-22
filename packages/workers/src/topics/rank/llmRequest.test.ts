@@ -6,7 +6,7 @@
 import type { Fact } from 'db'
 import { describe, it, expect } from 'vitest'
 
-import { buildPrompt } from './prompt.js'
+import { buildPrompt } from './llmRequest.js'
 
 const job = {
   title: 'Staff Engineer',
