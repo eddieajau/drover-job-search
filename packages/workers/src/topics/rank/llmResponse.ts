@@ -37,6 +37,25 @@ export interface LlmEvalResult {
 
 const MAX_WHY_BULLETS = 3
 
+// Thrown when a payload cannot be turned into a valid eval. The message
+// carries a snippet of the offending input so queue rows and logs show what
+// the model actually said.
+export class RankParseError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'RankParseError'
+  }
+}
+
+// Collapse whitespace and cap the snippet so error messages stay readable.
+const SNIPPET_LENGTH = 120
+
+function snippet(raw: string): string {
+  const flat = raw.replace(/\s+/g, ' ').trim()
+  if (flat === '') return '(empty)'
+  return flat.length > SNIPPET_LENGTH ? `${flat.slice(0, SNIPPET_LENGTH)}…` : flat
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
@@ -106,15 +125,15 @@ function* jsonCandidates(raw: string): Generator<string> {
   }
 }
 
-export function validateEval(parsed: unknown): LlmEvalResult | null {
+export function validateEval(parsed: unknown): LlmEvalResult {
   if (!isRecord(parsed) || !Array.isArray(parsed.gates) || !Array.isArray(parsed.dimensions)) {
-    return null
+    throw new RankParseError('eval must be an object with gates and dimensions arrays')
   }
 
   const gates: GateVerdict[] = []
-  for (const gate of parsed.gates) {
+  for (const [i, gate] of parsed.gates.entries()) {
     if (!isRecord(gate) || !isGateName(gate.name) || typeof gate.passed !== 'boolean') {
-      return null
+      throw new RankParseError(`invalid gate verdict at index ${i}`)
     }
     gates.push({
       name: gate.name,
@@ -125,7 +144,7 @@ export function validateEval(parsed: unknown): LlmEvalResult | null {
   }
 
   const dimensions: DimensionScore[] = []
-  for (const dim of parsed.dimensions) {
+  for (const [i, dim] of parsed.dimensions.entries()) {
     if (
       !isRecord(dim) ||
       !isDimensionName(dim.name) ||
@@ -134,7 +153,7 @@ export function validateEval(parsed: unknown): LlmEvalResult | null {
       !Array.isArray(dim.matched_keywords) ||
       typeof dim.reason !== 'string'
     ) {
-      return null
+      throw new RankParseError(`invalid dimension score at index ${i}`)
     }
     dimensions.push({
       name: dim.name,
@@ -148,14 +167,15 @@ export function validateEval(parsed: unknown): LlmEvalResult | null {
   return { gates, dimensions, strengths: parseWhyList(parsed.strengths), gaps: parseWhyList(parsed.gaps) }
 }
 
-export function parseLlmResponse(raw: string): LlmEvalResult | null {
+// Scan candidates silently — a block that fails to parse or validate is not
+// an error, only exhausting all candidates is.
+export function parseLlmResponse(raw: string): LlmEvalResult {
   for (const candidate of jsonCandidates(raw)) {
     try {
-      const result = validateEval(JSON.parse(candidate))
-      if (result) return result
+      return validateEval(JSON.parse(candidate))
     } catch {
       // Malformed candidate — try the next balanced block.
     }
   }
-  return null
+  throw new RankParseError(`no valid eval JSON in LLM response: ${snippet(raw)}`)
 }

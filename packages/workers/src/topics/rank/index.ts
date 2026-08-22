@@ -9,21 +9,32 @@ import type { FastifyBaseLogger } from 'fastify'
 
 import { createOllamaClient, type OllamaClient } from '../../clients/ollama.js'
 import { createConsumer, type Consumer } from '../../consumer.js'
-import { drainRows } from '../../lib/drainQueue.js'
+import { drainRows, type RowOutcome } from '../../lib/drainQueue.js'
 import { reconcileBlockedForJob } from '../../lib/reconcileBlocked.js'
 import { sanitise } from '../../lib/sanitise.js'
 import { complete, fail, selectPendingRow, type PendingRow } from '../../queue.js'
 import { buildPrompt } from './llmRequest.js'
 import { parseLlmResponse } from './llmResponse.js'
 
-// Legitimate skips (missing job, blocked status, no description) complete the
-// queue row — nothing was attempted, and retrying wouldn't help. Inference
-// failures (Ollama unreachable, unparseable response) fail the row instead:
-// work was attempted and did not happen, so completing would be a false
-// positive. Both paths are terminal so a drain pass terminates; retrying
-// failed rows is deferred to a later iteration.
+// Control flow: worker steps throw and drainOne is the single catch point
+// that decides the queue outcome. A SkipError (missing job, blocked status,
+// no description) completes the row — nothing was attempted, and retrying
+// wouldn't help. Anything else is an inference failure (Ollama unreachable,
+// unparseable response) and fails the row instead: work was attempted and did
+// not happen, so completing would be a false positive. Both outcomes are
+// terminal so a drain pass terminates; retrying failed rows is deferred to a
+// later iteration.
 
 export { createOllamaClient }
+
+export type SkipReason = 'job missing' | 'job blocked' | 'job has no description'
+
+export class SkipError extends Error {
+  constructor(readonly reason: SkipReason) {
+    super(reason)
+    this.name = 'SkipError'
+  }
+}
 
 export function createRankConsumer(opts: {
   db: DB
@@ -39,9 +50,7 @@ export function createRankConsumer(opts: {
         client,
         log: opts.log,
         onProgress: row => opts.log.debug({ jobId: row.jobId, title: row.title }, 'evaluated'),
-        onError: (row, err) =>
-          opts.log.warn({ jobId: row.jobId, err: err instanceof Error ? err.message : err }, 'inference skipped'),
-      }).then(r => ({ total: r.written + r.skipped })),
+      }).then(({ written, skipped, failed }) => ({ total: written + skipped + failed })),
     log: opts.log,
   })
 }
@@ -54,13 +63,15 @@ export interface RankDrainOptions {
   onError?: (row: PendingRow, err: unknown) => void
 }
 
-export async function drain(db: DB, opts: RankDrainOptions): Promise<{ written: number; skipped: number }> {
+export async function drain(
+  db: DB,
+  opts: RankDrainOptions
+): Promise<{ written: number; skipped: number; failed: number }> {
   const activeFacts = db.select().from(facts).where(eq(facts.active, true)).all()
   return drainRows(db, 'rank', {
     limit: opts.limit,
     processRow: row => drainOne(db, row.queueId, opts, activeFacts),
-    // Rank never fails a row mid-drain (see drainOne) so `failed` is always 0.
-  }).then(({ written, skipped }) => ({ written, skipped }))
+  })
 }
 
 export async function drainOne(
@@ -68,18 +79,30 @@ export async function drainOne(
   queueId: number,
   opts: RankDrainOptions,
   activeFacts?: Fact[]
-): Promise<'written' | 'skipped'> {
+): Promise<RowOutcome> {
   const row = selectPendingRow(db, 'rank', queueId)
   if (!row) return 'skipped'
-  return evaluateJob(db, row, opts, activeFacts)
+  try {
+    await evaluateJob(db, row, opts, activeFacts)
+  } catch (err) {
+    if (err instanceof SkipError) {
+      complete(db, row.queueId)
+      opts.log?.debug({ jobId: row.jobId, reason: err.reason }, 'rank skipped')
+      return 'skipped'
+    }
+    const message = err instanceof Error ? err.message : String(err)
+    fail(db, row.queueId, message)
+    opts.onError?.(row, err)
+    opts.log?.warn({ jobId: row.jobId, err: message }, 'inference skipped')
+    return 'failed'
+  }
+  complete(db, row.queueId)
+  opts.onProgress?.(row)
+  opts.log?.info({ jobId: row.jobId, title: row.title }, 'job ranked')
+  return 'written'
 }
 
-async function evaluateJob(
-  db: DB,
-  row: PendingRow,
-  opts: RankDrainOptions,
-  activeFacts?: Fact[]
-): Promise<'written' | 'skipped'> {
+async function evaluateJob(db: DB, row: PendingRow, opts: RankDrainOptions, activeFacts?: Fact[]): Promise<void> {
   const job = db
     .select({
       id: jobs.id,
@@ -93,21 +116,13 @@ async function evaluateJob(
     .where(eq(jobs.id, row.jobId))
     .get()
 
-  if (!job) {
-    complete(db, row.queueId)
-    return 'skipped'
-  }
+  if (!job) throw new SkipError('job missing')
 
-  if (job.status === 'blocked') {
-    complete(db, row.queueId)
-    return 'skipped'
-  }
+  if (job.status === 'blocked') throw new SkipError('job blocked')
 
   if (!job.description?.trim()) {
     reconcileBlockedForJob(db, row.jobId)
-    complete(db, row.queueId)
-    opts.onError?.(row, new Error('job has no description'))
-    return 'skipped'
+    throw new SkipError('job has no description')
   }
 
   const cleanDesc = sanitise(job.description)
@@ -122,22 +137,9 @@ async function evaluateJob(
     factsForPrompt
   )
 
-  let raw: string
-  try {
-    raw = await opts.client.generate(prompt)
-  } catch (err) {
-    fail(db, row.queueId, err instanceof Error ? err.message : String(err))
-    opts.onError?.(row, err)
-    return 'skipped'
-  }
-
+  // Both inference steps throw on failure; drainOne maps that to a failed row.
+  const raw = await opts.client.generate(prompt)
   const result = parseLlmResponse(raw)
-  if (!result) {
-    opts.log?.error({ jobId: row.jobId, raw }, 'invalid LLM response')
-    fail(db, row.queueId, 'invalid LLM response')
-    opts.onError?.(row, new Error('invalid LLM response'))
-    return 'skipped'
-  }
 
   db.delete(jobSignals)
     .where(and(eq(jobSignals.jobId, row.jobId), isNull(jobSignals.ruleId), eq(jobSignals.source, 'llm_deep_eval')))
@@ -186,9 +188,4 @@ async function evaluateJob(
   }
 
   reconcileBlockedForJob(db, row.jobId)
-
-  complete(db, row.queueId)
-  opts.onProgress?.(row)
-  opts.log?.info({ jobId: row.jobId, title: row.title }, 'job ranked')
-  return 'written'
 }

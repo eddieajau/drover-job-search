@@ -13,6 +13,7 @@ import type { OllamaClient } from '../../clients/ollama.js'
 import type { ConsumerOptions } from '../../consumer.js'
 import { createConsumer } from '../../consumer.js'
 import { createRankConsumer, drain, drainOne } from './index.js'
+import { RankParseError } from './llmResponse.js'
 
 const { consumerKickFn, consumerStopFn, consumerCaptured } = vi.hoisted(() => ({
   consumerKickFn: vi.fn(),
@@ -124,7 +125,7 @@ describe('rank-job-details drain', () => {
 
     const result = await drain(db, { client: mockClient(documentedResponse), onProgress })
 
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
 
     const signals = db.select().from(jobSignals).all()
     expect(signals).toHaveLength(5)
@@ -147,7 +148,7 @@ describe('rank-job-details drain', () => {
     const generate = vi.fn(async () => documentedResponse)
     const result = await drain(db, { client: { generate } })
 
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
     expect(generate).toHaveBeenCalledOnce()
     const prompt = generate.mock.calls[0][0] as string
     expect(prompt).toContain('Candidate profile (derived from facts):')
@@ -178,7 +179,7 @@ describe('rank-job-details drain', () => {
     const { jobId } = seedQueue(db, '123456')
 
     const result = await drain(db, { client: mockClient(documentedResponse) })
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
 
     const signals = db.select().from(jobSignals).all()
     expect(signals).toHaveLength(5)
@@ -248,7 +249,7 @@ describe('rank-job-details drain', () => {
 
     const result = await drain(db, { client: mockClient(response), onProgress })
 
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
     expect(db.select().from(jobSignals).all()).toHaveLength(0)
 
     const queue = db.select().from(analysisQueue).get()!
@@ -267,7 +268,7 @@ describe('rank-job-details drain', () => {
     })
 
     const result = await drain(db, { client: mockClient(response) })
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
 
     const signals = db.select().from(jobSignals).all()
     expect(signals).toHaveLength(1)
@@ -348,23 +349,27 @@ describe('rank-job-details drain', () => {
 
     const result = await drain(db, { client: mockClient('not json'), onError })
 
-    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(result).toEqual({ written: 0, skipped: 0, failed: 1 })
     expect(db.select().from(jobSignals).all()).toHaveLength(0)
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
-    expect(queue.errorMessage).toBe('invalid LLM response')
+    expect(queue.errorMessage).toContain('not json')
     expect(onError).toHaveBeenCalledTimes(1)
-    expect(onError.mock.calls[0][1]).toBeInstanceOf(Error)
+    expect(onError.mock.calls[0][1]).toBeInstanceOf(RankParseError)
   })
 
-  it('logs the raw LLM output when the response is invalid', async () => {
+  it('warns with a snippet of the raw output when the response is invalid', async () => {
     seedQueue(db, '123456')
     const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 
     await drain(db, { client: mockClient('not json'), log })
 
-    expect(log.error).toHaveBeenCalledWith({ jobId: expect.any(Number), raw: 'not json' }, 'invalid LLM response')
+    expect(log.error).not.toHaveBeenCalled()
+    expect(log.warn).toHaveBeenCalledWith(
+      { jobId: expect.any(Number), err: expect.stringContaining('not json') },
+      'inference skipped'
+    )
   })
 
   it('logs an info line when a job is successfully ranked', async () => {
@@ -373,7 +378,7 @@ describe('rank-job-details drain', () => {
 
     const result = await drain(db, { client: mockClient(documentedResponse), log })
 
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
     expect(log.info).toHaveBeenCalledWith({ jobId, title: 'Test Job' }, 'job ranked')
   })
 
@@ -387,7 +392,7 @@ describe('rank-job-details drain', () => {
 
     const result = await drain(db, { client: mockClient(raw) })
 
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
     expect(queue.errorMessage).toBeNull()
@@ -398,7 +403,7 @@ describe('rank-job-details drain', () => {
 
     const result = await drain(db, { client: mockClient(`\`\`\`json\n${documentedResponse}\n\`\`\``) })
 
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
   })
 
   it('repairs a response truncated before the final closer', async () => {
@@ -406,7 +411,7 @@ describe('rank-job-details drain', () => {
 
     const result = await drain(db, { client: mockClient(documentedResponse.slice(0, -1)) })
 
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
   })
 
   it('repairs a response truncated mid-string', async () => {
@@ -415,7 +420,7 @@ describe('rank-job-details drain', () => {
     const cutAt = documentedResponse.indexOf('Strong technical match.') + 10
     const result = await drain(db, { client: mockClient(documentedResponse.slice(0, cutAt)) })
 
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
     const signals = db.select().from(jobSignals).all()
     expect(signals).toHaveLength(2)
     expect(signals.map(s => s.signalType).sort()).toEqual(['dealbreaker', 'skill_match'])
@@ -427,11 +432,11 @@ describe('rank-job-details drain', () => {
 
     const response = JSON.stringify({ score: 'not a number', signal_type: 'skill_match' })
     const result = await drain(db, { client: mockClient(response), onError })
-    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(result).toEqual({ written: 0, skipped: 0, failed: 1 })
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
-    expect(queue.errorMessage).toBe('invalid LLM response')
+    expect(queue.errorMessage).toContain('not a number')
     expect(onError).toHaveBeenCalledTimes(1)
   })
 
@@ -444,11 +449,11 @@ describe('rank-job-details drain', () => {
       dimensions: [],
     })
     const result = await drain(db, { client: mockClient(response), onError })
-    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(result).toEqual({ written: 0, skipped: 0, failed: 1 })
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
-    expect(queue.errorMessage).toBe('invalid LLM response')
+    expect(queue.errorMessage).toContain('salary')
     expect(onError).toHaveBeenCalledTimes(1)
   })
 
@@ -461,11 +466,11 @@ describe('rank-job-details drain', () => {
       dimensions: [{ name: 'technical', signal_type: 'invalid_type', score: 50, matched_keywords: [], reason: 'test' }],
     })
     const result = await drain(db, { client: mockClient(response), onError })
-    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(result).toEqual({ written: 0, skipped: 0, failed: 1 })
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
-    expect(queue.errorMessage).toBe('invalid LLM response')
+    expect(queue.errorMessage).toContain('invalid_type')
     expect(onError).toHaveBeenCalledTimes(1)
   })
 
@@ -478,7 +483,7 @@ describe('rank-job-details drain', () => {
       client: { generate: async () => Promise.reject(error) },
       onError,
     })
-    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(result).toEqual({ written: 0, skipped: 0, failed: 1 })
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
@@ -492,15 +497,20 @@ describe('rank-job-details drain', () => {
 
   it('marks the row done without an error when the job has no description', async () => {
     seedQueue(db, '123456', null)
+    const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
     const onError = vi.fn()
 
-    const result = await drain(db, { client: mockClient('{}'), onError })
-    expect(result).toEqual({ written: 0, skipped: 1 })
+    const result = await drain(db, { client: mockClient('{}'), onError, log })
+    expect(result).toEqual({ written: 0, skipped: 1, failed: 0 })
 
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
     expect(queue.errorMessage).toBeNull()
-    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError).not.toHaveBeenCalled()
+    expect(log.debug).toHaveBeenCalledWith(
+      { jobId: expect.any(Number), reason: 'job has no description' },
+      'rank skipped'
+    )
   })
 
   it('replaces existing llm_deep_eval signals for same job', async () => {
@@ -546,7 +556,7 @@ describe('rank-job-details drain', () => {
     const generate = vi.fn(async () => documentedResponse)
     const result = await drain(db, { client: { generate }, limit: 2 })
 
-    expect(result).toEqual({ written: 2, skipped: 0 })
+    expect(result).toEqual({ written: 2, skipped: 0, failed: 0 })
     expect(generate).toHaveBeenCalledTimes(2)
 
     const pending = db
@@ -563,7 +573,7 @@ describe('rank-job-details drain', () => {
 
     const result = await drain(db, { client: { generate } })
 
-    expect(result).toEqual({ written: 0, skipped: 0 })
+    expect(result).toEqual({ written: 0, skipped: 0, failed: 0 })
     expect(generate).not.toHaveBeenCalled()
   })
 
@@ -579,7 +589,7 @@ describe('rank-job-details drain', () => {
     expect(onProgress).toHaveBeenCalledTimes(1)
   })
 
-  it('drainOne marks a row skipped when generate throws', async () => {
+  it('drainOne fails a row when generate throws', async () => {
     const { queueId } = seedQueue(db, '123456')
     const onError = vi.fn()
 
@@ -588,7 +598,7 @@ describe('rank-job-details drain', () => {
       onError,
     })
 
-    expect(outcome).toBe('skipped')
+    expect(outcome).toBe('failed')
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
     expect(queue.errorMessage).toBe('network error')
@@ -605,7 +615,7 @@ describe('rank-job-details drain', () => {
     const { jobId } = seedQueue(db, '123456')
 
     const result = await drain(db, { client: mockClient(documentedResponse) })
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
 
     const job = db.select().from(jobs).where(eq(jobs.id, jobId)).get()!
     expect(job.status).toBe('blocked')
@@ -617,7 +627,7 @@ describe('rank-job-details drain', () => {
 
     const result = await drain(db, { client: { generate } })
 
-    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(result).toEqual({ written: 0, skipped: 1, failed: 0 })
     expect(generate).not.toHaveBeenCalled()
     expect(db.select().from(jobSignals).all()).toHaveLength(0)
 
@@ -631,7 +641,7 @@ describe('rank-job-details drain', () => {
 
     const result = await drain(db, { client: { generate } })
 
-    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(result).toEqual({ written: 0, skipped: 1, failed: 0 })
     expect(generate).not.toHaveBeenCalled()
     expect(db.select().from(jobSignals).all()).toHaveLength(0)
   })
@@ -652,7 +662,7 @@ describe('rank-job-details drain', () => {
     const generate = vi.fn(async () => documentedResponse)
     const result = await drain(db, { client: { generate } })
 
-    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(result).toEqual({ written: 0, skipped: 1, failed: 0 })
     expect(generate).not.toHaveBeenCalled()
     const job = db.select().from(jobs).where(eq(jobs.id, jobId)).get()!
     expect(job.status).toBe('blocked')
@@ -664,7 +674,7 @@ describe('rank-job-details drain', () => {
 
     const result = await drain(db, { client: { generate } })
 
-    expect(result).toEqual({ written: 0, skipped: 1 })
+    expect(result).toEqual({ written: 0, skipped: 1, failed: 0 })
     expect(generate).not.toHaveBeenCalled()
     expect(db.select().from(jobSignals).all()).toHaveLength(0)
   })
@@ -684,7 +694,7 @@ describe('rank-job-details drain', () => {
     })
 
     const result = await drain(db, { client: mockClient(response) })
-    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
 
     const job = db.select().from(jobs).where(eq(jobs.id, jobId)).get()!
     expect(job.status).toBe('new')

@@ -18,12 +18,12 @@ export async function runInference(_args: string[]): Promise<void> {
   const db = openDb()
   const client = rank.createOllamaClient(process.env.OLLAMA_BASE_URL, process.env.OLLAMA_MODEL, log)
 
-  const { written, skipped } = await rank.drain(db, {
+  const { written, skipped, failed } = await rank.drain(db, {
     client,
     onProgress: row => log.debug({ jobId: row.jobId, title: row.title }, 'evaluated'),
     onError: (row, err) =>
       log.warn({ jobId: row.jobId, err: err instanceof Error ? err.message : err }, 'inference skipped'),
   })
-  log.info({ written, skipped }, 'inference complete')
+  log.info({ written, skipped, failed }, 'inference complete')
   db.$client.close()
 }
