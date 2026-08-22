@@ -46,11 +46,9 @@ export function createRankConsumer(opts: {
   return createConsumer({
     topic: 'rank',
     drain: () =>
-      drain(opts.db, {
-        client,
-        log: opts.log,
-        onProgress: row => opts.log.debug({ jobId: row.jobId, title: row.title }, 'evaluated'),
-      }).then(({ written, skipped, failed }) => ({ total: written + skipped + failed })),
+      drain(opts.db, { client, log: opts.log }).then(({ written, skipped, failed }) => ({
+        total: written + skipped + failed,
+      })),
     log: opts.log,
   })
 }
@@ -82,8 +80,17 @@ export async function drainOne(
 ): Promise<RowOutcome> {
   const row = selectPendingRow(db, 'rank', queueId)
   if (!row) return 'skipped'
+  // Lifecycle: one start line per claimed row, one terminal line per outcome
+  // (ranked/skipped/failed) so a start never dangles without its terminal.
+  const startMs = performance.now()
+  opts.log?.info({ jobId: row.jobId, providerJobId: row.providerJobId }, 'evaluating job')
   try {
-    await evaluateJob(db, row, opts, activeFacts)
+    const { llmMs, parseMs } = await evaluateJob(db, row, opts, activeFacts)
+    complete(db, row.queueId)
+    opts.onProgress?.(row)
+    const totalMs = Math.round(performance.now() - startMs)
+    opts.log?.info({ jobId: row.jobId, title: row.title, llmMs, parseMs, totalMs }, 'job ranked')
+    return 'written'
   } catch (err) {
     if (err instanceof SkipError) {
       complete(db, row.queueId)
@@ -96,13 +103,14 @@ export async function drainOne(
     opts.log?.warn({ jobId: row.jobId, err: message }, 'inference skipped')
     return 'failed'
   }
-  complete(db, row.queueId)
-  opts.onProgress?.(row)
-  opts.log?.info({ jobId: row.jobId, title: row.title }, 'job ranked')
-  return 'written'
 }
 
-async function evaluateJob(db: DB, row: PendingRow, opts: RankDrainOptions, activeFacts?: Fact[]): Promise<void> {
+async function evaluateJob(
+  db: DB,
+  row: PendingRow,
+  opts: RankDrainOptions,
+  activeFacts?: Fact[]
+): Promise<{ llmMs: number; parseMs: number }> {
   const job = db
     .select({
       id: jobs.id,
@@ -138,8 +146,13 @@ async function evaluateJob(db: DB, row: PendingRow, opts: RankDrainOptions, acti
   )
 
   // Both inference steps throw on failure; drainOne maps that to a failed row.
+  const llmStart = performance.now()
   const raw = await opts.client.generate(prompt)
+  const llmMs = Math.round(performance.now() - llmStart)
+
+  const parseStart = performance.now()
   const result = parseLlmResponse(raw)
+  const parseMs = Math.round(performance.now() - parseStart)
 
   db.delete(jobSignals)
     .where(and(eq(jobSignals.jobId, row.jobId), isNull(jobSignals.ruleId), eq(jobSignals.source, 'llm_deep_eval')))
@@ -188,4 +201,6 @@ async function evaluateJob(db: DB, row: PendingRow, opts: RankDrainOptions, acti
   }
 
   reconcileBlockedForJob(db, row.jobId)
+
+  return { llmMs, parseMs }
 }
