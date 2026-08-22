@@ -14,6 +14,9 @@ export interface OllamaGenerateResponse {
   response: string
   thinking?: string
   done: boolean
+  done_reason?: 'stop' | 'length' | 'error' | (string & {})
+  prompt_eval_count?: number
+  eval_count?: number
 }
 
 export interface OllamaClient {
@@ -48,10 +51,18 @@ export function createOllamaClient(
       log?.debug?.({ rawLength: raw.length, rawPreview: raw.slice(0, 500) }, 'ollama raw response body')
 
       const data = JSON.parse(raw) as OllamaGenerateResponse & Record<string, unknown>
-      log?.debug?.(
-        { responseLength: data.response?.length ?? 0, thinkingLength: data.thinking?.length ?? 0 },
-        'ollama response parsed'
-      )
+      const counts = {
+        promptEvalCount: data.prompt_eval_count,
+        evalCount: data.eval_count,
+        responseLength: data.response?.length ?? 0,
+        thinkingLength: data.thinking?.length ?? 0,
+      }
+      log?.debug?.({ ...counts }, 'ollama response parsed')
+      if (data.done_reason === 'length') {
+        // Generation hit a token cap (num_predict or num_ctx) and the output
+        // was cut short — surface it loudly since the payload is likely broken.
+        log?.warn?.({ model, doneReason: data.done_reason, ...counts }, 'ollama generation truncated')
+      }
 
       const content = data.response || data.thinking || ''
       return content

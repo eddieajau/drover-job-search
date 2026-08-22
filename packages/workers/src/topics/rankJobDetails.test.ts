@@ -358,6 +358,69 @@ describe('rank-job-details drain', () => {
     expect(onError.mock.calls[0][1]).toBeInstanceOf(Error)
   })
 
+  it('logs the raw LLM output when the response is invalid', async () => {
+    seedQueue(db, '123456')
+    const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+
+    await drain(db, { client: mockClient('not json'), log })
+
+    expect(log.error).toHaveBeenCalledWith({ jobId: expect.any(Number), raw: 'not json' }, 'invalid LLM response')
+  })
+
+  it('logs an info line when a job is successfully ranked', async () => {
+    const { jobId } = seedQueue(db, '123456')
+    const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+
+    const result = await drain(db, { client: mockClient(documentedResponse), log })
+
+    expect(result).toEqual({ written: 1, skipped: 0 })
+    expect(log.info).toHaveBeenCalledWith({ jobId, title: 'Test Job' }, 'job ranked')
+  })
+
+  it('parses valid JSON wrapped in leaked thinking-model scaffolding', async () => {
+    seedQueue(db, '123456')
+
+    // Reproduces a real incident: the model emitted the eval inside a
+    // hallucinated tool call, then again as clean JSON after </think>.
+    const eval_ = JSON.parse(documentedResponse)
+    const raw = `${documentedResponse}</parameter>\n</invoke>\n</think>\n\n${JSON.stringify(eval_, null, 2)}`
+
+    const result = await drain(db, { client: mockClient(raw) })
+
+    expect(result).toEqual({ written: 1, skipped: 0 })
+    const queue = db.select().from(analysisQueue).get()!
+    expect(queue.completedAt).not.toBeNull()
+    expect(queue.errorMessage).toBeNull()
+  })
+
+  it('parses valid JSON fenced in markdown', async () => {
+    seedQueue(db, '123456')
+
+    const result = await drain(db, { client: mockClient(`\`\`\`json\n${documentedResponse}\n\`\`\``) })
+
+    expect(result).toEqual({ written: 1, skipped: 0 })
+  })
+
+  it('repairs a response truncated before the final closer', async () => {
+    seedQueue(db, '123456')
+
+    const result = await drain(db, { client: mockClient(documentedResponse.slice(0, -1)) })
+
+    expect(result).toEqual({ written: 1, skipped: 0 })
+  })
+
+  it('repairs a response truncated mid-string', async () => {
+    seedQueue(db, '123456')
+
+    const cutAt = documentedResponse.indexOf('Strong technical match.') + 10
+    const result = await drain(db, { client: mockClient(documentedResponse.slice(0, cutAt)) })
+
+    expect(result).toEqual({ written: 1, skipped: 0 })
+    const signals = db.select().from(jobSignals).all()
+    expect(signals).toHaveLength(2)
+    expect(signals.map(s => s.signalType).sort()).toEqual(['dealbreaker', 'skill_match'])
+  })
+
   it('fails the row when LLM response has wrong shape', async () => {
     seedQueue(db, '123456')
     const onError = vi.fn()

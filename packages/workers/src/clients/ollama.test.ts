@@ -84,4 +84,31 @@ describe('createOllamaClient', () => {
 
     expect(result).toBe('{"score":85,"signal_type":"skill_match","matched_keywords":[],"reason":"test"}')
   })
+
+  it('logs token counts and warns when generation is truncated', async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          response: '{"partial":',
+          done: true,
+          done_reason: 'length',
+          prompt_eval_count: 1200,
+          eval_count: 512,
+        }),
+    })
+    const log = { debug: vi.fn(), warn: vi.fn() }
+
+    const client = createOllamaClient('http://localhost:11434', 'test-model', log)
+    await client.generate('prompt')
+
+    expect(log.debug).toHaveBeenCalledWith(
+      expect.objectContaining({ promptEvalCount: 1200, evalCount: 512 }),
+      'ollama response parsed'
+    )
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'test-model', doneReason: 'length', promptEvalCount: 1200, evalCount: 512 }),
+      'ollama generation truncated'
+    )
+  })
 })

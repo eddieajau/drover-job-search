@@ -35,6 +35,7 @@ export function createRankConsumer(opts: {
     drain: () =>
       drain(opts.db, {
         client,
+        log: opts.log,
         onProgress: row => opts.log.debug({ jobId: row.jobId, title: row.title }, 'evaluated'),
         onError: (row, err) =>
           opts.log.warn({ jobId: row.jobId, err: err instanceof Error ? err.message : err }, 'inference skipped'),
@@ -98,55 +99,109 @@ function parseWhyList(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string').slice(0, MAX_WHY_BULLETS)
 }
 
-function parseLlmResponse(raw: string): LlmEvalResult | null {
-  try {
-    const parsed = JSON.parse(raw) as unknown
-    if (!isRecord(parsed) || !Array.isArray(parsed.gates) || !Array.isArray(parsed.dimensions)) {
-      return null
+// Thinking models sometimes wrap the JSON in leaked scaffolding (`<think>`
+// blocks, tool-call tokens, markdown fences), emit it twice, or truncate it
+// mid-object when the token budget runs out. Scan for top-level {...}
+// candidates and take the first that parses and validates instead of
+// requiring the whole payload to be clean JSON; a candidate left open at end
+// of input gets its missing closers (and any dangling string quote) repaired
+// before the attempt — shape validation still decides if it is usable.
+function* jsonCandidates(raw: string): Generator<string> {
+  const stack: string[] = []
+  let start = -1
+  let inString = false
+  let escape = false
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i]
+    if (inString) {
+      if (escape) escape = false
+      else if (ch === '\\') escape = true
+      else if (ch === '"') inString = false
+      continue
     }
-
-    const gates: GateVerdict[] = []
-    for (const gate of parsed.gates) {
-      if (!isRecord(gate) || !isGateName(gate.name) || typeof gate.passed !== 'boolean') {
-        return null
+    if (ch === '"') {
+      inString = true
+    } else if (ch === '{' || ch === '[') {
+      if (stack.length === 0) start = i
+      stack.push(ch)
+    } else if (ch === '}' || ch === ']') {
+      if (stack.pop() === undefined) start = -1
+      else if (stack.length === 0) {
+        yield raw.slice(start, i + 1)
+        start = -1
       }
-      gates.push({
-        name: gate.name,
-        passed: gate.passed,
-        score: typeof gate.score === 'number' ? gate.score : DEFAULT_GATE_SCORE,
-        reason: typeof gate.reason === 'string' ? gate.reason : '',
-      })
     }
+  }
 
-    const dimensions: DimensionScore[] = []
-    for (const dim of parsed.dimensions) {
-      if (
-        !isRecord(dim) ||
-        !isDimensionName(dim.name) ||
-        !SIGNAL_TYPES.includes(dim.signal_type as (typeof SIGNAL_TYPES)[number]) ||
-        typeof dim.score !== 'number' ||
-        !Array.isArray(dim.matched_keywords) ||
-        typeof dim.reason !== 'string'
-      ) {
-        return null
-      }
-      dimensions.push({
-        name: dim.name,
-        signal_type: dim.signal_type as DimensionScore['signal_type'],
-        score: clamp(dim.score, 0, 100),
-        matched_keywords: dim.matched_keywords.filter((k: unknown) => typeof k === 'string'),
-        reason: dim.reason,
-      })
+  // Truncated payload: repair by closing an open string, dropping a dangling
+  // escape, then appending the closers for whatever is still open.
+  if (start !== -1 && stack.length > 0) {
+    let candidate = escape ? raw.slice(start, -1) : raw.slice(start)
+    if (inString) candidate += '"'
+    for (const open of stack.reverse()) {
+      candidate += open === '{' ? '}' : ']'
     }
+    yield candidate
+  }
+}
 
-    return { gates, dimensions, strengths: parseWhyList(parsed.strengths), gaps: parseWhyList(parsed.gaps) }
-  } catch {
+function validateEval(parsed: unknown): LlmEvalResult | null {
+  if (!isRecord(parsed) || !Array.isArray(parsed.gates) || !Array.isArray(parsed.dimensions)) {
     return null
   }
+
+  const gates: GateVerdict[] = []
+  for (const gate of parsed.gates) {
+    if (!isRecord(gate) || !isGateName(gate.name) || typeof gate.passed !== 'boolean') {
+      return null
+    }
+    gates.push({
+      name: gate.name,
+      passed: gate.passed,
+      score: typeof gate.score === 'number' ? gate.score : DEFAULT_GATE_SCORE,
+      reason: typeof gate.reason === 'string' ? gate.reason : '',
+    })
+  }
+
+  const dimensions: DimensionScore[] = []
+  for (const dim of parsed.dimensions) {
+    if (
+      !isRecord(dim) ||
+      !isDimensionName(dim.name) ||
+      !SIGNAL_TYPES.includes(dim.signal_type as (typeof SIGNAL_TYPES)[number]) ||
+      typeof dim.score !== 'number' ||
+      !Array.isArray(dim.matched_keywords) ||
+      typeof dim.reason !== 'string'
+    ) {
+      return null
+    }
+    dimensions.push({
+      name: dim.name,
+      signal_type: dim.signal_type as DimensionScore['signal_type'],
+      score: clamp(dim.score, 0, 100),
+      matched_keywords: dim.matched_keywords.filter((k: unknown) => typeof k === 'string'),
+      reason: dim.reason,
+    })
+  }
+
+  return { gates, dimensions, strengths: parseWhyList(parsed.strengths), gaps: parseWhyList(parsed.gaps) }
+}
+
+function parseLlmResponse(raw: string): LlmEvalResult | null {
+  for (const candidate of jsonCandidates(raw)) {
+    try {
+      const result = validateEval(JSON.parse(candidate))
+      if (result) return result
+    } catch {
+      // Malformed candidate — try the next balanced block.
+    }
+  }
+  return null
 }
 
 export interface RankDrainOptions {
   client: OllamaClient
+  log?: Pick<FastifyBaseLogger, 'debug' | 'info' | 'warn' | 'error'>
   limit?: number
   onProgress?: (row: PendingRow) => void
   onError?: (row: PendingRow, err: unknown) => void
@@ -251,6 +306,7 @@ async function evaluateJob(
 
   const result = parseLlmResponse(raw)
   if (!result) {
+    opts.log?.error({ jobId: row.jobId, raw }, 'invalid LLM response')
     fail(db, row.queueId, 'invalid LLM response')
     opts.onError?.(row, new Error('invalid LLM response'))
     return 'skipped'
@@ -306,5 +362,6 @@ async function evaluateJob(
 
   complete(db, row.queueId)
   opts.onProgress?.(row)
+  opts.log?.info({ jobId: row.jobId, title: row.title }, 'job ranked')
   return 'written'
 }
