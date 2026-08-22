@@ -379,7 +379,10 @@ describe('rank-job-details drain', () => {
     const result = await drain(db, { client: mockClient(documentedResponse), log })
 
     expect(result).toEqual({ written: 1, skipped: 0, failed: 0 })
-    expect(log.info).toHaveBeenCalledWith({ jobId, title: 'Test Job' }, 'job ranked')
+    expect(log.info).toHaveBeenCalledWith(
+      { jobId, title: 'Test Job', llmMs: expect.any(Number), parseMs: expect.any(Number), totalMs: expect.any(Number) },
+      'job ranked'
+    )
   })
 
   it('parses valid JSON wrapped in leaked thinking-model scaffolding', async () => {
@@ -746,7 +749,7 @@ describe('createRankConsumer', () => {
     expect(mockOllama.generate).toHaveBeenCalledOnce()
     const queue = db.select().from(analysisQueue).get()!
     expect(queue.completedAt).not.toBeNull()
-    expect(log.debug).toHaveBeenCalledWith({ jobId: expect.any(Number), title: 'Test Job' }, 'evaluated')
+    expect(log.info).toHaveBeenCalledWith({ jobId: expect.any(Number), providerJobId: '123456' }, 'evaluating job')
     db.$client.close()
   })
 })

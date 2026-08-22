@@ -47,13 +47,17 @@ export class RankParseError extends Error {
   }
 }
 
-// Collapse whitespace and cap the snippet so error messages stay readable.
+// Collapse whitespace and cap each snippet so error messages stay readable,
+// while carrying both ends of the payload — the head confirms what the model
+// began with and the tail usually holds the evidence (truncation, leaked
+// scaffolding, premature stop).
 const SNIPPET_LENGTH = 120
 
-function snippet(raw: string): string {
+function describePayload(raw: string): string {
   const flat = raw.replace(/\s+/g, ' ').trim()
-  if (flat === '') return '(empty)'
-  return flat.length > SNIPPET_LENGTH ? `${flat.slice(0, SNIPPET_LENGTH)}…` : flat
+  if (flat === '') return 'len=0 body="(empty)"'
+  if (flat.length <= SNIPPET_LENGTH * 2) return `len=${raw.length} body="${flat}"`
+  return `len=${raw.length} head="${flat.slice(0, SNIPPET_LENGTH)}…" tail="…${flat.slice(-SNIPPET_LENGTH)}"`
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -177,5 +181,5 @@ export function parseLlmResponse(raw: string): LlmEvalResult {
       // Malformed candidate — try the next balanced block.
     }
   }
-  throw new RankParseError(`no valid eval JSON in LLM response: ${snippet(raw)}`)
+  throw new RankParseError(`no valid eval JSON in LLM response (${describePayload(raw)})`)
 }

@@ -71,17 +71,32 @@ describe('parseLlmResponse', () => {
   })
 
   it('includes a snippet of the raw payload in the error message', () => {
-    expect(() => parseLlmResponse('utter garbage')).toThrow(/utter garbage/)
+    expect(() => parseLlmResponse('utter garbage')).toThrow(/len=13 body="utter garbage"/)
   })
 
-  it('truncates long payloads in the error message snippet', () => {
+  it('reports both ends of a long payload so truncation is visible', () => {
+    const long = `${'x'.repeat(200)}MIDDLE${'y'.repeat(200)}`
+    try {
+      parseLlmResponse(long)
+      expect.unreachable()
+    } catch (err) {
+      expect(err).toBeInstanceOf(RankParseError)
+      const message = (err as Error).message
+      expect(message).toContain(`len=${long.length}`)
+      expect(message).toContain('x'.repeat(50))
+      expect(message).toContain('y'.repeat(50))
+      expect(message).not.toContain('MIDDLE')
+    }
+  })
+
+  it('caps each end of a long payload to keep the message readable', () => {
     const long = 'x'.repeat(500)
     try {
       parseLlmResponse(long)
       expect.unreachable()
     } catch (err) {
       expect(err).toBeInstanceOf(RankParseError)
-      expect((err as Error).message.length).toBeLessThan(200)
+      expect((err as Error).message.length).toBeLessThan(400)
     }
   })
 })
